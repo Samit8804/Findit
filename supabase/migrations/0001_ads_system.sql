@@ -25,6 +25,51 @@ create table if not exists public.categories (
   created_at timestamptz not null default now()
 );
 
+-- ---------- 2b. PROFILES (only if missing; preserves existing) ----------
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  name text,
+  email text,
+  phone text,
+  whatsapp text,
+  avatar_url text,
+  role text not null default 'user',
+  is_verified boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table public.profiles add column if not exists role text;
+alter table public.profiles add column if not exists is_verified boolean default false;
+alter table public.profiles add column if not exists whatsapp text;
+
+update public.profiles set role = 'user' where role is null;
+update public.profiles set is_verified = false where is_verified is null;
+
+alter table public.profiles enable row level security;
+drop policy if exists "profiles_public_read" on public.profiles;
+create policy "profiles_public_read" on public.profiles for select using (true);
+drop policy if exists "profiles_own_update" on public.profiles;
+create policy "profiles_own_update" on public.profiles for update using (auth.uid() = id);
+
+-- Auto-create a profile whenever a new user signs up
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, name, email)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    new.email
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
+
 -- ---------- 3. LOCATIONS (hierarchy) ----------
 create table if not exists public.locations (
   id uuid primary key default gen_random_uuid(),
