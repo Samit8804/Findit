@@ -27,7 +27,7 @@ export default function MessagesPage() {
   /* Subscription gate: free plan cannot access messaging */
   useEffect(() => {
     getMyProfile().then((p) => {
-      setHasAccess(p ? canUseMessaging(p.plan) : false);
+      setHasAccess(p ? canUseMessaging(p) : false);
       setPlanChecked(true);
     });
   }, []);
