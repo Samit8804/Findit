@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, MessageCircle, X as XIcon, Check, Send } from 'lucide-react';
+import { Phone, MessageCircle, X as XIcon, Check, Send, Lock } from 'lucide-react';
 
 interface ContactButtonsProps {
   phone?: string;

@@ -12,6 +12,7 @@ import { ShareButton } from '@/components/share/ShareButton';
 import { SellerCard, SafetyTipsCard } from '@/components/listings/SellerCard';
 import { ContactButtons } from '@/components/listings/ContactButtons';
 import { ListingCard } from '@/components/listings/ListingCard';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 import {
   getPublicAdBySlug,
   listPublicAds,
