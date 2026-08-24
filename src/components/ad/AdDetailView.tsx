@@ -52,7 +52,7 @@ export default function AdDetailView() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    getMyProfile().then((p) => setMessagingLocked(p ? !canUseMessaging(p.plan) : true));
+    getMyProfile().then((p) => setMessagingLocked(p ? !canUseMessaging(p) : true));
   }, []);
 
   useEffect(() => {
