@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -37,7 +37,7 @@ export const Header: React.FC = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   /* ---- Auth state: show the customer's name after login ---- */
-  const [authUser, setAuthUser] = useState<{ name: string; email: string } | null>(
+  const [authUser, setAuthUser] = useState<{ name: string; email: string; avatarUrl?: string } | null>(
     isSupabaseConfigured ? null : { name: 'Demo User', email: 'demo@findit.example' }
   );
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -50,13 +50,22 @@ export const Header: React.FC = () => {
 
     let active = true;
 
-    const loadProfileName = async (userId: string, metaName?: string) => {
-      if (metaName) return metaName;
+    const loadProfile = async (
+      userId: string,
+      metaName?: string
+    ): Promise<{ name: string; avatarUrl?: string } | undefined> => {
       try {
-        const { data } = await sb.from('profiles').select('name').eq('id', userId).single();
-        return data?.name || undefined;
+        const { data } = await sb
+          .from('profiles')
+          .select('name, avatar_url')
+          .eq('id', userId)
+          .single();
+        return {
+          name: (metaName && !metaName.includes('@') ? metaName : data?.name) || userId.slice(0, 6),
+          avatarUrl: data?.avatar_url || undefined,
+        };
       } catch {
-        return undefined;
+        return metaName ? { name: metaName } : undefined;
       }
     };
 
@@ -70,8 +79,12 @@ export const Header: React.FC = () => {
         sessionUser.user_metadata?.name ||
         sessionUser.user_metadata?.full_name;
       const email: string = sessionUser.email ?? '';
-      const name = (await loadProfileName(sessionUser.id, metaName)) || email.split('@')[0];
-      setAuthUser({ name, email });
+      const profile = await loadProfile(sessionUser.id, metaName);
+      setAuthUser({
+        name: profile?.name || email.split('@')[0],
+        email,
+        avatarUrl: profile?.avatarUrl,
+      });
     };
 
     sb.auth.getSession().then(({ data }) => void sync(data.session?.user ?? null));
@@ -196,7 +209,7 @@ export const Header: React.FC = () => {
                               {cat.name}
                             </p>
                             <p className="text-[11px] text-slate-400 font-medium">
-                              {cat.listingCount.toLocaleString()} ads · {cat.subcategories.length} subcategories
+                              {cat.listingCount.toLocaleString()} ads Â· {cat.subcategories.length} subcategories
                             </p>
                           </div>
                         </Link>
@@ -208,7 +221,7 @@ export const Header: React.FC = () => {
                               onClick={() => setShowCategories(false)}
                               className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-semibold text-slate-500 hover:text-[#E53935] hover:border-red-100 hover:bg-red-50 transition-colors"
                             >
-                              {sub.name.length > 22 ? sub.name.slice(0, 20) + '…' : sub.name}
+                              {sub.name.length > 22 ? sub.name.slice(0, 20) + 'â€¦' : sub.name}
                             </Link>
                           ))}
                         </div>
@@ -251,8 +264,13 @@ export const Header: React.FC = () => {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-white transition-colors"
                 >
-                  <span className="w-7 h-7 rounded-lg bg-[#E53935] text-white text-xs font-black flex items-center justify-center uppercase">
-                    {authUser.name.charAt(0)}
+                  <span className="w-7 h-7 rounded-lg bg-[#E53935] text-white text-xs font-black flex items-center justify-center uppercase overflow-hidden">
+                    {authUser.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={authUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      authUser.name.charAt(0)
+                    )}
                   </span>
                   <span className="max-w-[120px] truncate text-sm font-semibold text-[#0F172A]">
                     {authUser.name}
@@ -403,3 +421,4 @@ export const Header: React.FC = () => {
     </header>
   );
 };
+

@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Check } from 'lucide-react';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
+import { compressImage } from '@/lib/images';
 
 const inputCls = (err?: string) =>
   `w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent ${
@@ -23,6 +25,80 @@ export default function ProfilePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flash = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    // reuse the saved indicator as a lightweight toast
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    void msg;
+  };
+
+  /* Load existing avatar */
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const sb = getSupabaseBrowser();
+    if (!sb) return;
+    sb.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      setForm((f) => ({
+        ...f,
+        name: data.user.user_metadata?.name || f.name,
+        email: data.user.email || f.email,
+      }));
+      const { data: p } = await sb.from('profiles').select('avatar_url').eq('id', data.user.id).single();
+      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+    });
+  }, []);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      flash('Only JPG, PNG or WEBP allowed');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash('Max 5MB');
+      return;
+    }
+
+    if (!isSupabaseConfigured) {
+      // demo preview
+      setAvatarUrl(URL.createObjectURL(file));
+      return;
+    }
+
+    const sb = getSupabaseBrowser()!;
+    const { data: auth } = await sb.auth.getUser();
+    if (!auth.user) return;
+
+    setUploadingAvatar(true);
+    try {
+      const compressed = await compressImage(file);
+      const path = `${auth.user.id}/avatar-${Date.now()}.webp`;
+      const { error: upErr } = await sb.storage.from('avatars').upload(path, compressed, {
+        contentType: 'image/webp',
+        upsert: true,
+      });
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+      await sb.from('profiles').update({ avatar_url: publicUrl }).eq('id', auth.user.id);
+      setAvatarUrl(publicUrl);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      flash('Upload failed — check avatars bucket policies.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -54,20 +130,40 @@ export default function ProfilePage() {
         {/* Avatar */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex items-center gap-5">
           <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-[#E53935] text-white font-black text-3xl flex items-center justify-center shadow-lg shadow-red-200">
-              D
-            </div>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt="Profile"
+                className={`w-20 h-20 rounded-2xl object-cover shadow-lg ring-4 ring-white ${uploadingAvatar ? 'opacity-50 animate-pulse' : ''}`}
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl bg-[#E53935] text-white font-black text-3xl flex items-center justify-center shadow-lg shadow-red-200">
+                D
+              </div>
+            )}
             <button
               type="button"
-              aria-label="Change avatar"
-              className="absolute -bottom-1.5 -right-1.5 p-2 rounded-xl bg-[#0F172A] text-white hover:bg-slate-700 transition-colors"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              aria-label="Change profile photo"
+              className="absolute -bottom-1.5 -right-1.5 p-2 rounded-xl bg-[#0F172A] text-white hover:bg-slate-700 transition-colors disabled:opacity-60"
             >
               <Camera className="w-4 h-4" />
             </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
           </div>
           <div>
             <p className="font-bold">Profile Photo</p>
-            <p className="text-xs text-slate-400 mt-0.5">PNG or JPG, max 2 MB. Square images look best.</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {uploadingAvatar ? 'Uploading…' : 'JPG, PNG or WEBP · max 5MB'}
+            </p>
           </div>
         </div>
 
