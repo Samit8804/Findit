@@ -1,16 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Paperclip, SendHorizonal, Search, Phone, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ArrowLeft,
+  Paperclip,
+  SendHorizonal,
+  Search,
+  Phone,
+  ChevronRight,
+  Lock,
+} from 'lucide-react';
 import { conversations as seedConversations, Conversation } from '@/data/accountData';
+import { getMyProfile, canUseMessaging } from '@/services/profile';
 
 export default function MessagesPage() {
+  const [planChecked, setPlanChecked] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [convos, setConvos] = useState<Conversation[]>(seedConversations);
   const [activeId, setActiveId] = useState<string>(seedConversations[0]?.id || '');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  /* Subscription gate: free plan cannot access messaging */
+  useEffect(() => {
+    getMyProfile().then((p) => {
+      setHasAccess(p ? canUseMessaging(p.plan) : false);
+      setPlanChecked(true);
+    });
+  }, []);
 
   const active = convos.find((c) => c.id === activeId) || convos[0];
   const filtered = convos.filter(
@@ -45,6 +65,25 @@ export default function MessagesPage() {
         <p className="text-xs text-slate-500 mt-1">Chat with buyers and sellers in real time.</p>
       </div>
 
+      {/* Free-plan gate */}
+      {planChecked && !hasAccess ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-[#E53935] mb-4">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold mb-1.5">Messaging is a subscription feature</h3>
+          <p className="text-sm text-slate-500 max-w-md mb-7 leading-relaxed">
+            Upgrade to the <strong>BUSINESS</strong> or <strong>BUSINESS PRO</strong> plan to chat
+            with buyers, receive enquiries and close deals faster.
+          </p>
+          <Link
+            href="/pricing"
+            className="px-6 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold shadow-lg shadow-red-200 transition-colors"
+          >
+            View Plans &amp; Pricing
+          </Link>
+        </div>
+      ) : (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] h-[600px]">
           {/* Conversation list */}
@@ -181,6 +220,7 @@ export default function MessagesPage() {
           </section>
         </div>
       </div>
+      )}
     </div>
   );
 }

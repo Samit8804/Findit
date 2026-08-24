@@ -8,12 +8,14 @@ interface ContactButtonsProps {
   phone?: string;
   sellerName: string;
   adTitle: string;
+  messageLocked?: boolean;
 }
 
 export const ContactButtons: React.FC<ContactButtonsProps> = ({
   phone = '+91 98765 43210',
   sellerName,
   adTitle,
+  messageLocked = false,
 }) => {
   const [msgOpen, setMsgOpen] = useState(false);
   const [message, setMessage] = useState(`Hi, I'm interested in "${adTitle}". Is it still available?`);
@@ -56,12 +58,22 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
         >
           <MessageCircle className="w-4 h-4" /> WhatsApp
         </a>
-        <button
-          onClick={() => setMsgOpen(true)}
-          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-semibold transition-colors"
-        >
-          <Send className="w-4 h-4" /> Message
-        </button>
+        {messageLocked ? (
+          <a
+            href="/pricing"
+            className="flex items-center justify-center gap-1.5 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-[#0F172A] text-sm font-bold transition-colors"
+            title="Messaging requires a Business plan"
+          >
+            <Lock className="w-4 h-4" /> Message
+          </a>
+        ) : (
+          <button
+            onClick={() => setMsgOpen(true)}
+            className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-semibold transition-colors"
+          >
+            <Send className="w-4 h-4" /> Message
+          </button>
+        )}
       </div>
 
       <AnimatePresence>
