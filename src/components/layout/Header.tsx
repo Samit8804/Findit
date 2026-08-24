@@ -19,6 +19,7 @@ import {
 import { Button } from '../ui/Button';
 import { locations, categories } from '@/data/mockData';
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
+import { useUnread } from '@/components/providers/UnreadProvider';
 
 function CategoryIcon({ name }: { name: string }) {
   const Icon =
@@ -42,6 +43,7 @@ export const Header: React.FC = () => {
   );
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unread = useUnread();
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -258,8 +260,19 @@ export const Header: React.FC = () => {
             <Link href="/dashboard/favorites" className="hover:text-[#E53935] transition-colors flex items-center gap-1.5">
               <Heart className="w-4 h-4" /> Favourites
             </Link>
-            <Link href="/dashboard/messages" className="hover:text-[#E53935] transition-colors flex items-center gap-1.5">
+            <Link href="/dashboard/messages" className={`relative hover:text-[#E53935] transition-colors flex items-center gap-1.5 ${unread.messages > 0 ? 'text-[#0F172A]' : ''}`}>
               <MessageSquare className="w-4 h-4" /> Messages
+              {unread.messages > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#E53935] text-white text-[10px] font-bold flex items-center justify-center">
+                  {unread.messages > 99 ? '99+' : unread.messages}
+                </span>
+              )}
+            </Link>
+            <Link href="/dashboard/notifications" title="Notifications" className="relative p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors">
+              <Icons.Bell className="w-4.5 h-4.5" />
+              {unread.notifications > 0 && (
+                <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[#E53935] ring-2 ring-white" />
+              )}
             </Link>
           </nav>
 

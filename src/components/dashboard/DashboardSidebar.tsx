@@ -16,6 +16,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import { useUnread } from '@/components/providers/UnreadProvider';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,14 +32,21 @@ const NAV = [
 export const DashboardSidebar: React.FC<{ userName?: string }> = ({ userName = 'Demo' }) => {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const unread = useUnread();
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
+
+  const badgeFor = (href: string): number =>
+    href === '/dashboard/messages' ? unread.messages
+    : href === '/dashboard/notifications' ? unread.notifications
+    : 0;
 
   const links = (
     <nav className="flex flex-col gap-1" aria-label="Dashboard navigation">
       {NAV.map((item) => {
         const active = isActive(item.href);
+        const count = badgeFor(item.href);
         return (
           <Link
             key={item.href}
@@ -52,6 +60,13 @@ export const DashboardSidebar: React.FC<{ userName?: string }> = ({ userName = '
           >
             <item.icon className="w-4 h-4 shrink-0" />
             {item.label}
+            {count > 0 && (
+              <span className={`ml-auto min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                active ? 'bg-white text-[#E53935]' : 'bg-[#E53935] text-white'
+              }`}>
+                {count > 99 ? '99+' : count}
+              </span>
+            )}
           </Link>
         );
       })}

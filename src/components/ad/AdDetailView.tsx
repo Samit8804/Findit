@@ -12,7 +12,7 @@ import { ShareButton } from '@/components/share/ShareButton';
 import { SellerCard, SafetyTipsCard } from '@/components/listings/SellerCard';
 import { ContactButtons } from '@/components/listings/ContactButtons';
 import { ListingCard } from '@/components/listings/ListingCard';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
   getPublicAdBySlug,
   listPublicAds,
@@ -49,6 +49,15 @@ export default function AdDetailView() {
   const [fav, setFav] = useState(false);
   const [similar, setSimilar] = useState<PublicAd[]>([]);
   const [messagingLocked, setMessagingLocked] = useState(!isSupabaseConfigured ? false : null);
+  const [isOwnAd, setIsOwnAd] = useState(false);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    Promise.all([getMyProfile(), getSupabaseBrowser()!.auth.getUser()]).then(([p, auth]) => {
+      setMessagingLocked(p ? !canUseMessaging(p) : true);
+      setIsOwnAd(!!p && !!auth.data.user && p.id === auth.data.user.id);
+    });
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -271,10 +280,15 @@ export default function AdDetailView() {
 
                 {ad.seller.allowMessages ? (
                   <ContactButtons
-                    phone={ad.seller.showPhone ? ad.seller.phone : undefined}
+                    adId={ad.id}
+                    sellerUserId={ad.seller.id}
+                    sellerSlug={ad.slug}
                     sellerName={ad.seller.name}
                     adTitle={ad.title}
+                    phone={ad.seller.showPhone ? ad.seller.phone : undefined}
+                    whatsapp={ad.seller.showWhatsApp ? ad.seller.whatsapp : undefined}
                     messageLocked={messagingLocked === true}
+                    isOwnAd={isOwnAd}
                   />
                 ) : (
                   <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl">The seller prefers email contact only.</p>

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Feedback";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { AuthGate } from "@/components/auth/AuthGate";
+import { UnreadProvider } from "@/components/providers/UnreadProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,10 +33,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <ToastProvider>
-          <AuthGate>{children}</AuthGate>
-          {/* Spacer so fixed bottom nav never covers footer content on mobile */}
-          <div className="h-16 md:hidden" aria-hidden />
-          <MobileBottomNav />
+          <UnreadProvider>
+            <AuthGate>{children}</AuthGate>
+            {/* Spacer so fixed bottom nav never covers footer content on mobile */}
+            <div className="h-16 md:hidden" aria-hidden />
+            <MobileBottomNav />
+          </UnreadProvider>
         </ToastProvider>
       </body>
     </html>

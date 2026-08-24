@@ -295,9 +295,9 @@ end;
 $$;
 
 -- Notification writer used by moderation flow
-create or replace function public.notify_user(p_user uuid, p_type text, p_title text, p_body text default null)
+create or replace function public.notify_user(p_user uuid, p_type text, p_title text, p_body text default null, p_data jsonb default '{}'::jsonb)
 returns void language sql security definer set search_path = public as $$
-  insert into public.notifications(user_id, type, title, body) values (p_user, p_type, p_title, p_body);
+  insert into public.notifications (user_id, type, title, body, data) values (p_user, p_type, p_title, p_body, p_data);
 $$;
 
 -- ============================================================

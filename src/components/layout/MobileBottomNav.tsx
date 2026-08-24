@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Compass, PlusCircle, MessageSquare, UserRound } from 'lucide-react';
+import { useUnread } from '@/components/providers/UnreadProvider';
 
 const ITEMS = [
   { href: '/', label: 'Home', icon: Home },
@@ -15,6 +16,7 @@ const ITEMS = [
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const unread = useUnread();
 
   // Hide on admin console and auth screens
   if (
@@ -55,7 +57,7 @@ export function MobileBottomNav() {
           }
           const active = isActive(item.href);
           return (
-            <li key={item.href}>
+            <li key={item.href} className="relative">
               <Link
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
@@ -63,7 +65,17 @@ export function MobileBottomNav() {
                   active ? 'text-[#E53935]' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
-                <item.icon className="w-5 h-5" />
+                <span className="relative">
+                  <item.icon className="w-5 h-5" />
+                  {item.href === '/dashboard/messages' && unread.messages > 0 && (
+                    <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-[#E53935] text-white text-[9px] font-bold flex items-center justify-center">
+                      {unread.messages > 9 ? '9+' : unread.messages}
+                    </span>
+                  )}
+                  {item.href === '/dashboard/profile' && unread.notifications > 0 && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-[#E53935]" />
+                  )}
+                </span>
                 <span className="text-[10px] font-semibold">{item.label}</span>
               </Link>
             </li>

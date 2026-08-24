@@ -453,13 +453,32 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     .neq('status', 'deleted');
   if (error) throw new Error(error.message);
   const rows = data || [];
+
+  // Real unread message count across my conversations
+  let messages = 0;
+  if (!error) {
+    const { data: convs } = await sb!
+      .from('conversations')
+      .select('id')
+      .or(`buyer_id.eq.${auth.user.id},seller_id.eq.${auth.user.id}`);
+    if (convs && convs.length > 0) {
+      const { count } = await sb!
+        .from('messages')
+        .select('id', { count: 'exact' })
+        .in('conversation_id', convs.map((c: any) => c.id))
+        .neq('sender_id', auth.user.id)
+        .eq('is_read', false);
+      messages = count ?? 0;
+    }
+  }
+
   return {
     total: rows.length,
     active: rows.filter((r: any) => r.status === 'approved').length,
     pending: rows.filter((r: any) => r.status === 'pending' || r.status === 'draft').length,
     views: rows.reduce((s: number, r: any) => s + (r.views_count || 0), 0),
     favorites: rows.reduce((s: number, r: any) => s + (r.favorites_count || 0), 0),
-    messages: 0, // chat phase
+    messages,
   };
 }
 
@@ -546,16 +565,17 @@ export async function moderateAd(
     metadata: { reason: reason ?? null },
   });
 
-  // Notify seller — need owner id
-  const { data: row } = await sb.from('ads').select('user_id').eq('id', ad.id).single();
+  // Notify seller — need owner id + slug for click-through
+  const { data: row } = await sb.from('ads').select('user_id, slug').eq('id', ad.id).single();
   if (row) {
     await sb.rpc('notify_user', {
       p_user: row.user_id,
-      p_type: action === 'approve' ? 'approved' : 'rejected',
+      p_type: action === 'approve' ? 'ad_approved' : 'ad_rejected',
       p_title: action === 'approve'
         ? 'Your advertisement has been approved and is now live.'
         : `Your advertisement was rejected because: ${reason}`,
       p_body: ad.title,
+      p_data: { ad_slug: row.slug },
     });
   }
 }
