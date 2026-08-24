@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import * as Icons from 'lucide-react';
 import {
   MapPin,
@@ -13,9 +14,11 @@ import {
   X,
   ChevronDown,
   ArrowRight,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { locations, categories } from '@/data/mockData';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 
 function CategoryIcon({ name }: { name: string }) {
   const Icon =
@@ -25,21 +28,82 @@ function CategoryIcon({ name }: { name: string }) {
 }
 
 export const Header: React.FC = () => {
+  const router = useRouter();
   const [selectedLocation, setSelectedLocation] = useState('Noida');
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const categoriesRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
+  /* ---- Auth state: show the customer's name after login ---- */
+  const [authUser, setAuthUser] = useState<{ name: string; email: string } | null>(
+    isSupabaseConfigured ? null : { name: 'Demo User', email: 'demo@findit.example' }
+  );
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const sb = getSupabaseBrowser();
+    if (!sb) return;
+
+    let active = true;
+
+    const loadProfileName = async (userId: string, metaName?: string) => {
+      if (metaName) return metaName;
+      try {
+        const { data } = await sb.from('profiles').select('name').eq('id', userId).single();
+        return data?.name || undefined;
+      } catch {
+        return undefined;
+      }
+    };
+
+    const sync = async (sessionUser: any | null) => {
+      if (!active) return;
+      if (!sessionUser) {
+        setAuthUser(null);
+        return;
+      }
+      const metaName: string | undefined =
+        sessionUser.user_metadata?.name ||
+        sessionUser.user_metadata?.full_name;
+      const email: string = sessionUser.email ?? '';
+      const name = (await loadProfileName(sessionUser.id, metaName)) || email.split('@')[0];
+      setAuthUser({ name, email });
+    };
+
+    sb.auth.getSession().then(({ data }) => void sync(data.session?.user ?? null));
+    const { data: sub } = sb.auth.onAuthStateChange((_e, session) => void sync(session?.user ?? null));
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  /* Close menus on outside click */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (categoriesRef.current && !categoriesRef.current.contains(e.target as Node)) {
         setShowCategories(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const handleSignOut = async () => {
+    setShowUserMenu(false);
+    if (isSupabaseConfigured) {
+      await getSupabaseBrowser()?.auth.signOut();
+    }
+    router.replace('/login');
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs">
@@ -181,9 +245,49 @@ export const Header: React.FC = () => {
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/login" className="text-sm font-semibold text-slate-700 hover:text-[#E53935] flex items-center gap-1.5 transition-colors">
-              <User className="w-4 h-4" /> Login
-            </Link>
+            {authUser ? (
+              <div ref={userMenuRef} className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-white transition-colors"
+                >
+                  <span className="w-7 h-7 rounded-lg bg-[#E53935] text-white text-xs font-black flex items-center justify-center uppercase">
+                    {authUser.name.charAt(0)}
+                  </span>
+                  <span className="max-w-[120px] truncate text-sm font-semibold text-[#0F172A]">
+                    {authUser.name}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showUserMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50">
+                    <div className="px-4 py-2.5 border-b border-slate-100">
+                      <p className="text-sm font-bold truncate">{authUser.name}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{authUser.email}</p>
+                    </div>
+                    <Link href="/dashboard" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-[#E53935] transition-colors">
+                      <Icons.LayoutDashboard className="w-4 h-4" /> Dashboard
+                    </Link>
+                    <Link href="/dashboard/my-ads" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-[#E53935] transition-colors">
+                      <Icons.Layers className="w-4 h-4" /> My Ads
+                    </Link>
+                    <Link href="/dashboard/favorites" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-[#E53935] transition-colors">
+                      <Heart className="w-4 h-4" /> Favourites
+                    </Link>
+                    <div className="border-t border-slate-100 mt-1 pt-1">
+                      <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-[#D32F2F] hover:bg-red-50 transition-colors">
+                        <LogOut className="w-4 h-4" /> Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/login" className="text-sm font-semibold text-slate-700 hover:text-[#E53935] flex items-center gap-1.5 transition-colors">
+                <User className="w-4 h-4" /> Login
+              </Link>
+            )}
             <Link href="/post-ad">
               <Button variant="primary" size="md" className="gap-2 shadow-md">
                 <PlusCircle className="w-4 h-4" /> Post an Ad
@@ -263,13 +367,36 @@ export const Header: React.FC = () => {
             >
               <MessageSquare className="w-4 h-4" /> Messages
             </Link>
-            <Link
-              href="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="hover:text-[#E53935] py-2 flex items-center gap-2"
-            >
-              <User className="w-4 h-4" /> Login / Register
-            </Link>
+            {authUser ? (
+              <>
+                <div className="flex items-center gap-3 px-1 pt-2 pb-1">
+                  <span className="w-9 h-9 rounded-xl bg-[#E53935] text-white text-sm font-black flex items-center justify-center uppercase">
+                    {authUser.name.charAt(0)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate">{authUser.name}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{authUser.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    void handleSignOut();
+                  }}
+                  className="flex items-center gap-2 text-sm font-semibold text-[#D32F2F] py-2"
+                >
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="hover:text-[#E53935] py-2 flex items-center gap-2"
+              >
+                <User className="w-4 h-4" /> Login / Register
+              </Link>
+            )}
           </div>
         </div>
       )}

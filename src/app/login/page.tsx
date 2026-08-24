@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { AuthShell } from '@/components/auth/AuthShell';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import { Eye, EyeOff, Check } from 'lucide-react';
 
 export default function LoginPage() {
@@ -22,15 +23,35 @@ export default function LoginPage() {
     return Object.keys(e).length === 0;
   };
 
-  const submit = (ev: React.FormEvent) => {
+  const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    setTimeout(() => {
+
+    /* Demo mode without backend keys */
+    if (!isSupabaseConfigured) {
+      setTimeout(() => {
+        setLoading(false);
+        setSuccess(true);
+        setTimeout(() => (window.location.href = '/dashboard'), 1000);
+      }, 900);
+      return;
+    }
+
+    const sb = getSupabaseBrowser()!;
+    const { error: authError } = await sb.auth.signInWithPassword({ email, password });
+
+    if (authError) {
       setLoading(false);
-      setSuccess(true);
-      setTimeout(() => (window.location.href = '/dashboard/my-ads'), 1200);
-    }, 1200);
+      const msg = authError.message.toLowerCase().includes('login')
+        ? 'Invalid email or password.'
+        : authError.message;
+      setErrors({ form: msg });
+      return;
+    }
+
+    setSuccess(true);
+    setTimeout(() => (window.location.href = remember ? '/dashboard' : '/dashboard'), 800);
   };
 
   return (
@@ -94,6 +115,12 @@ export default function LoginPage() {
           />
           <span className="text-xs text-slate-600">Remember me on this device</span>
         </label>
+
+        {errors.form && (
+          <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-[#D32F2F]">
+            {errors.form}
+          </div>
+        )}
 
         <button
           type="submit"

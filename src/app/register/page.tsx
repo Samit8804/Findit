@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AuthShell } from '@/components/auth/AuthShell';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import { Eye, EyeOff, Check } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -44,15 +45,40 @@ export default function RegisterPage() {
     return Object.keys(e).length === 0;
   };
 
-  const submit = (ev: React.FormEvent) => {
+  const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!validate()) return;
     setLoading(true);
+
+    /* Demo mode without backend keys */
+    if (!isSupabaseConfigured) {
+      setTimeout(() => {
+        setLoading(false);
+        setSuccess(true);
+        setTimeout(() => (window.location.href = '/auth/verify-email'), 1000);
+      }, 1000);
+      return;
+    }
+
+    const sb = getSupabaseBrowser()!;
+    const { data, error: authError } = await sb.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: { data: { name: form.fullName, phone: form.phone } },
+    });
+
+    setLoading(false);
+
+    if (authError) {
+      setErrors({ form: authError.message });
+      return;
+    }
+
+    // Session exists immediately when email confirmation is disabled
+    setSuccess(true);
     setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-      setTimeout(() => (window.location.href = '/auth/verify-email'), 1200);
-    }, 1300);
+      window.location.href = data.session ? '/dashboard' : '/auth/verify-email';
+    }, 900);
   };
 
   const inputCls = (err?: string) =>
