@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -89,12 +90,30 @@ export default function ProfilePage() {
       if (upErr) throw upErr;
       const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
       const publicUrl = urlData.publicUrl;
-      await sb.from('profiles').update({ avatar_url: publicUrl }).eq('id', auth.user.id);
-      setAvatarUrl(publicUrl);
+
+      // Bust cache so the new photo shows immediately
+      const cachedUrl = `${publicUrl}?v=${Date.now()}`;
+
+      const { error: profErr } = await sb
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', auth.user.id);
+      if (profErr) throw profErr;
+
+      setAvatarUrl(cachedUrl);
       setSaved(true);
+      // Tell the header to refresh the avatar instantly
+      window.dispatchEvent(new CustomEvent('avatar-updated'));
       setTimeout(() => setSaved(false), 2000);
-    } catch {
-      flash('Upload failed — check avatars bucket policies.');
+    } catch (e: any) {
+      const msg = e?.message || '';
+      setAvatarError(
+        msg.includes('does not exist') || msg.includes('Bucket')
+          ? 'Storage bucket "avatars" is missing — run migration 0003.'
+          : msg.includes('row-level') || msg.includes('permission')
+          ? "You don't have permission to upload."
+          : `Upload failed: ${msg || 'please try again.'}`
+      );
     } finally {
       setUploadingAvatar(false);
     }
@@ -161,9 +180,13 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="font-bold">Profile Photo</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {uploadingAvatar ? 'Uploading…' : 'JPG, PNG or WEBP · max 5MB'}
-            </p>
+            {avatarError ? (
+              <p role="alert" className="text-xs text-[#D32F2F] font-semibold mt-0.5 max-w-[220px]">{avatarError}</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-0.5">
+                {uploadingAvatar ? 'Uploading…' : 'JPG, PNG or WEBP · max 5MB'}
+              </p>
+            )}
           </div>
         </div>
 
