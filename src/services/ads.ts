@@ -454,22 +454,26 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   if (error) throw new Error(error.message);
   const rows = data || [];
 
+  const { data: authData } = await sb.auth.getUser();
+  if (!authData.user) {
+    return { total: rows.length, active: 0, pending: 0, views: 0, favorites: 0, messages: 0 };
+  }
+  const uid = authData.user.id;
+
   // Real unread message count across my conversations
   let messages = 0;
-  if (!error) {
-    const { data: convs } = await sb!
-      .from('conversations')
-      .select('id')
-      .or(`buyer_id.eq.${auth.user.id},seller_id.eq.${auth.user.id}`);
-    if (convs && convs.length > 0) {
-      const { count } = await sb!
-        .from('messages')
-        .select('id', { count: 'exact' })
-        .in('conversation_id', convs.map((c: any) => c.id))
-        .neq('sender_id', auth.user.id)
-        .eq('is_read', false);
-      messages = count ?? 0;
-    }
+  const { data: convs } = await sb
+    .from('conversations')
+    .select('id')
+    .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`);
+  if (convs && convs.length > 0) {
+    const { count } = await sb
+      .from('messages')
+      .select('id', { count: 'exact' })
+      .in('conversation_id', convs.map((c: any) => c.id))
+      .neq('sender_id', uid)
+      .eq('is_read', false);
+    messages = count ?? 0;
   }
 
   return {
