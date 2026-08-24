@@ -44,3 +44,6 @@ next-env.d.ts
 server*.log
 # env
 .env*
+
+.dev-out.log
+.dev-err.log
