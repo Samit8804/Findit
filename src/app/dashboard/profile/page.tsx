@@ -106,14 +106,9 @@ export default function ProfilePage() {
       window.dispatchEvent(new CustomEvent('avatar-updated'));
       setTimeout(() => setSaved(false), 2000);
     } catch (e: any) {
-      const msg = e?.message || '';
-      setAvatarError(
-        msg.includes('does not exist') || msg.includes('Bucket')
-          ? 'Storage bucket "avatars" is missing — run migration 0003.'
-          : msg.includes('row-level') || msg.includes('permission')
-          ? "You don't have permission to upload."
-          : `Upload failed: ${msg || 'please try again.'}`
-      );
+      const raw = e?.message || e?.error || JSON.stringify(e);
+      console.error('AVATAR UPLOAD ERROR:', raw);
+      setAvatarError(`Upload failed: ${raw}`);
     } finally {
       setUploadingAvatar(false);
     }
