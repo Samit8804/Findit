@@ -1,16 +1,9 @@
 import React, { Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
 import CheckoutView from '@/components/payment/CheckoutView';
 
 interface PaymentByIdPageProps {
   params: Promise<{ orderId: string }>;
-}
-
-export function generateStaticParams() {
-  return [
-    { orderId: 'FND-ORD-8841' },
-    { orderId: 'FND-ORD-8610' },
-    { orderId: 'FND-ORD-9001' },
-  ];
 }
 
 export default async function PaymentByIdPage({ params }: PaymentByIdPageProps) {
@@ -19,7 +12,7 @@ export default async function PaymentByIdPage({ params }: PaymentByIdPageProps) 
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-          <p className="text-sm font-medium text-slate-400">Loading checkout...</p>
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
         </div>
       }
     >

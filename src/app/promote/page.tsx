@@ -1,16 +1,17 @@
 import React, { Suspense } from 'react';
-import PromoteAdView from '@/components/promote/PromoteAdView';
+import { Loader2 } from 'lucide-react';
+import PromoteView from '@/components/promote/PromoteView';
 
 export default function PromotePage() {
   return (
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-          <p className="text-sm font-medium text-slate-400">Loading promotion options...</p>
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
         </div>
       }
     >
-      <PromoteAdView />
+      <PromoteView />
     </Suspense>
   );
 }
