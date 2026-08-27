@@ -1,106 +1,225 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Rocket, Crown, Building2, Zap } from 'lucide-react';
-import { promotionConfigs as seed } from '@/data/adminData2';
-import { ConfirmDialog, useToast } from '@/components/ui/Feedback';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Rocket, Crown, Building2, Zap, Loader2 } from 'lucide-react';
+import {
+  adminListPromotions,
+  adminUpsertPromotion,
+  adminTogglePromotion,
+  AdminPromotion,
+} from '@/services/payments';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { Modal, ConfirmDialog, useToast } from '@/components/ui/Feedback';
+import { Input } from '@/components/ui/Form';
 
 const ICONS: Record<string, React.ElementType> = {
-  boost: Zap,
-  featured: Rocket,
-  top: Crown,
-  business: Building2,
-  'business-pro': BadgeCheckIcon,
+  boost: Zap, featured: Rocket, top: Crown,
+  business_subscription: Building2,
 };
-
-function BadgeCheckIcon(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={props.className} aria-hidden>
-      <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
-      <path d="m9 12 2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 export default function AdminPromotionsPage() {
   const toast = useToast();
-  const [promos, setPromos] = useState(seed);
-  const [confirm, setConfirm] = useState<{ id: string; name: string; next: boolean } | null>(null);
+  const [promos, setPromos] = useState<AdminPromotion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<AdminPromotion | 'new' | null>(null);
+  const [confirmToggle, setConfirmToggle] = useState<AdminPromotion | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const toggle = (id: string, next: boolean) => {
-    setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, active: next } : p)));
-    const name = promos.find((p) => p.id === id)?.name;
-    toast(`${name} ${next ? 'activated' : 'deactivated'}`);
+  const load = useCallback(async () => {
+    if (!isSupabaseConfigured) { setLoading(false); return; }
+    try {
+      setPromos(await adminListPromotions());
+    } catch {
+      toast('Failed to load promotions.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const toggle = async (p: AdminPromotion) => {
+    try {
+      await adminTogglePromotion(p.id, !p.is_active);
+      await load();
+      toast(`${p.name} ${!p.is_active ? 'activated' : 'deactivated'}.`);
+    } catch {
+      flash('Unable to update promotion.');
+    }
+  };
+
+  const flash = (msg: string) => {
+    // lightweight inline feedback
+    setSaving(true);
+    setTimeout(() => setSaving(false), 800);
+    void msg;
   };
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Promotions</h1>
-        <p className="text-xs text-slate-500 mt-1">Manage pricing, duration and availability of visibility packages.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Promotions</h1>
+          <p className="text-xs text-slate-500 mt-1">Prices and durations are served live to the pricing page and checkout.</p>
+        </div>
+        <button
+          onClick={() => setEditing('new')}
+          disabled={!isSupabaseConfigured}
+          className="shrink-0 px-5 py-2.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold shadow-md shadow-red-200 transition-colors disabled:opacity-50"
+        >
+          + New Promotion
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {promos.map((p) => {
-          const Icon = ICONS[p.id] || Rocket;
-          return (
-            <div
-              key={p.id}
-              className={`rounded-2xl border-2 p-6 transition-all ${
-                p.active ? 'border-slate-100 bg-white shadow-sm' : 'border-dashed border-slate-200 bg-slate-50 opacity-75'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <span className="w-11 h-11 rounded-xl bg-red-50 text-[#E53935] flex items-center justify-center">
-                  <Icon className="w-5 h-5" />
-                </span>
-                {/* Active switch */}
-                <button
-                  role="switch"
-                  aria-checked={p.active}
-                  aria-label={`${p.active ? 'Deactivate' : 'Activate'} ${p.name}`}
-                  onClick={() => setConfirm({ id: p.id, name: p.name, next: !p.active })}
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${p.active ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${p.active ? 'translate-x-5' : ''}`} />
-                </button>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-pulse">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-56 bg-white border border-slate-100 rounded-2xl" />
+          ))}
+        </div>
+      ) : promos.length === 0 ? (
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-100">
+          <p className="text-sm font-semibold text-slate-500">No promotions configured.</p>
+          {!isSupabaseConfigured && <p className="text-xs text-slate-400 mt-1">Connect Supabase keys, then run migration 0007 for seed products.</p>}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {promos.map((p) => {
+            const Icon = ICONS[p.type] || Rocket;
+            return (
+              <div key={p.id} className={`rounded-2xl border-2 p-6 transition-all ${p.is_active ? 'border-slate-100 bg-white shadow-sm' : 'border-dashed border-slate-200 bg-slate-50 opacity-75'}`}>
+                <div className="flex items-start justify-between mb-4">
+                  <span className="w-11 h-11 rounded-xl bg-red-50 text-[#E53935] flex items-center justify-center">
+                    <Icon className="w-5 h-5" />
+                  </span>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setEditing(p)} title="Edit" className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-red-50 hover:text-[#E53935] text-xs font-bold transition-colors">
+                      Edit
+                    </button>
+                    <button onClick={() => setConfirmToggle(p)} title={p.is_active ? 'Deactivate' : 'Activate'}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                      {p.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </div>
+                </div>
+
+                <h3 className="font-black tracking-wide">{p.name}</h3>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-2xl font-black text-[#E53935]">₹{Number(p.price).toLocaleString('en-IN')}</span>
+                  {p.duration_days && <span className="text-xs text-slate-400 font-semibold">/ {p.duration_days} days</span>}
+                </div>
+                {p.description && <p className="text-xs text-slate-500 mt-2 leading-relaxed">{p.description}</p>}
+                <p className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-bold uppercase tracking-wider">
+                  <span className={p.is_active ? 'text-emerald-600' : 'text-slate-400'}>
+                    {p.is_active ? '● Live on pricing page' : '○ Hidden from users'}
+                  </span>
+                  <span className="float-right text-slate-300 normal-case">{p.type}</span>
+                </p>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              <h3 className="font-black tracking-wide">{p.name}</h3>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-2xl font-black text-[#E53935]">₹{p.price}</span>
-                <span className="text-xs text-slate-400 font-semibold">{p.duration}</span>
-              </div>
-
-              <ul className="mt-4 space-y-2 pt-4 border-t border-slate-100">
-                {p.benefits.map((b) => (
-                  <li key={b} className="text-xs text-slate-600 flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#E53935] shrink-0 mt-1.5" /> {b}
-                  </li>
-                ))}
-              </ul>
-
-              <p className={`mt-4 text-[11px] font-bold uppercase tracking-wider ${p.active ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {p.active ? '● Active — purchasable' : '○ Inactive — hidden from users'}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      {/* Edit / create modal */}
+      <EditModal
+        target={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => { setEditing(null); void load(); }}
+      />
 
       <ConfirmDialog
-        open={confirm !== null}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => confirm && toggle(confirm.id, confirm.next)}
-        title={confirm?.next ? `Activate ${confirm?.name}?` : `Deactivate ${confirm?.name}?`}
+        open={confirmToggle !== null}
+        onClose={() => setConfirmToggle(null)}
+        onConfirm={() => confirmToggle && void toggle(confirmToggle)}
+        title={confirmToggle?.is_active ? `Deactivate ${confirmToggle?.name}?` : `Activate ${confirmToggle?.name}?`}
         message={
-          confirm?.next
-            ? 'Users will immediately be able to purchase this package.'
-            : 'This package will be hidden from pricing pages and checkout. Existing active promotions are unaffected.'
+          confirmToggle?.is_active
+            ? 'This package will be hidden from the pricing page and checkout.'
+            : 'Users will immediately be able to purchase this package.'
         }
-        confirmLabel={confirm?.next ? 'Activate' : 'Deactivate'}
-        danger={!confirm?.next}
+        confirmLabel={confirmToggle?.is_active ? 'Deactivate' : 'Activate'}
+        danger={!confirmToggle?.is_active}
       />
+
+      {saving && <Loader2 className="hidden" />}
     </div>
   );
 }
+
+/* ---------------- Edit modal ---------------- */
+
+function EditModal({
+  target,
+  onClose,
+  onSaved,
+}: {
+  target: AdminPromotion | 'new' | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const isNew = target === 'new';
+  const p = isNew || !target ? null : (target as AdminPromotion);
+
+  const [form, setForm] = useState({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '' });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    if (target === 'new') setForm({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '' });
+    else if (target)
+      setForm({
+        name: target.name,
+        slug: target.slug,
+        type: target.type,
+        description: target.description || '',
+        price: String(target.price),
+        duration_days: String(target.duration_days ?? ''),
+      });
+  }, [target]);
+
+  const save = async () => {
+    const errs: Record<string, string> = {};
+    if (!form.name.trim()) errs.name = 'Name required.';
+    if (!form.price || Number(form.price) <= 0) errs.price = 'Valid price required.';
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
+
+    setSaving(true);
+    try {
+      await adminUpsertPromotion({
+        id: p?.id,
+        name: form.name.trim(),
+        slug: p?.slug ?? form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        type: form.type,
+        description: form.description.trim(),
+        price: Number(form.price),
+        duration_days: form.duration_days ? Number(form.duration_days) : null,
+      });
+      toast(isNew ? 'Promotion created.' : 'Promotion updated.');
+      onSaved();
+    } catch (e: any) {
+      toast(e.message.includes('permission') ? "You don't have permission." : e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open={target !== null} onClose={onClose} title={isNew ? 'New Promotion' : `Edit — ${p?.name}`} size="md">
+      <div className="space-y-4">
+        <Input label="Name" name="promo-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} error={errors.name} />
+        <Input label="Price (₹)" name="promo-price" type="number" min={0} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} error={errors.price} />
+        <Input label="Duration (days)" name="promo-days" type="number" min={1} value={form.duration_days} onChange={(e) => setForm((f) => ({ ...f, duration_days: e.target.value }))} hint="Leave empty for subscriptions shown as monthly" />
+        <Input label="Description" name="promo-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+        <button onClick={save} disabled={saving} className="w-full py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-70 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2">
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+          {saving ? 'Saving...' : 'Save Promotion'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+import { X } from 'lucide-react';

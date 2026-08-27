@@ -14,8 +14,9 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({ business }) => {
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
         <Image
           src={business.image}
-          alt={business.name}
+          alt={`${business.name} - ${business.category} business in ${business.location}`}
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
           className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 left-3">

@@ -14,10 +14,19 @@ interface ListingCardProps {
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
   const [isFavorite, setIsFavorite] = React.useState(false);
 
+  const slug = listing.title
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 50);
+  const adHref = `/ad/${listing.id}-${slug}`;
+  const imgAlt = `${listing.title} for sale in ${listing.location} - ${listing.category}`;
+
   return (
     <div className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
-        <ImageCarousel images={listing.images} alt={listing.title} />
+        <ImageCarousel images={listing.images} alt={imgAlt} />
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {listing.featured && (
             <Badge variant="featured">Featured</Badge>
@@ -59,7 +68,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           )}
         </div>
 
-        <Link href={`/listing/${listing.id}`} className="block mb-2">
+        <Link href={adHref} className="block mb-2" aria-label={`View details for ${listing.title}`}>
           <h3 className="font-semibold text-[#0F172A] hover:text-[#E53935] transition-colors line-clamp-2 text-sm leading-snug">
             {listing.title}
           </h3>

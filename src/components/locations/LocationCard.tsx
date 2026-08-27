@@ -15,8 +15,9 @@ export const LocationCard: React.FC<LocationCardProps> = ({ location }) => {
     >
       <Image
         src={location.image}
-        alt={location.name}
+        alt={`Classified ads in ${location.name} — ${location.listingCount.toLocaleString()} ads available on FindIt`}
         fill
+        sizes="(max-width: 768px) 100vw, 20vw"
         className="object-cover group-hover:scale-110 transition-transform duration-500"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/80 via-[#0F172A]/20 to-transparent group-hover:from-[#0F172A]/90 transition-colors" />

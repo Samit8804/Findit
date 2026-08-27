@@ -20,13 +20,17 @@ import {
   Menu,
   X,
   ShieldCheck,
+  MessageSquare,
+  ScrollText,
 } from 'lucide-react';
 
 const NAV = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, hidden: true },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/ads', label: 'Advertisements', icon: Layers },
   { href: '/admin/reports', label: 'Reports', icon: Flag },
+  { href: '/admin/messages', label: 'Messages', icon: MessageSquare },
   { href: '/admin/businesses', label: 'Businesses', icon: Building2 },
   { href: '/admin/payments', label: 'Payments', icon: Wallet },
   { href: '/admin/promotions', label: 'Promotions', icon: Rocket },
@@ -35,8 +39,9 @@ const NAV = [
   { href: '/admin/locations', label: 'Locations', icon: MapPin },
   { href: '/admin/seo', label: 'SEO', icon: Search },
   { href: '/admin/notifications', label: 'Notifications', icon: Bell },
+  { href: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
-];
+].filter((item) => !(item as any).hidden);
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

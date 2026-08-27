@@ -95,7 +95,7 @@ export async function getMyPaymentHistory(): Promise<PaymentHistoryRow[]> {
       id: p.orderId,
       orderId: p.orderId,
       adTitle: p.advertisement,
-      productName: p.advertisement,
+      productName: p.user ?? p.advertisement,
       amount: p.amount,
       status: p.status === 'Success' ? 'paid' : p.status.toLowerCase(),
       date: p.date,
@@ -118,4 +118,106 @@ export async function getMyPaymentHistory(): Promise<PaymentHistoryRow[]> {
     status: o.status,
     date: new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
   }));
+}
+
+/* ---------------- ADMIN ---------------- */
+
+export interface AdminOrderRow {
+  id: string;
+  user_email: string | null;
+  adTitle: string;
+  productName: string;
+  amount: number;
+  provider: string;
+  status: string;
+  date: string;
+}
+
+export async function adminGetOrders(status?: string): Promise<AdminOrderRow[]> {
+  const sb = getSupabaseBrowser();
+  if (!sb) {
+    const { adminPayments } = await import('@/data/adminData2');
+    return adminPayments.map((p) => ({
+      id: p.orderId, user_email: p.user, adTitle: p.advertisement,
+      productName: p.advertisement ?? '', amount: p.amount,
+      provider: p.method, status: p.status.toLowerCase(), date: p.date,
+    }));
+  }
+  let q = sb
+    .from('orders')
+    .select(`id, amount, provider, status, created_at, user_id,
+             promotions(name), ads(title),
+             profiles:user_id(email, name)`)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (status && status !== 'All') q = q.eq('status', status.toLowerCase());
+
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data || []).map((o: any) => ({
+    id: o.id,
+    user_email: o.profiles?.email ?? o.profiles?.name ?? null,
+    adTitle: o.ads?.title ?? '—',
+    productName: o.promotions?.name ?? '—',
+    amount: Number(o.amount ?? 0),
+    provider: o.provider,
+    status: o.status,
+    date: new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+  }));
+}
+
+export interface RevenueStats {
+  today: number; week: number; month: number; total: number;
+  paidCount: number; failedCount: number; refundedCount: number;
+}
+
+export async function getRevenueStats(): Promise<RevenueStats | null> {
+  const sb = getSupabaseBrowser();
+  if (!sb) return null;
+  const { data, error } = await sb.rpc('revenue_stats');
+  if (error || !data || !(data as any)[0]) return null;
+  const s = (data as any)[0];
+  return {
+    today: Number(s.today), week: Number(s.this_week), month: Number(s.this_month),
+    total: Number(s.total), paidCount: Number(s.paid_count),
+    failedCount: Number(s.failed_count), refundedCount: Number(s.refunded_count),
+  };
+}
+
+/* ---------------- Promotion admin CRUD ---------------- */
+
+export interface AdminPromotion {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  type: string;
+  price: number;
+  duration_days: number | null;
+  is_active: boolean;
+}
+
+export async function adminListPromotions(): Promise<AdminPromotion[]> {
+  const sb = getSupabaseBrowser();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from('promotions')
+    .select('id, name, slug, description, type, price, duration_days, is_active')
+    .order('price');
+  if (error) throw new Error(error.message);
+  return data as AdminPromotion[];
+}
+
+export async function adminUpsertPromotion(p: Partial<AdminPromotion> & { name: string; slug: string; type: string }): Promise<void> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { error } = await sb.from('promotions').upsert({ ...p, updated_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminTogglePromotion(id: string, isActive: boolean): Promise<void> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { error } = await sb.from('promotions').update({ is_active: isActive }).eq('id', id);
+  if (error) throw new Error(error.message);
 }

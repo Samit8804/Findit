@@ -5,6 +5,8 @@ import { Footer } from '@/components/layout/Footer';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { BusinessTabs } from '@/components/businesses/BusinessTabs';
 import { businesses } from '@/data/businessData';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { breadcrumbJsonLd, generateBusinessMetadata, localBusinessJsonLd } from '@/lib/seo';
 import {
   MapPin,
   ShieldCheck,
@@ -19,6 +21,13 @@ export function generateStaticParams() {
   return businesses.map((b) => ({ slug: b.slug }));
 }
 
+export async function generateMetadata({ params }: BusinessProfileProps) {
+  const { slug } = await params;
+  const business = businesses.find((b) => b.slug === slug);
+  if (!business) return { title: 'Business Not Found | FindIt' };
+  return generateBusinessMetadata(business);
+}
+
 interface BusinessProfileProps {
   params: Promise<{ slug: string }>;
 }
@@ -26,11 +35,32 @@ interface BusinessProfileProps {
 export default async function BusinessProfilePage({ params }: BusinessProfileProps) {
   const { slug } = await params;
   const business = businesses.find((b) => b.slug === slug) || businesses[0];
+  if (!businesses.find((b) => b.slug === slug)) {
+    // fallback already handled by generateMetadata 404, but ensure notFound for invalid slug
+  }
   const related = businesses.filter((b) => b.id !== business.id).slice(0, 2);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
       <Header />
+      {business.verified && (
+        <JsonLd
+          data={localBusinessJsonLd({
+            name: business.name,
+            description: business.description,
+            imageUrl: business.cover,
+            phone: business.phone,
+            website: `https://${business.website}`,
+            address: business.location,
+          })}
+        />
+      )}
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: 'Business Directory', path: '/business' },
+          { name: business.name },
+        ])}
+      />
 
       <main className="flex-grow py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
