@@ -314,6 +314,12 @@ export default function AdDetailView() {
               </div>
 
               <SellerCard name={ad.seller.name} joinedAt="" verified={ad.seller.verified} />
+              <Link
+                href={`/seller/${ad.seller.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || ad.seller.id}`}
+                className="block text-center text-sm font-semibold text-[#E53935] hover:underline -mt-2"
+              >
+                View Seller Profile — {ad.seller.name} →
+              </Link>
 
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
                 <h2 className="text-base font-bold mb-4 flex items-center gap-2">

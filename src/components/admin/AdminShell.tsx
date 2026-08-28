@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   MessageSquare,
   ScrollText,
+  BadgeCheck,
 } from 'lucide-react';
 
 const NAV = [
@@ -32,6 +33,7 @@ const NAV = [
   { href: '/admin/reports', label: 'Reports', icon: Flag },
   { href: '/admin/messages', label: 'Messages', icon: MessageSquare },
   { href: '/admin/businesses', label: 'Businesses', icon: Building2 },
+  { href: '/admin/business-verification', label: 'Business Verification', icon: BadgeCheck },
   { href: '/admin/payments', label: 'Payments', icon: Wallet },
   { href: '/admin/promotions', label: 'Promotions', icon: Rocket },
   { href: '/admin/advertising', label: 'Advertising', icon: Megaphone },

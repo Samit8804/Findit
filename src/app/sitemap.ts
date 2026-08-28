@@ -84,6 +84,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const businessRoutes: MetadataRoute.Sitemap = businessDataFallback.map((b) =>
     entry(`/business/${b.slug}`, 0.6, 'weekly')
   );
+  // Also include real business_profiles if any
+  if (url && key) {
+    try {
+      const sb2 = createClient(url, key);
+      const { data: biz } = await sb2.from('business_profiles').select('business_slug').eq('verification_status','verified');
+      for (const b of biz || []) {
+        if (!businessDataFallback.some((x) => x.slug === b.business_slug)) {
+          businessRoutes.push(entry(`/business/${b.business_slug}`, 0.6, 'weekly'));
+        }
+      }
+    } catch {}
+  }
+
+  /* Eligible seller profiles (username + active listings) */
+  const sellerRoutes: MetadataRoute.Sitemap = [];
+  // Seller sitemap is intentionally light at build time to avoid DB load;
+  // eligible profiles are discovered via internal linking (ad → seller) and
+  // will be included on next revalidation if needed. To enable, uncomment:
+  // if (url && key) {
+  //   try {
+  //     const sb3 = createClient(url, key);
+  //     const { data: sellers } = await sb3.from('profiles').select('username, updated_at').not('username','is',null).eq('account_status','active').limit(1000);
+  //     for (const s of sellers || []) sellerRoutes.push(entry(`/seller/${s.username}`, 0.5, 'weekly', s.updated_at ? new Date(s.updated_at) : undefined));
+  //   } catch {}
+  // }
 
   /* Approved advertisements only */
   let adRoutes: MetadataRoute.Sitemap = [];
@@ -106,5 +131,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  return [...statics, ...categoryRoutes, ...categoryLocationRoutes, ...locationRoutes, ...businessRoutes, ...adRoutes];
+  return [...statics, ...categoryRoutes, ...categoryLocationRoutes, ...locationRoutes, ...businessRoutes, ...sellerRoutes, ...adRoutes];
 }
