@@ -6,6 +6,9 @@ import { AuthGate } from "@/components/auth/AuthGate";
 import { UnreadProvider } from "@/components/providers/UnreadProvider";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SITE_URL, organizationJsonLd, webSiteJsonLd } from "@/lib/seo";
+import { AnalyticsPageView } from "@/components/analytics/PageViewTracker";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { ConsentProvider, ConsentBanner } from "@/components/analytics/Consent";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -59,11 +62,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <JsonLd data={[organizationJsonLd(), webSiteJsonLd()]} />
         <ToastProvider>
-          <UnreadProvider>
-            <AuthGate>{children}</AuthGate>
-            <div className="h-16 md:hidden" aria-hidden />
-            <MobileBottomNav />
-          </UnreadProvider>
+          <ConsentProvider>
+            <UnreadProvider>
+              <AuthGate>
+                <AnalyticsPageView />
+                <GoogleAnalytics />
+                {children}
+              </AuthGate>
+              <ConsentBanner />
+              <div className="h-16 md:hidden" aria-hidden />
+              <MobileBottomNav />
+            </UnreadProvider>
+          </ConsentProvider>
         </ToastProvider>
       </body>
     </html>

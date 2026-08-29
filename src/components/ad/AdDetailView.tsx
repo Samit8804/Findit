@@ -21,6 +21,7 @@ import {
   PublicAd,
 } from '@/services/ads';
 import { getMyProfile, canUseMessaging } from '@/services/profile';
+import { trackAdView, trackFavorite as trackFavEvent } from '@/lib/analytics';
 import { useToast } from '@/components/ui/Feedback';
 import {
   MapPin,
@@ -75,6 +76,7 @@ export default function AdDetailView() {
           setNotFound(true);
         } else {
           setAd(result);
+          void trackAdView(result.id, result.categorySlug, result.city as any);
           void getFavoriteState(result.id).then((f) => !cancelled && setFav(f));
           if (result.categorySlug) {
             listPublicAds({ categorySlug: result.categorySlug })
@@ -93,6 +95,7 @@ export default function AdDetailView() {
     try {
       const next = await toggleFavorite(ad.id);
       setFav(next);
+      trackFavEvent(ad.id, next);
       toast(next ? 'Added to favorites' : 'Removed from favorites');
     } catch (e: any) {
       if (e.message === 'NOT_AUTHENTICATED') {

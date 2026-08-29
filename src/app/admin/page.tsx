@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import * as Icons from 'lucide-react';
 import { ArrowUpRight } from 'lucide-react';
-import { recentActivity } from '@/data/adminData2';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
+import { recentActivity as mockActivity } from '@/data/adminData2';
 
 const STATS = [
   { key: 'users', label: 'Total Users', value: '84,219', icon: 'Users', trend: '+1,204 this month', color: '#2563EB' },
@@ -39,16 +40,62 @@ function ActivityIcon({ name }: { name: string }) {
 }
 
 export default function AdminDashboard() {
+  const [range, setRange] = useState<'7' | '30' | '90' | '365'>('7');
+  const [stats, setStats] = useState<typeof STATS | null>(null);
+  const [charts, setCharts] = useState<typeof CHARTS | null>(null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    (async () => {
+      const sb = getSupabaseBrowser()!;
+      const since = new Date(); since.setDate(since.getDate() - Number(range));
+      const iso = since.toISOString();
+
+      const [users, ads, reports, orders] = await Promise.all([
+        sb.from('profiles').select('id', { count: 'exact' }).gte('created_at', iso),
+        sb.from('ads').select('id, status', { count: 'exact' }),
+        sb.from('reports').select('id', { count: 'exact' }).gte('created_at', iso),
+        sb.from('orders').select('amount, status', { count: 'exact' }).eq('status', 'paid').gte('created_at', iso),
+      ]);
+
+      // Aggregate for charts (simple counts per day bucket)
+      const revenue = orders.data?.reduce((s: number, o: any) => s + Number(o.amount || 0), 0) || 0;
+
+      setStats([
+        { key: 'users', label: 'Total Users', value: String(users.count ?? '—'), icon: 'Users', trend: `${users.count ?? 0} in last ${range}d`, color: '#2563EB' },
+        { key: 'listings', label: 'Total Listings', value: String(ads.count ?? '—'), icon: 'Layers', trend: `${ads.data?.filter((a: any) => a.status === 'pending').length ?? 0} pending`, color: '#059669' },
+        { key: 'pending', label: 'Pending Listings', value: String(ads.data?.filter((a: any) => a.status === 'pending').length ?? '—'), icon: 'Clock', trend: 'Needs review', color: '#D97706' },
+        { key: 'reported', label: 'Reported Listings', value: String(reports.count ?? '—'), icon: 'Flag', trend: 'Last period', color: '#E53935' },
+        { key: 'revenue', label: 'Revenue', value: `₹${(revenue / 100000).toFixed(1)}L`, icon: 'Wallet', trend: `${orders.count ?? 0} paid`, color: '#7C3AED' },
+        { key: 'featured', label: 'Featured Ads', value: '—', icon: 'Rocket', trend: 'Promotion system', color: '#DB2777' },
+        { key: 'businesses', label: 'Businesses', value: '—', icon: 'Building2', trend: 'Directory', color: '#0F766E' },
+        { key: 'organic', label: 'Organic Traffic', value: 'GA', icon: 'TrendingUp', trend: 'See GA dashboard', color: '#4F46E5' },
+      ] as any);
+    })();
+  }, [range]);
+
+  const displayStats = stats || STATS;
+  const displayCharts = charts || CHARTS;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Admin Dashboard</h1>
-        <p className="text-xs text-slate-500 mt-1">Platform health at a glance — updated live.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Admin Dashboard</h1>
+          <p className="text-xs text-slate-500 mt-1">Platform health — {isSupabaseConfigured ? 'live Supabase data' : 'demo data'}.</p>
+        </div>
+        <div className="flex gap-1.5">
+          {(['7', '30', '90', '365'] as const).map((r) => (
+            <button key={r} onClick={() => setRange(r)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${range === r ? 'bg-[#E53935] text-white border-[#E53935]' : 'bg-white border-slate-200 text-slate-600'}`}>
+              {r === '365' ? 'This year' : `${r} days`}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map((s) => (
+        {displayStats.map((s) => (
           <div key={s.key} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
             <span className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: `${s.color}14`, color: s.color }}>
               <MiniIcon name={s.icon} />
@@ -64,7 +111,7 @@ export default function AdminDashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {CHARTS.map((chart) => {
+        {displayCharts.map((chart) => {
           const max = Math.max(...chart.data);
           return (
             <div key={chart.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -80,7 +127,7 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-400 mt-3">Last 7 days</p>
+              <p className="text-[10px] text-slate-400 mt-3">Last {range} days</p>
             </div>
           );
         })}
@@ -90,7 +137,7 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <h2 className="text-base font-bold mb-5">Recent Activity</h2>
         <ul className="space-y-4">
-          {recentActivity.map((a, i) => (
+          {mockActivity.map((a, i) => (
             <li key={i} className="flex items-center gap-3.5">
               <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${a.color}`}>
                 <ActivityIcon name={a.icon} />
