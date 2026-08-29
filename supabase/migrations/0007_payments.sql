@@ -135,7 +135,11 @@ create or replace function public.complete_paid_order(
   p_provider text default 'razorpay',
   p_amount numeric default null
 )
-returns boolean language plpgsql security definer set search_path = public as $$
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
 declare
   ord record;
   promo record;
@@ -170,7 +174,9 @@ begin
     insert into public.ad_promotions (ad_id, promotion_id, order_id, starts_at, ends_at, status)
     values (ord.ad_id, ord.promotion_id, ord.id, now(), now() + (promo.duration_days || ' days')::interval, 'active')
     on conflict (order_id) do update
-      set status = 'active', starts_at = now(), ends_at = now() + (promo.duration_days || ' days')::interval;
+      set status = 'active',
+          starts_at = now(),
+          ends_at = now() + (promo.duration_days || ' days')::interval;
     activated := true;
 
     if promo.type in ('featured','top') then
@@ -178,13 +184,16 @@ begin
     end if;
 
     perform public.notify_user(
-      ord.user_id, 'promotion_activated',
+      ord.user_id,
+      'promotion_activated',
       promo.name || ' promotion is now active.',
       ord.ad_id::text,
       jsonb_build_object('ad_id', ord.ad_id, 'order_id', ord.id)
     );
+
     perform public.notify_user(
-      ord.user_id, 'payment_success',
+      ord.user_id,
+      'payment_success',
       'Payment successful',
       left(promo.name || ' — ₹' || ord.amount::text, 80),
       jsonb_build_object('order_id', ord.id)
@@ -192,14 +201,26 @@ begin
 
   elsif promo.type = 'business_subscription' then
     insert into public.user_subscriptions (user_id, promotion_id, order_id, plan, ends_at, status)
-    values (ord.user_id, ord.promotion_id, ord.id,
+    values (ord.user_id,
+            ord.promotion_id,
+            ord.id,
             case promo.slug when 'business-pro' then 'business-pro' else 'business' end,
-            now() + (promo.duration_days || ' days')::interval, 'active');
-    update public.profiles set plan = case promo.slug when 'business-pro' then 'business-pro' else 'business' end
+            now() + (promo.duration_days || ' days')::interval,
+            'active');
+
+    update public.profiles
+       set plan = case promo.slug when 'business-pro' then 'business-pro' else 'business' end
      where id = ord.user_id;
+
     activated := true;
-    perform public.notify_user(ord.user_id, 'payment_success', 'Subscription activated', promo.name,
-      jsonb_build_object('order_id', ord.id));
+
+    perform public.notify_user(
+      ord.user_id,
+      'payment_success',
+      'Subscription activated',
+      promo.name,
+      jsonb_build_object('order_id', ord.id)
+    );
   end if;
 
   return activated or true;
@@ -207,43 +228,66 @@ end;
 $$;
 
 create or replace function public.mark_order_failed(p_order_id uuid, p_reason text)
-returns void language sql security definer set search_path = public as $$
+returns void
+language sql
+security definer
+set search_path = public
+as $$
   update public.orders
-     set status = 'failed', failure_reason = left(p_reason, 200), updated_at = now()
-   where id = p_order_id and status in ('created','pending');
+     set status = 'failed',
+         failure_reason = left(p_reason, 200),
+         updated_at = now()
+   where id = p_order_id
+     and status in ('created','pending');
 $$;
 
 -- ---------- PROMOTION EXPIRATION (cron-prepared) ----------
 create or replace function public.expire_promotions()
-returns void language sql security definer set search_path = public as $$
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  update public.ad_promotions set status = 'expired'
-   where status = 'active' and ends_at is not null and ends_at < now();
+  update public.ad_promotions
+     set status = 'expired'
+   where status = 'active'
+     and ends_at is not null
+     and ends_at < now();
 
   -- Recompute ad flags from remaining active promotions
   update public.ads a
      set is_featured = exists (
-       select 1 from public.ad_promotions ap
-       join public.promotions p on p.id = ap.promotion_id
-       where ap.ad_id = a.id and ap.status = 'active'
-         and p.type in ('featured','top')
-         and ap.ends_at > now()
+       select 1
+         from public.ad_promotions ap
+         join public.promotions p on p.id = ap.promotion_id
+        where ap.ad_id = a.id
+          and ap.status = 'active'
+          and p.type in ('featured','top')
+          and ap.ends_at > now()
      )
    where is_featured = true;
 
   -- Notify expiring soon (within 24h) once
   insert into public.notifications (user_id, type, title, body)
-  select a.user_id, 'ad_expiring', 'Your promotion expires in less than 24 hours.',
+  select a.user_id,
+         'ad_expiring',
+         'Your promotion expires in less than 24 hours.',
          coalesce(a.title, '')
-  from public.ads a
-  join public.ad_promotions ap on ap.ad_id = a.id and ap.status = 'active'
-  join public.promotions p on p.id = ap.promotion_id
-  where ap.ends_at between now() and now() + interval '24 hours'
-    and not exists (
-      select 1 from public.notifications n
-      where n.user_id = a.user_id and n.type = 'ad_expiring'
-        and n.created_at > now() - interval '24 hours'
-    );
+    from public.ads a
+    join public.ad_promotions ap
+      on ap.ad_id = a.id
+     and ap.status = 'active'
+    join public.promotions p
+      on p.id = ap.promotion_id
+   where ap.ends_at between now() and now() + interval '24 hours'
+     and not exists (
+       select 1
+         from public.notifications n
+        where n.user_id = a.user_id
+          and n.type = 'ad_expiring'
+          and n.created_at > now() - interval '24 hours'
+     );
 end;
 $$;
 
@@ -251,7 +295,11 @@ $$;
 create or replace function public.revenue_stats()
 returns table(today numeric, this_week numeric, this_month numeric, total numeric,
                paid_count bigint, failed_count bigint, refunded_count bigint)
-language sql stable security definer set search_path = public as $$
+language sql
+stable
+security definer
+set search_path = public
+as $$
   select
     coalesce(sum(amount) filter (where paid_at::date = current_date), 0),
     coalesce(sum(amount) filter (where paid_at >= current_date - 7), 0),
@@ -262,3 +310,6 @@ language sql stable security definer set search_path = public as $$
     count(*) filter (where status in ('refunded','partially_refunded'))
   from public.orders;
 $$;
+DROP FUNCTION IF EXISTS public.expire_promotions() CASCADE;
+DROP FUNCTION IF EXISTS public.mark_order_failed() CASCADE;
+DROP FUNCTION IF EXISTS public.revenue_stats() CASCADE;
