@@ -214,13 +214,29 @@ create index if not exists idx_reports_priority_created on public.reports(priori
 create index if not exists idx_audit_admin_created on public.admin_audit_logs(admin_id, created_at desc);
 
 -- ---------- 9. VIEW for admin stats (optional helper) ----------
-create or replace view public.admin_stats as
-select
-  (select count(*) from public.profiles) as total_users,
-  (select count(*) from public.profiles where created_at > now() - interval '1 day') as new_users_today,
-  (select count(*) from public.ads where deleted_at is null) as total_ads,
-  (select count(*) from public.ads where status = 'pending' and deleted_at is null) as pending_ads,
-  (select count(*) from public.ads where status = 'approved' and deleted_at is null) as approved_ads,
-  (select count(*) from public.ads where status = 'rejected') as rejected_ads,
-  (select count(*) from public.reports where status in ('open','investigating')) as open_reports,
-  (select coalesce(sum(amount),0) from public.orders where status = 'paid') as total_revenue;
+-- Wrapped so it does not fail if 0007_payments hasn't been run yet
+do $$
+begin
+  create or replace view public.admin_stats as
+  select
+    (select count(*) from public.profiles) as total_users,
+    (select count(*) from public.profiles where created_at > now() - interval '1 day') as new_users_today,
+    (select count(*) from public.ads where deleted_at is null) as total_ads,
+    (select count(*) from public.ads where status = 'pending' and deleted_at is null) as pending_ads,
+    (select count(*) from public.ads where status = 'approved' and deleted_at is null) as approved_ads,
+    (select count(*) from public.ads where status = 'rejected') as rejected_ads,
+    (select count(*) from public.reports where status in ('open','investigating')) as open_reports,
+    (select coalesce(sum(amount),0) from public.orders where status = 'paid') as total_revenue;
+exception when undefined_table then
+  -- orders table not yet created (0007 not run) — create view without revenue
+  create or replace view public.admin_stats as
+  select
+    (select count(*) from public.profiles) as total_users,
+    (select count(*) from public.profiles where created_at > now() - interval '1 day') as new_users_today,
+    (select count(*) from public.ads where deleted_at is null) as total_ads,
+    (select count(*) from public.ads where status = 'pending' and deleted_at is null) as pending_ads,
+    (select count(*) from public.ads where status = 'approved' and deleted_at is null) as approved_ads,
+    (select count(*) from public.ads where status = 'rejected') as rejected_ads,
+    (select count(*) from public.reports where status in ('open','investigating')) as open_reports,
+    0::numeric as total_revenue;
+end $$;
