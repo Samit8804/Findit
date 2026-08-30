@@ -492,8 +492,11 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export interface AdminAdRow {
   id: string; slug: string; title: string; image: string;
-  seller: string; category: string; location: string;
+  images?: string[];
+  seller: string; sellerEmail?: string; sellerVerified?: boolean; sellerPhone?: string; userId?: string;
+  category: string; categorySlug?: string; subcategory?: string | null; location: string;
   status: DbAdStatus; date: string; price: number; description: string;
+  rejectionReason?: string | null; isFeatured?: boolean; viewsCount?: number; favoritesCount?: number; condition?: string; attributes?: Record<string, string>;
 }
 
 export async function adminListAds(statusFilter?: string): Promise<AdminAdRow[]> {
@@ -508,9 +511,9 @@ export async function adminListAds(statusFilter?: string): Promise<AdminAdRow[]>
   }
   let q = sb
     .from('ads')
-    .select(`id, slug, title, price, status, description, created_at,
-             profiles:name(user_id, name), categories(name), locations(name),
-             ad_images(image_url, is_primary)`)
+    .select(`id, slug, title, price, status, description, created_at, user_id, rejection_reason, is_featured, views_count,
+             profiles:user_id(name, email, is_verified, phone, whatsapp), categories:category_id(name), locations:location_id(name),
+             ad_images(image_url, is_primary, sort_order)`)
     .order('created_at', { ascending: false })
     .limit(100);
   if (statusFilter && statusFilter !== 'All') q = q.eq('status', statusFilter.toLowerCase());
@@ -521,15 +524,66 @@ export async function adminListAds(statusFilter?: string): Promise<AdminAdRow[]>
     id: row.id,
     slug: row.slug,
     title: row.title,
-    image: (row.ad_images || []).find((i: any) => i.is_primary)?.image_url || '',
+    image: (row.ad_images || []).find((i: any) => i.is_primary)?.image_url || (row.ad_images?.[0]?.image_url ?? ''),
+    images: (row.ad_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((i: any) => i.image_url),
     seller: row.profiles?.name ?? '—',
+    sellerEmail: row.profiles?.email ?? undefined,
+    sellerVerified: !!row.profiles?.is_verified,
+    sellerPhone: row.profiles?.phone ?? undefined,
     category: row.categories?.name ?? '—',
     location: row.locations?.name ?? '—',
     status: row.status,
     date: new Date(row.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
     price: Number(row.price ?? 0),
     description: row.description,
-  }));
+    rejectionReason: row.rejection_reason ?? null,
+    isFeatured: !!row.is_featured,
+    viewsCount: row.views_count ?? 0,
+    userId: row.user_id,
+  } as AdminAdRow));
+}
+
+export async function adminGetAdDetail(adId: string): Promise<AdminAdRow & { imagesFull: string[]; sellerProfile: any }> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { data, error } = await sb
+    .from('ads')
+    .select(`id, slug, title, price, status, description, created_at, user_id, rejection_reason, is_featured, views_count, favorites_count, condition, attributes,
+             profiles:user_id(id, name, email, is_verified, phone, whatsapp, role, created_at), categories:category_id(name, slug), categories_sub:subcategory_id(name, slug), locations:location_id(name, slug),
+             ad_images(image_url, is_primary, sort_order, storage_path)`)
+    .eq('id', adId)
+    .single();
+  if (error) throw new Error(error.message);
+  const row: any = data;
+  const images = (row.ad_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((i: any) => i.image_url);
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    image: images[0] || '',
+    images,
+    imagesFull: images,
+    seller: row.profiles?.name ?? '—',
+    sellerEmail: row.profiles?.email,
+    sellerVerified: !!row.profiles?.is_verified,
+    sellerPhone: row.profiles?.phone,
+    sellerProfile: row.profiles,
+    category: row.categories?.name ?? '—',
+    categorySlug: row.categories?.slug,
+    subcategory: row.categories_sub?.name ?? null,
+    location: row.locations?.name ?? '—',
+    status: row.status,
+    date: new Date(row.created_at).toLocaleString('en-IN'),
+    price: Number(row.price ?? 0),
+    description: row.description,
+    rejectionReason: row.rejection_reason,
+    isFeatured: !!row.is_featured,
+    viewsCount: row.views_count,
+    favoritesCount: row.favorites_count,
+    condition: row.condition,
+    attributes: row.attributes,
+    userId: row.user_id,
+  } as any;
 }
 
 const REASONS = [

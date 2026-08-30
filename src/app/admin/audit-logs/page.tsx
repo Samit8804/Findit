@@ -12,6 +12,7 @@ import {
   Eye,
   Filter,
   RefreshCw,
+  Download,
 } from 'lucide-react';
 import { DataTable, Input, Select, Tabs, Pagination } from '@/components/ui/Form';
 import { Modal } from '@/components/ui/Feedback';
@@ -317,7 +318,7 @@ export default function AdminAuditLogsPage() {
 
       let query = sb
         .from('admin_audit_logs')
-        .select('id, admin_id, action, entity_type, entity_id, metadata, created_at, ip_hash', { count: 'exact' })
+        .select('id, admin_id, action, entity_type, entity_id, metadata, created_at', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(from, to);
 
@@ -393,6 +394,14 @@ export default function AdminAuditLogsPage() {
     void fetchLogs();
   }, [authLoading, authError, isAdmin, fetchLogs]);
 
+  // Realtime for audit logs
+  useEffect(() => {
+    if (!isSupabaseConfigured || !isAdmin) return;
+    const sb = getSupabaseBrowser()!;
+    const ch = sb.channel('admin-audit-realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'admin_audit_logs' }, () => { void fetchLogs(); }).subscribe();
+    return () => { sb.removeChannel(ch); };
+  }, [isAdmin, fetchLogs]);
+
   const actionTabs = useMemo(() => [...ACTION_TABS] as string[], []);
 
   // Early states
@@ -447,12 +456,31 @@ export default function AdminAuditLogsPage() {
             )}
           </p>
         </div>
-        <button
-          onClick={() => void fetchLogs()}
-          className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold hover:border-slate-300 transition-colors"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const headers = ['id','created_at','admin_id','admin_name','action','entity_type','entity_id','metadata'];
+              const csv = [headers.join(','), ...rows.map(r => headers.map(h => {
+                const v = (r as any)[h];
+                const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v).replace(/"/g,'""') : String(v).replace(/"/g,'""');
+                return `"${s}"`;
+              }).join(','))].join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = url; a.download = `audit-logs-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+            }}
+            disabled={rows.length===0}
+            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold hover:border-slate-300 transition-colors disabled:opacity-40"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+          <button
+            onClick={() => void fetchLogs()}
+            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold hover:border-slate-300 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Controls: search + date range */}
