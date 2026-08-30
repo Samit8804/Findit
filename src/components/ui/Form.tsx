@@ -30,7 +30,7 @@ export function Input({ label, error, hint, id, className = '', ...props }: Inpu
         {...props}
       />
       {hint && !error && (
-        <p id={`${inputId}-hint`} className="text-xs text-slate-400 mt-1">{hint}</p>
+        <p id={`${inputId}-hint`} className="text-xs text-slate-600 mt-1">{hint}</p>
       )}
       {error && (
         <p role="alert" className="text-xs text-red-600 font-medium mt-1">{error}</p>
@@ -72,7 +72,7 @@ export function Select({ label, options, placeholder, id, className = '', ...pro
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
       </div>
     </div>
   );
@@ -139,7 +139,7 @@ export function Pagination({
       </button>
       {pages.map((p, i) => (
         <React.Fragment key={p}>
-          {i > 0 && pages[i - 1] !== p - 1 && <span className="px-1 text-slate-300">…</span>}
+          {i > 0 && pages[i - 1] !== p - 1 && <span className="px-1 text-slate-500">…</span>}
           <button
             onClick={() => onChange(p)}
             aria-current={p === page ? 'page' : undefined}
