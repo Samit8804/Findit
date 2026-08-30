@@ -60,7 +60,7 @@ export default function AdminPromotionsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Promotions</h1>
-          <p className="text-xs text-slate-500 mt-1">Prices and durations are served live to the pricing page and checkout.</p>
+          <p className="text-xs text-slate-700 mt-1">Prices and durations are served live to the pricing page and checkout.</p>
         </div>
         <button
           onClick={() => setEditing('new')}
@@ -79,8 +79,8 @@ export default function AdminPromotionsPage() {
         </div>
       ) : promos.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-slate-100">
-          <p className="text-sm font-semibold text-slate-500">No promotions configured.</p>
-          {!isSupabaseConfigured && <p className="text-xs text-slate-400 mt-1">Connect Supabase keys, then run migration 0007 for seed products.</p>}
+          <p className="text-sm font-semibold text-slate-700">No promotions configured.</p>
+          {!isSupabaseConfigured && <p className="text-xs text-slate-700 mt-1">Connect Supabase keys, then run migration 0007 for seed products.</p>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -97,7 +97,7 @@ export default function AdminPromotionsPage() {
                       Edit
                     </button>
                     <button onClick={() => setConfirmToggle(p)} title={p.is_active ? 'Deactivate' : 'Activate'}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
                       {p.is_active ? 'Active' : 'Inactive'}
                     </button>
                   </div>
@@ -106,14 +106,14 @@ export default function AdminPromotionsPage() {
                 <h3 className="font-black tracking-wide">{p.name}</h3>
                 <div className="flex items-baseline gap-1 mt-1">
                   <span className="text-2xl font-black text-[#E53935]">₹{Number(p.price).toLocaleString('en-IN')}</span>
-                  {p.duration_days && <span className="text-xs text-slate-400 font-semibold">/ {p.duration_days} days</span>}
+                  {p.duration_days && <span className="text-xs text-slate-700 font-semibold">/ {p.duration_days} days</span>}
                 </div>
-                {p.description && <p className="text-xs text-slate-500 mt-2 leading-relaxed">{p.description}</p>}
+                {p.description && <p className="text-xs text-slate-700 mt-2 leading-relaxed">{p.description}</p>}
                 <p className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-bold uppercase tracking-wider">
-                  <span className={p.is_active ? 'text-emerald-600' : 'text-slate-400'}>
+                  <span className={p.is_active ? 'text-emerald-600' : 'text-slate-700'}>
                     {p.is_active ? '● Live on pricing page' : '○ Hidden from users'}
                   </span>
-                  <span className="float-right text-slate-300 normal-case">{p.type}</span>
+                  <span className="float-right text-slate-600 normal-case">{p.type}</span>
                 </p>
               </div>
             );

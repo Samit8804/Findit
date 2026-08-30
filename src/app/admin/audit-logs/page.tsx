@@ -400,7 +400,7 @@ export default function AdminAuditLogsPage() {
     return (
       <div className="space-y-5">
         <div className="h-10 w-40 bg-slate-100 rounded-xl animate-pulse" />
-        <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-slate-400">
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-slate-700">
           <Loader2 className="w-5 h-5 animate-spin" /> Verifying admin access...
         </div>
       </div>
@@ -414,7 +414,7 @@ export default function AdminAuditLogsPage() {
           <Shield className="w-6 h-6" />
         </div>
         <h1 className="text-lg font-black text-[#0F172A]">Access denied</h1>
-        <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">{authError}</p>
+        <p className="text-sm text-slate-700 mt-2 max-w-md mx-auto">{authError}</p>
         <Link href="/" className="inline-flex mt-6 px-5 py-2.5 rounded-xl bg-[#0F172A] text-white text-sm font-bold">
           Back to site
         </Link>
@@ -433,7 +433,7 @@ export default function AdminAuditLogsPage() {
             </span>
             Audit Logs
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-700 mt-1">
             {loading ? 'Loading...' : `${total.toLocaleString('en-IN')} audit events`}
             {!isSupabaseConfigured && (
               <span className="ml-2 inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold">
@@ -458,7 +458,7 @@ export default function AdminAuditLogsPage() {
       {/* Controls: search + date range */}
       <div className="flex flex-col md:flex-row gap-3">
         <div className="flex-grow relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 pointer-events-none" />
           <Input
             placeholder="Search by admin, action or entity..."
             value={search}
@@ -489,7 +489,7 @@ export default function AdminAuditLogsPage() {
       <Tabs tabs={actionTabs} active={actionFilter} onChange={(t) => setActionFilter(t as (typeof ACTION_TABS)[number])} />
 
       {/* Hint bar */}
-      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-700">
         <span className="inline-flex items-center gap-1">
           <Filter className="w-3 h-3" /> Filters:
         </span>
@@ -534,10 +534,10 @@ export default function AdminAuditLogsPage() {
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-14 text-center shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-            <ScrollText className="w-6 h-6 text-slate-300" />
+            <ScrollText className="w-6 h-6 text-slate-600" />
           </div>
           <p className="text-sm font-semibold text-slate-600">No audit events match your filters.</p>
-          <p className="text-xs text-slate-400 mt-1">Try a different action, date range or search term.</p>
+          <p className="text-xs text-slate-700 mt-1">Try a different action, date range or search term.</p>
           <button
             onClick={() => {
               setSearch('');
@@ -556,20 +556,20 @@ export default function AdminAuditLogsPage() {
               <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
                 <td className="pl-5 pr-3 py-3.5 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                    <Calendar className="w-3 h-3 text-slate-300" />
+                    <Calendar className="w-3 h-3 text-slate-600" />
                     {formatDateTime(r.created_at)}
                   </span>
-                  <span className="block text-[11px] text-slate-400 font-mono mt-0.5">{r.id.slice(0, 8)}…</span>
+                  <span className="block text-[11px] text-slate-700 font-mono mt-0.5">{r.id.slice(0, 8)}…</span>
                 </td>
                 <td className="px-3 py-3.5">
                   <span className="block text-xs font-bold text-[#0F172A] truncate max-w-[150px]">
                     {r.admin_name || r.admin_email || r.admin_id.slice(0, 8) + '…'}
                   </span>
-                  <span className="block text-[11px] text-slate-400 font-mono truncate max-w-[150px]" title={r.admin_id}>
+                  <span className="block text-[11px] text-slate-700 font-mono truncate max-w-[150px]" title={r.admin_id}>
                     {r.admin_id}
                   </span>
                   {r.ip_hash && (
-                    <span className="block text-[10px] text-slate-400 mt-0.5">ip: {String(r.ip_hash).slice(0, 12)}…</span>
+                    <span className="block text-[10px] text-slate-700 mt-0.5">ip: {String(r.ip_hash).slice(0, 12)}…</span>
                   )}
                 </td>
                 <td className="px-3 py-3.5">
@@ -582,7 +582,7 @@ export default function AdminAuditLogsPage() {
                     {r.entity_type}
                   </span>
                   {r.entity_id && (
-                    <span className="block text-[11px] font-mono text-slate-500 mt-1 truncate max-w-[140px]" title={r.entity_id}>
+                    <span className="block text-[11px] font-mono text-slate-700 mt-1 truncate max-w-[140px]" title={r.entity_id}>
                       {r.entity_id}
                     </span>
                   )}
@@ -595,7 +595,7 @@ export default function AdminAuditLogsPage() {
                     <button
                       onClick={() => setPreview(r)}
                       title="View details"
-                      className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-400 transition-colors"
+                      className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-700 transition-colors"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -606,7 +606,7 @@ export default function AdminAuditLogsPage() {
           </DataTable>
 
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-          <p className="text-center text-[11px] text-slate-400">
+          <p className="text-center text-[11px] text-slate-700">
             Page {page} of {totalPages} — {total.toLocaleString('en-IN')} events • {PAGE_SIZE}/page
           </p>
         </>
@@ -618,47 +618,47 @@ export default function AdminAuditLogsPage() {
           <div className="space-y-4">
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100 col-span-2">
-                <dt className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
+                <dt className="text-[11px] text-slate-700 font-semibold flex items-center gap-1">
                   <Clock className="w-3 h-3" /> Time
                 </dt>
                 <dd className="font-bold text-[#0F172A] text-xs mt-0.5">{formatDateTime(preview.created_at)}</dd>
-                <dd className="font-mono text-[11px] text-slate-400 mt-0.5">{preview.created_at}</dd>
+                <dd className="font-mono text-[11px] text-slate-700 mt-0.5">{preview.created_at}</dd>
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Admin</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Admin</dt>
                 <dd className="font-bold text-[#0F172A] text-xs mt-0.5 truncate">{preview.admin_name || preview.admin_id}</dd>
-                <dd className="font-mono text-[11px] text-slate-400 truncate">{preview.admin_id}</dd>
-                {preview.admin_email && <dd className="text-[11px] text-slate-500 truncate">{preview.admin_email}</dd>}
-                {preview.ip_hash && <dd className="text-[11px] text-slate-400 mt-1">ip_hash: {preview.ip_hash}</dd>}
+                <dd className="font-mono text-[11px] text-slate-700 truncate">{preview.admin_id}</dd>
+                {preview.admin_email && <dd className="text-[11px] text-slate-700 truncate">{preview.admin_email}</dd>}
+                {preview.ip_hash && <dd className="text-[11px] text-slate-700 mt-1">ip_hash: {preview.ip_hash}</dd>}
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Action</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Action</dt>
                 <dd className={`inline-flex mt-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${actionBadgeCls(preview.action)}`}>
                   {preview.action}
                 </dd>
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Entity type</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Entity type</dt>
                 <dd className="font-bold text-[#0F172A] text-xs mt-0.5 capitalize">{preview.entity_type}</dd>
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Entity ID</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Entity ID</dt>
                 <dd className="font-mono text-xs font-bold text-[#0F172A] mt-0.5 break-all">{preview.entity_id || '—'}</dd>
               </div>
               <div className="col-span-2 bg-white rounded-xl px-3 py-3 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold uppercase tracking-wide mb-1.5">Metadata</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold uppercase tracking-wide mb-1.5">Metadata</dt>
                 <dd>
                   {preview.metadata && Object.keys(preview.metadata).length > 0 ? (
                     <pre className="text-xs bg-slate-50 rounded-xl p-3 border border-slate-100 overflow-x-auto whitespace-pre-wrap break-words">
                       {JSON.stringify(preview.metadata, null, 2)}
                     </pre>
                   ) : (
-                    <span className="text-xs text-slate-400">No metadata</span>
+                    <span className="text-xs text-slate-700">No metadata</span>
                   )}
                 </dd>
               </div>
               <div className="col-span-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Event ID</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Event ID</dt>
                 <dd className="font-mono text-[11px] text-slate-600 break-all mt-0.5">{preview.id}</dd>
               </div>
             </dl>

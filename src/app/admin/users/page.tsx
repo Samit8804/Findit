@@ -627,7 +627,7 @@ export default function AdminUsersPage() {
     return (
       <div className="space-y-5">
         <div className="h-10 w-40 bg-slate-100 rounded-xl animate-pulse" />
-        <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-slate-400">
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-slate-700">
           <Loader2 className="w-5 h-5 animate-spin" /> Verifying admin access...
         </div>
       </div>
@@ -641,7 +641,7 @@ export default function AdminUsersPage() {
           <Shield className="w-6 h-6" />
         </div>
         <h1 className="text-lg font-black text-[#0F172A]">Access denied</h1>
-        <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">{authError}</p>
+        <p className="text-sm text-slate-700 mt-2 max-w-md mx-auto">{authError}</p>
         <Link href="/" className="inline-flex mt-6 px-5 py-2.5 rounded-xl bg-[#0F172A] text-white text-sm font-bold">
           Back to site
         </Link>
@@ -655,7 +655,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[#0F172A]">Users</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-700 mt-1">
             {loading ? 'Loading...' : `${total.toLocaleString('en-IN')} registered accounts`}
             {!isSupabaseConfigured && <span className="ml-2 inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold">Demo data — Supabase not configured</span>}
             {currentRole && (
@@ -665,7 +665,7 @@ export default function AdminUsersPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-slate-400">
+        <div className="flex items-center gap-2 text-[11px] text-slate-700">
           <span className="hidden sm:inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500" /> Active
           </span>
@@ -681,7 +681,7 @@ export default function AdminUsersPage() {
       {/* Search + filters */}
       <div className="flex flex-col md:flex-row gap-3">
         <div className="flex-grow relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 pointer-events-none" />
           <Input
             placeholder="Search by name, email or user ID..."
             value={search}
@@ -736,10 +736,10 @@ export default function AdminUsersPage() {
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-14 text-center shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-            <Search className="w-6 h-6 text-slate-300" />
+            <Search className="w-6 h-6 text-slate-600" />
           </div>
           <p className="text-sm font-semibold text-slate-600">No users match your filters.</p>
-          <p className="text-xs text-slate-400 mt-1">Try a different search or filter.</p>
+          <p className="text-xs text-slate-700 mt-1">Try a different search or filter.</p>
           <button
             onClick={() => {
               setSearch('');
@@ -764,7 +764,7 @@ export default function AdminUsersPage() {
                     </span>
                     <span className="min-w-0 max-w-[160px]">
                       <span className="block font-bold group-hover:text-[#E53935] transition-colors truncate text-[#0F172A]">{u.name}</span>
-                      <span className="block text-[11px] text-slate-400 truncate font-mono">{u.id.slice(0, 8)}…</span>
+                      <span className="block text-[11px] text-slate-700 truncate font-mono">{u.id.slice(0, 8)}…</span>
                     </span>
                   </button>
                 </td>
@@ -787,9 +787,9 @@ export default function AdminUsersPage() {
                     <span className="block text-[10px] text-amber-600 mt-1 whitespace-nowrap">{suspensionLabel(u)}</span>
                   )}
                 </td>
-                <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap text-xs">
+                <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap text-xs">
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-slate-300" />
+                    <Calendar className="w-3 h-3 text-slate-600" />
                     {formatDate(u.created_at)}
                   </span>
                 </td>
@@ -800,15 +800,15 @@ export default function AdminUsersPage() {
                   </Link>
                 </td>
                 <td className="px-3 py-3.5">
-                  <Link href={`/admin/reports?user=${u.id}`} className={`inline-flex items-center gap-1 text-xs font-bold transition-colors ${u.reportsCount > 0 ? 'text-amber-600 hover:text-amber-700' : 'text-slate-400'}`} title="Review reports">
+                  <Link href={`/admin/reports?user=${u.id}`} className={`inline-flex items-center gap-1 text-xs font-bold transition-colors ${u.reportsCount > 0 ? 'text-amber-600 hover:text-amber-700' : 'text-slate-700'}`} title="Review reports">
                     <Flag className="w-3.5 h-3.5" />
                     {u.reportsCount}
                   </Link>
                 </td>
-                <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap text-xs">{formatDate(u.lastActivity)}</td>
+                <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap text-xs">{formatDate(u.lastActivity)}</td>
                 <td className="pr-5 pl-3 py-3.5">
                   <div className="flex items-center gap-1">
-                    <button onClick={() => setPreview(u)} title="View profile preview" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-500 transition-colors">
+                    <button onClick={() => setPreview(u)} title="View profile preview" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-700 transition-colors">
                       <Eye className="w-4 h-4" />
                     </button>
                     {u.is_verified ? (
@@ -816,7 +816,7 @@ export default function AdminUsersPage() {
                         <ShieldCheck className="w-4 h-4" />
                       </span>
                     ) : (
-                      <span title="Unverified" className="p-2 text-slate-300">
+                      <span title="Unverified" className="p-2 text-slate-600">
                         <Shield className="w-4 h-4" />
                       </span>
                     )}
@@ -829,17 +829,17 @@ export default function AdminUsersPage() {
                             setSuspendTarget(u);
                           }}
                           title="Suspend (with reason + duration)"
-                          className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-slate-500 transition-colors"
+                          className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-slate-700 transition-colors"
                         >
                           <Clock className="w-4 h-4" />
                         </button>
-                        <button onClick={() => { setBanReason(''); setBanTarget(u); }} title="Ban (requires reason)" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-500 transition-colors">
+                        <button onClick={() => { setBanReason(''); setBanTarget(u); }} title="Ban (requires reason)" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-700 transition-colors">
                           <Ban className="w-4 h-4" />
                         </button>
                       </>
                     )}
                     {(u.account_status === 'suspended' || u.account_status === 'banned') && (
-                      <button onClick={() => setConfirmUnsuspend(u)} title="Unsuspend" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 transition-colors">
+                      <button onClick={() => setConfirmUnsuspend(u)} title="Unsuspend" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors">
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
                     )}
@@ -850,7 +850,7 @@ export default function AdminUsersPage() {
                           setRoleTarget(u);
                         }}
                         title="Change role (super_admin only)"
-                        className="p-2 rounded-lg hover:bg-[#0F172A] hover:text-white text-slate-500 transition-colors"
+                        className="p-2 rounded-lg hover:bg-[#0F172A] hover:text-white text-slate-700 transition-colors"
                       >
                         <UserCog className="w-4 h-4" />
                       </button>
@@ -866,7 +866,7 @@ export default function AdminUsersPage() {
           </DataTable>
 
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-          <p className="text-center text-[11px] text-slate-400">
+          <p className="text-center text-[11px] text-slate-700">
             Page {page} of {totalPages} — {total.toLocaleString('en-IN')} users • {PAGE_SIZE}/page
           </p>
         </>
@@ -882,8 +882,8 @@ export default function AdminUsersPage() {
               </span>
               <div className="min-w-0">
                 <p className="font-black text-[#0F172A] truncate">{preview.name}</p>
-                <p className="text-xs text-slate-400 truncate">{preview.email}</p>
-                <p className="text-[11px] font-mono text-slate-300 truncate mt-0.5">{preview.id}</p>
+                <p className="text-xs text-slate-700 truncate">{preview.email}</p>
+                <p className="text-[11px] font-mono text-slate-600 truncate mt-0.5">{preview.id}</p>
               </div>
             </div>
 
@@ -899,25 +899,25 @@ export default function AdminUsersPage() {
                   <ShieldCheck className="w-3 h-3" /> Verified
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Unverified</span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">Unverified</span>
               )}
             </div>
 
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Join date</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Join date</dt>
                 <dd className="font-bold text-[#0F172A] text-xs mt-0.5">{formatDate(preview.created_at)}</dd>
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Last activity</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Last activity</dt>
                 <dd className="font-bold text-[#0F172A] text-xs mt-0.5">{formatDate(preview.lastActivity)}</dd>
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Advertisements</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Advertisements</dt>
                 <dd className="font-black text-[#0F172A]">{preview.adsCount}</dd>
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <dt className="text-[11px] text-slate-400 font-semibold">Reports</dt>
+                <dt className="text-[11px] text-slate-700 font-semibold">Reports</dt>
                 <dd className="font-black text-[#0F172A]">{preview.reportsCount}</dd>
               </div>
               {preview.account_status === 'suspended' && (
@@ -996,7 +996,7 @@ export default function AdminUsersPage() {
                 </>
               )}
             </div>
-            {!isSuperAdmin && <p className="text-[11px] text-slate-400 text-center">Role changes require super_admin privileges.</p>}
+            {!isSuperAdmin && <p className="text-[11px] text-slate-700 text-center">Role changes require super_admin privileges.</p>}
           </div>
         )}
       </Modal>
@@ -1022,7 +1022,7 @@ export default function AdminUsersPage() {
               options={DURATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
             />
             {suspendDuration !== 'permanent' && (
-              <p className="text-[11px] text-slate-400 flex items-center gap-1">
+              <p className="text-[11px] text-slate-700 flex items-center gap-1">
                 <Clock className="w-3 h-3" /> Will set suspended_until to {formatDateTime(new Date(Date.now() + (DURATION_OPTIONS.find((d) => d.value === suspendDuration)?.ms || 0)).toISOString())}
               </p>
             )}
@@ -1081,9 +1081,9 @@ export default function AdminUsersPage() {
           <div className="space-y-4">
             {!isSuperAdmin ? (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                <Shield className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+                <Shield className="w-6 h-6 text-slate-600 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-slate-600">Only super_admin can change roles.</p>
-                <p className="text-xs text-slate-400 mt-1">Your current role is {currentRole}. Ask a super_admin to perform this change.</p>
+                <p className="text-xs text-slate-700 mt-1">Your current role is {currentRole}. Ask a super_admin to perform this change.</p>
                 <button onClick={() => setRoleTarget(null)} className="mt-4 px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold">Close</button>
               </div>
             ) : (
@@ -1091,7 +1091,7 @@ export default function AdminUsersPage() {
                 <p className="text-sm text-slate-600">
                   Update role for <span className="font-bold text-[#0F172A]">{roleTarget.name}</span> ({roleTarget.email})
                 </p>
-                <p className="text-[11px] font-mono text-slate-400">{roleTarget.id}</p>
+                <p className="text-[11px] font-mono text-slate-700">{roleTarget.id}</p>
                 <Select
                   label="New role"
                   value={newRole}

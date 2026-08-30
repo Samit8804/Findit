@@ -11,7 +11,7 @@ const META: Record<NotificationType | 'default', { icon: React.ElementType; clas
   payment: { icon: Bell, classes: 'bg-violet-50 text-violet-600' },
   expiring: { icon: Bell, classes: 'bg-amber-50 text-amber-600' },
   promotion: { icon: Bell, classes: 'bg-red-50 text-[#E53935]' },
-  default: { icon: Bell, classes: 'bg-slate-100 text-slate-500' },
+  default: { icon: Bell, classes: 'bg-slate-100 text-slate-700' },
 };
 
 export default function AdminNotificationsPage() {
@@ -26,7 +26,7 @@ export default function AdminNotificationsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
-        <p className="text-xs text-slate-500 mt-1">Platform-wide system and moderation alerts.</p>
+        <p className="text-xs text-slate-700 mt-1">Platform-wide system and moderation alerts.</p>
       </div>
 
       <ul className="space-y-3">
@@ -46,9 +46,9 @@ export default function AdminNotificationsPage() {
               <span className="min-w-0 flex-grow">
                 <span className="flex items-center justify-between gap-3">
                   <span className={`text-sm ${n.unread ? 'font-bold' : 'font-semibold text-slate-600'}`}>{n.title}</span>
-                  <span className="text-[10px] text-slate-400 shrink-0">{n.time}</span>
+                  <span className="text-[10px] text-slate-700 shrink-0">{n.time}</span>
                 </span>
-                <span className="block text-xs text-slate-500 mt-1 leading-relaxed">{n.body}</span>
+                <span className="block text-xs text-slate-700 mt-1 leading-relaxed">{n.body}</span>
               </span>
               {n.unread && <span className="w-2.5 h-2.5 rounded-full bg-[#E53935] shrink-0 mt-2" aria-label="Unread" />}
             </li>

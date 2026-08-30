@@ -71,7 +71,7 @@ export default function AdminSeoPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black tracking-tight">SEO Management</h1>
-        <p className="text-xs text-slate-500 mt-1">Search visibility, metadata templates and technical health.</p>
+        <p className="text-xs text-slate-700 mt-1">Search visibility, metadata templates and technical health.</p>
       </div>
 
       {/* Stats */}
@@ -82,7 +82,7 @@ export default function AdminSeoPage() {
               <s.icon className="w-4 h-4" />
             </span>
             <p className="text-lg font-black">{s.value}</p>
-            <p className="text-[10px] font-semibold text-slate-400 mt-0.5 leading-tight">{s.label}</p>
+            <p className="text-[10px] font-semibold text-slate-700 mt-0.5 leading-tight">{s.label}</p>
           </div>
         ))}
       </div>
@@ -98,7 +98,7 @@ export default function AdminSeoPage() {
             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-mono text-xs font-bold">{item.title}</p>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">{item.desc}</p>
+              <p className="text-xs text-slate-700 mt-1 leading-relaxed">{item.desc}</p>
             </div>
           </div>
         ))}

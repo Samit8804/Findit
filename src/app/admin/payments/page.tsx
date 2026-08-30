@@ -62,7 +62,7 @@ export default function AdminPaymentsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Payments</h1>
-          <p className="text-xs text-slate-500 mt-1">Verified revenue and transactions across all promotions.</p>
+          <p className="text-xs text-slate-700 mt-1">Verified revenue and transactions across all promotions.</p>
         </div>
         <button onClick={() => void load()} className="shrink-0 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold hover:border-slate-300 transition-colors">
           Refresh
@@ -77,7 +77,7 @@ export default function AdminPaymentsPage() {
               <c.icon className="w-4 h-4" />
             </span>
             <p className="text-lg font-black">{c.value}</p>
-            <p className="text-[10px] font-semibold text-slate-400 mt-0.5 leading-tight">{c.label}</p>
+            <p className="text-[10px] font-semibold text-slate-700 mt-0.5 leading-tight">{c.label}</p>
           </div>
         ))}
       </div>
@@ -90,11 +90,11 @@ export default function AdminPaymentsPage() {
         </div>
       ) : !isSupabaseConfigured ? (
         <div className="p-10 text-center bg-white rounded-2xl border border-slate-100">
-          <p className="text-sm font-semibold text-slate-500">Connect Supabase keys to view real payment data.</p>
+          <p className="text-sm font-semibold text-slate-700">Connect Supabase keys to view real payment data.</p>
         </div>
       ) : visible.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500">No payments in this status.</p>
+          <p className="text-sm font-semibold text-slate-700">No payments in this status.</p>
         </div>
       ) : (
         <DataTable headers={['Order ID', 'User', 'Advertisement', 'Product', 'Amount', 'Provider', 'Status', 'Date']}>
@@ -102,14 +102,14 @@ export default function AdminPaymentsPage() {
             <tr key={o.id} className="hover:bg-slate-50/60 transition-colors">
               <td className="pl-5 pr-3 py-3.5 font-mono text-xs font-bold">{o.id.slice(0, 8)}…</td>
               <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap max-w-[160px] truncate">{o.user_email ?? '—'}</td>
-              <td className="px-3 py-3.5 text-slate-500 max-w-[200px] truncate">{o.adTitle}</td>
-              <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap">{o.productName}</td>
+              <td className="px-3 py-3.5 text-slate-700 max-w-[200px] truncate">{o.adTitle}</td>
+              <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{o.productName}</td>
               <td className="px-3 py-3.5 font-bold whitespace-nowrap">₹{o.amount.toLocaleString('en-IN')}</td>
-              <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap capitalize">{o.provider}</td>
+              <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap capitalize">{o.provider}</td>
               <td className="px-3 py-3.5">
                 <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${badge(o.status)}`}>{o.status}</span>
               </td>
-              <td className="pr-5 pl-3 py-3.5 text-slate-500 whitespace-nowrap">{o.date}</td>
+              <td className="pr-5 pl-3 py-3.5 text-slate-700 whitespace-nowrap">{o.date}</td>
             </tr>
           ))}
         </DataTable>

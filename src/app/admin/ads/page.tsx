@@ -142,7 +142,7 @@ export default function AdminAdsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Advertisements</h1>
-          <p className="text-xs text-slate-500 mt-1">Moderate listings before they go live. {ads.filter((a) => (a.status as string) === 'pending').length} awaiting review.</p>
+          <p className="text-xs text-slate-700 mt-1">Moderate listings before they go live. {ads.filter((a) => (a.status as string) === 'pending').length} awaiting review.</p>
         </div>
         <Input placeholder="Search by title, ID or seller..." value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search ads" className="sm:w-64" />
       </div>
@@ -169,13 +169,13 @@ export default function AdminAdsPage() {
         </div>
       ) : filteredVisible.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-14 text-center">
-          <p className="text-sm font-semibold text-slate-500">No advertisements in this state.</p>
+          <p className="text-sm font-semibold text-slate-700">No advertisements in this state.</p>
         </div>
       ) : (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
         <table className="w-full text-sm min-w-[900px]">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] uppercase tracking-wider text-slate-400">
+            <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] uppercase tracking-wider text-slate-700">
               <th className="pl-5 pr-3 py-3.5 font-bold">Advertisement</th>
               <th className="px-3 py-3.5 font-bold">Seller</th>
               <th className="px-3 py-3.5 font-bold">Category</th>
@@ -194,37 +194,37 @@ export default function AdminAdsPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={ad.image} alt="" className="w-12 h-9 rounded-lg object-cover shrink-0 bg-slate-100" />
                     ) : (
-                      <span className="w-12 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center text-[10px] text-slate-400">No img</span>
+                      <span className="w-12 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center text-[10px] text-slate-700">No img</span>
                     )}
                     <span className="min-w-0">
                       <span className="block font-bold truncate" title={ad.title}>{ad.title}</span>
-                      <span className="block text-[11px] text-slate-400">₹{ad.price.toLocaleString('en-IN')} • {ad.id.slice(0,8)}</span>
+                      <span className="block text-[11px] text-slate-700">₹{ad.price.toLocaleString('en-IN')} • {ad.id.slice(0,8)}</span>
                     </span>
                   </div>
                 </td>
                 <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap">{ad.seller}</td>
-                <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap">{ad.category}</td>
-                <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap">{ad.location}</td>
+                <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{ad.category}</td>
+                <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{ad.location}</td>
                 <td className="px-3 py-3.5">
                   <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${badgeCls(ad.status)}`}>{ad.status}</span>
                 </td>
-                <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap">{ad.date}</td>
+                <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{ad.date}</td>
                 <td className="pr-5 pl-3 py-3.5">
                   <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => setViewing(ad)} title="View" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-500 transition-colors"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => openHistory(ad.id)} title="History" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"><History className="w-4 h-4" /></button>
+                    <button onClick={() => setViewing(ad)} title="View" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-700 transition-colors"><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => openHistory(ad.id)} title="History" className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"><History className="w-4 h-4" /></button>
                     {(ad.status === 'pending' || (ad.status as string) === 'reported' || (ad.status as string) === 'changes_requested') && (
                       <>
-                        <button onClick={() => void act(ad, 'approve')} title="Approve" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 transition-colors"><Check className="w-4 h-4" /></button>
-                        <button onClick={() => setRejectTarget(ad)} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-500 transition-colors"><X className="w-4 h-4" /></button>
-                        <button onClick={() => setRequestTarget(ad)} title="Request changes" className="p-2 rounded-lg hover:bg-sky-50 hover:text-sky-700 text-slate-500 transition-colors"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => void act(ad, 'approve')} title="Approve" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"><Check className="w-4 h-4" /></button>
+                        <button onClick={() => setRejectTarget(ad)} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-700 transition-colors"><X className="w-4 h-4" /></button>
+                        <button onClick={() => setRequestTarget(ad)} title="Request changes" className="p-2 rounded-lg hover:bg-sky-50 hover:text-sky-700 text-slate-700 transition-colors"><Pencil className="w-4 h-4" /></button>
                       </>
                     )}
                     {ad.status === 'approved' && (
-                      <button onClick={() => setSuspendTarget(ad)} title="Suspend" className="p-2 rounded-lg hover:bg-orange-50 hover:text-orange-700 text-slate-500 transition-colors"><Ban className="w-4 h-4" /></button>
+                      <button onClick={() => setSuspendTarget(ad)} title="Suspend" className="p-2 rounded-lg hover:bg-orange-50 hover:text-orange-700 text-slate-700 transition-colors"><Ban className="w-4 h-4" /></button>
                     )}
-                    <button onClick={() => toast('Feature promotions arrive with the payments phase.')} title="Feature" className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-slate-500 transition-colors"><Rocket className="w-4 h-4" /></button>
-                    <button onClick={() => setConfirmDelete(ad)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => toast('Feature promotions arrive with the payments phase.')} title="Feature" className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-slate-700 transition-colors"><Rocket className="w-4 h-4" /></button>
+                    <button onClick={() => setConfirmDelete(ad)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-700 transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </td>
               </tr>
@@ -243,17 +243,17 @@ export default function AdminAdsPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={viewing.image} alt="" className="w-40 aspect-[4/3] rounded-xl object-cover bg-slate-100 shrink-0" />
               ) : (
-                <div className="w-40 rounded-xl bg-slate-100 shrink-0 flex items-center justify-center text-xs text-slate-400">No image</div>
+                <div className="w-40 rounded-xl bg-slate-100 shrink-0 flex items-center justify-center text-xs text-slate-700">No image</div>
               )}
               <div className="min-w-0">
                 <h4 className="font-black">{viewing.title}</h4>
                 <p className="text-xl font-black text-[#E53935] mt-1">₹{viewing.price.toLocaleString('en-IN')}</p>
-                <p className="text-xs text-slate-400 mt-1">By {viewing.seller} · {viewing.location} · {viewing.date}</p>
+                <p className="text-xs text-slate-700 mt-1">By {viewing.seller} · {viewing.location} · {viewing.date}</p>
                 <span className={`inline-flex mt-2 px-2.5 py-1 rounded-full text-[11px] font-bold ${badgeCls(viewing.status)}`}>{viewing.status}</span>
               </div>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Description</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Description</p>
               <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-4">{viewing.description}</p>
             </div>
             {/* Safety checks */}
@@ -268,17 +268,17 @@ export default function AdminAdsPage() {
       {/* History drawer */}
       <Modal open={historyAd !== null} onClose={() => setHistoryAd(null)} title="Moderation History" size="md">
         {historyLoading ? (
-          <p className="text-sm text-slate-400 py-6 text-center">Loading history...</p>
+          <p className="text-sm text-slate-700 py-6 text-center">Loading history...</p>
         ) : historyItems.length === 0 ? (
-          <p className="text-sm text-slate-500 py-6 text-center">No moderation history for this ad.</p>
+          <p className="text-sm text-slate-700 py-6 text-center">No moderation history for this ad.</p>
         ) : (
           <ul className="space-y-3">
             {historyItems.map((h, i) => (
               <li key={i} className="flex gap-3 text-sm">
                 <span className="w-2 h-2 rounded-full bg-[#E53935] mt-2 shrink-0" />
                 <span>
-                  <span className="font-bold">{h.action}</span> <span className="text-slate-400">· {new Date(h.created_at).toLocaleString('en-IN')}</span>
-                  <span className="block text-xs text-slate-500 mt-1">{h.metadata?.reason || JSON.stringify(h.metadata || {}).slice(0,120)}</span>
+                  <span className="font-bold">{h.action}</span> <span className="text-slate-700">· {new Date(h.created_at).toLocaleString('en-IN')}</span>
+                  <span className="block text-xs text-slate-700 mt-1">{h.metadata?.reason || JSON.stringify(h.metadata || {}).slice(0,120)}</span>
                 </span>
               </li>
             ))}

@@ -58,7 +58,7 @@ export default function AdminCategoriesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Categories</h1>
-          <p className="text-xs text-slate-500 mt-1">{cats.length} primary categories · click a row to manage subcategories.</p>
+          <p className="text-xs text-slate-700 mt-1">{cats.length} primary categories · click a row to manage subcategories.</p>
         </div>
         <button
           onClick={() => setModalOpen(true)}
@@ -76,12 +76,12 @@ export default function AdminCategoriesPage() {
               aria-expanded={!collapsed[c.id]}
               className="w-full flex items-center gap-4 p-4 sm:p-5 text-left hover:bg-slate-50/60 transition-colors"
             >
-              <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${c.active ? 'bg-red-50 text-[#E53935]' : 'bg-slate-100 text-slate-300'}`}>
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${c.active ? 'bg-red-50 text-[#E53935]' : 'bg-slate-100 text-slate-600'}`}>
                 <CatIcon name={c.icon} />
               </span>
               <span className="min-w-0 flex-grow">
                 <span className="block font-bold text-sm truncate">{c.name}</span>
-                <span className="block text-[11px] text-slate-400 mt-0.5">
+                <span className="block text-[11px] text-slate-700 mt-0.5">
                   {c.subcategories.length} subcategories · {c.listingCount.toLocaleString()} listings
                 </span>
               </span>
@@ -105,7 +105,7 @@ export default function AdminCategoriesPage() {
                 {c.subcategories.map((sub) => (
                   <span key={sub.id} className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-slate-600">
                     {sub.name}
-                    <span className="text-slate-300 ml-1.5">{sub.listingCount.toLocaleString()}</span>
+                    <span className="text-slate-600 ml-1.5">{sub.listingCount.toLocaleString()}</span>
                   </span>
                 ))}
               </div>

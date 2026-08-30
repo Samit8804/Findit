@@ -82,7 +82,7 @@ export default function AdminDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Admin Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-1">Platform health — {isSupabaseConfigured ? 'live Supabase data' : 'demo data'}.</p>
+          <p className="text-xs text-slate-700 mt-1">Platform health — {isSupabaseConfigured ? 'live Supabase data' : 'demo data'}.</p>
         </div>
         <div className="flex gap-1.5">
           {(['7', '30', '90', '365'] as const).map((r) => (
@@ -101,8 +101,8 @@ export default function AdminDashboard() {
               <MiniIcon name={s.icon} />
             </span>
             <p className="text-xl font-black">{s.value}</p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">{s.label}</p>
-            <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1 truncate">
+            <p className="text-[11px] font-semibold text-slate-700 mt-0.5">{s.label}</p>
+            <p className="text-[10px] text-slate-700 mt-1.5 flex items-center gap-1 truncate">
               <ArrowUpRight className="w-3 h-3 shrink-0" style={{ color: s.color }} /> {s.trend}
             </p>
           </div>
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
           const max = Math.max(...chart.data);
           return (
             <div key={chart.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 className="text-xs font-bold text-slate-500 mb-4">{chart.title}</h3>
+              <h3 className="text-xs font-bold text-slate-700 mb-4">{chart.title}</h3>
               <div className="flex items-end justify-between gap-1.5 h-28" role="img" aria-label={chart.title}>
                 {chart.data.map((v, i) => (
                   <div key={i} className="flex-1 flex flex-col justify-end items-center gap-1 h-full" title={`${v}`}>
@@ -123,11 +123,11 @@ export default function AdminDashboard() {
                       className="w-full max-w-[16px] rounded-t-md transition-all hover:opacity-75"
                       style={{ height: `${(v / max) * 100}%`, background: chart.color, minHeight: 4 }}
                     />
-                    <span className="text-[8px] font-semibold text-slate-300">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
+                    <span className="text-[8px] font-semibold text-slate-600">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-400 mt-3">Last {range} days</p>
+              <p className="text-[10px] text-slate-700 mt-3">Last {range} days</p>
             </div>
           );
         })}
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
                 <ActivityIcon name={a.icon} />
               </span>
               <p className="text-sm text-slate-600 flex-grow min-w-0">{a.text}</p>
-              <span className="text-[11px] text-slate-400 shrink-0">{a.time}</span>
+              <span className="text-[11px] text-slate-700 shrink-0">{a.time}</span>
             </li>
           ))}
         </ul>

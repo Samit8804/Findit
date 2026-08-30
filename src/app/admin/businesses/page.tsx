@@ -33,14 +33,14 @@ export default function AdminBusinessesPage() {
   const subCls: Record<string, string> = {
     'BUSINESS PRO': 'bg-violet-50 text-violet-700',
     BUSINESS: 'bg-sky-50 text-sky-700',
-    FREE: 'bg-slate-100 text-slate-500',
+    FREE: 'bg-slate-100 text-slate-700',
   };
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Businesses</h1>
-        <p className="text-xs text-slate-500 mt-1">{rows.length} registered businesses</p>
+        <p className="text-xs text-slate-700 mt-1">{rows.length} registered businesses</p>
       </div>
 
       <FilterTabs tabs={['All', 'Active', 'Pending Review', 'Suspended']} active={filter} onChange={setFilter} />
@@ -54,13 +54,13 @@ export default function AdminBusinessesPage() {
               </Link>
             </td>
             <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap">{b.owner}</td>
-            <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap">{b.category}</td>
-            <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap">{b.location}</td>
+            <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{b.category}</td>
+            <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{b.location}</td>
             <td className="px-3 py-3.5">
               {b.verified ? (
                 <ShieldCheck className="w-4 h-4 text-emerald-500" aria-label="Verified" />
               ) : (
-                <span className="text-xs text-slate-300">â€”</span>
+                <span className="text-xs text-slate-600">â€”</span>
               )}
             </td>
             <td className="px-3 py-3.5 text-slate-600">{b.listings}</td>
@@ -75,11 +75,11 @@ export default function AdminBusinessesPage() {
             <td className="pr-5 pl-3 py-3.5">
               <div className="flex items-center gap-1">
                 {!b.verified && (
-                  <button onClick={() => act(b.name, 'Verify')} title="Verify" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 transition-colors"><ShieldCheck className="w-4 h-4" /></button>
+                  <button onClick={() => act(b.name, 'Verify')} title="Verify" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"><ShieldCheck className="w-4 h-4" /></button>
                 )}
-                <button onClick={() => setConfirm({ name: b.name, action: 'Reject' })} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-500 transition-colors"><XCircle className="w-4 h-4" /></button>
-                <button onClick={() => setConfirm({ name: b.name, action: 'Suspend' })} title="Suspend" disabled={b.status === 'Suspended'} className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-slate-500 disabled:opacity-40 transition-colors"><Ban className="w-4 h-4" /></button>
-                <Link href={`/business/${b.slug}`} title="Edit / View profile" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-500 transition-colors"><Pencil className="w-4 h-4" /></Link>
+                <button onClick={() => setConfirm({ name: b.name, action: 'Reject' })} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-700 transition-colors"><XCircle className="w-4 h-4" /></button>
+                <button onClick={() => setConfirm({ name: b.name, action: 'Suspend' })} title="Suspend" disabled={b.status === 'Suspended'} className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-slate-700 disabled:opacity-40 transition-colors"><Ban className="w-4 h-4" /></button>
+                <Link href={`/business/${b.slug}`} title="Edit / View profile" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-700 transition-colors"><Pencil className="w-4 h-4" /></Link>
               </div>
             </td>
           </tr>
