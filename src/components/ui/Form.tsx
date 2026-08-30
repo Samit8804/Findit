@@ -178,7 +178,7 @@ export function DataTable({
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
       <table className="w-full text-sm min-w-[760px]">
         <thead>
-          <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] uppercase tracking-wider text-slate-400">
+          <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] uppercase tracking-wider text-slate-700">
             {headers.map((h, i) => (
               <th key={h} className={`py-3.5 font-bold whitespace-nowrap ${i === 0 ? 'pl-5' : 'px-3'} ${i === headers.length - 1 ? 'pr-5' : ''}`}>
                 {h}
