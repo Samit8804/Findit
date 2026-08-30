@@ -49,7 +49,7 @@ export default function AdminLocationsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Locations</h1>
-        <p className="text-xs text-slate-700 mt-1">
+        <p className="text-xs text-black mt-1">
           Manage the Country → State → City → Locality hierarchy powering search and posting.
         </p>
       </div>
@@ -76,7 +76,7 @@ export default function AdminLocationsPage() {
                     setSelectedState('');
                   }}
                   className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-sm transition-colors ${
-                    selectedCountry === c.iso ? 'bg-red-50 text-[#E53935] font-bold' : 'hover:bg-slate-50 text-slate-600'
+                    selectedCountry === c.iso ? 'bg-red-50 text-[#E53935] font-bold' : 'hover:bg-slate-50 text-black'
                   }`}
                 >
                   {c.name}
@@ -94,14 +94,14 @@ export default function AdminLocationsPage() {
           </div>
           <ul className="max-h-[420px] overflow-y-auto divide-y divide-slate-50">
             {!selectedCountry && (
-              <li className="px-4 py-6 text-xs text-slate-700 text-center">Select a country first.</li>
+              <li className="px-4 py-6 text-xs text-black text-center">Select a country first.</li>
             )}
             {states.map((s: { isoCode: string; name: string }) => (
               <li key={s.isoCode}>
                 <button
                   onClick={() => setSelectedState(s.isoCode)}
                   className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-sm transition-colors ${
-                    selectedState === s.isoCode ? 'bg-red-50 text-[#E53935] font-bold' : 'hover:bg-slate-50 text-slate-600'
+                    selectedState === s.isoCode ? 'bg-red-50 text-[#E53935] font-bold' : 'hover:bg-slate-50 text-black'
                   }`}
                 >
                   {s.name}
@@ -119,7 +119,7 @@ export default function AdminLocationsPage() {
           </div>
           <div className="max-h-[420px] overflow-y-auto p-4 space-y-4">
             {!selectedState && (
-              <p className="text-xs text-slate-700 text-center py-6">Select a state to browse cities.</p>
+              <p className="text-xs text-black text-center py-6">Select a state to browse cities.</p>
             )}
             {cities.slice(0, 8).map((c: { name: string }) => (
               <div key={c.name} className="rounded-xl border border-slate-100 overflow-hidden">
@@ -128,7 +128,7 @@ export default function AdminLocationsPage() {
                 </p>
                 <div className="px-3.5 py-2.5 flex flex-wrap gap-1.5 border-t border-slate-50">
                   {localitySample.map((loc) => (
-                    <span key={loc} className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-semibold text-slate-700">
+                    <span key={loc} className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-semibold text-black">
                       {c.name} · {loc}
                     </span>
                   ))}
@@ -136,7 +136,7 @@ export default function AdminLocationsPage() {
               </div>
             ))}
             {cities.length > 8 && (
-              <p className="text-[11px] text-slate-700 text-center">+ {cities.length - 8} more cities…</p>
+              <p className="text-[11px] text-black text-center">+ {cities.length - 8} more cities…</p>
             )}
           </div>
         </div>

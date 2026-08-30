@@ -119,21 +119,21 @@ const priorityCls: Record<ReportPriority, string> = {
   critical: 'bg-red-50 text-[#B91C1C] border-red-100',
   high: 'bg-orange-50 text-orange-700 border-orange-100',
   medium: 'bg-amber-50 text-amber-700 border-amber-100',
-  low: 'bg-slate-100 text-slate-600 border-slate-200',
+  low: 'bg-slate-100 text-black border-slate-200',
 };
 
 const statusCls: Record<ReportStatus, string> = {
-  open: 'bg-slate-50 text-slate-700 border-slate-200',
+  open: 'bg-slate-50 text-black border-slate-200',
   investigating: 'bg-blue-50 text-blue-700 border-blue-100',
   resolved: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  dismissed: 'bg-slate-100 text-slate-700 border-slate-200',
+  dismissed: 'bg-slate-100 text-black border-slate-200',
 };
 
 const typeCls: Record<ReportType, string> = {
   ad: 'bg-violet-50 text-violet-700 border-violet-100',
   user: 'bg-sky-50 text-sky-700 border-sky-100',
   message: 'bg-teal-50 text-teal-700 border-teal-100',
-  unknown: 'bg-slate-100 text-slate-700 border-slate-200',
+  unknown: 'bg-slate-100 text-black border-slate-200',
 };
 
 const reasonCls: Record<string, string> = {
@@ -143,7 +143,7 @@ const reasonCls: Record<string, string> = {
   Duplicate: 'bg-sky-50 text-sky-700',
   'Wrong Category': 'bg-violet-50 text-violet-700',
   'Prohibited Content': 'bg-red-50 text-[#B91C1C]',
-  Other: 'bg-slate-100 text-slate-600',
+  Other: 'bg-slate-100 text-black',
 };
 
 // ------------------------------------------------------------------
@@ -933,7 +933,7 @@ export default function AdminReportsPage() {
     return (
       <div className="space-y-5">
         <div className="h-10 w-40 bg-slate-100 rounded-xl animate-pulse" />
-        <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-slate-700">
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-black">
           <Loader2 className="w-5 h-5 animate-spin" /> Verifying moderator access...
         </div>
       </div>
@@ -947,7 +947,7 @@ export default function AdminReportsPage() {
           <Shield className="w-6 h-6" />
         </div>
         <h1 className="text-lg font-black text-[#0F172A]">Access denied</h1>
-        <p className="text-sm text-slate-700 mt-2 max-w-md mx-auto">{authError}</p>
+        <p className="text-sm text-black mt-2 max-w-md mx-auto">{authError}</p>
         <Link href="/" className="inline-flex mt-6 px-5 py-2.5 rounded-xl bg-[#0F172A] text-white text-sm font-bold">
           Back to site
         </Link>
@@ -961,13 +961,13 @@ export default function AdminReportsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[#0F172A]">Reports</h1>
-          <p className="text-xs text-slate-700 mt-1">
+          <p className="text-xs text-black mt-1">
             {loading ? 'Loading...' : `${total.toLocaleString('en-IN')} report${total !== 1 ? 's' : ''} — sorted critical → low, then newest`}
             {!isSupabaseConfigured && <span className="ml-2 inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold">Demo data — Supabase not configured</span>}
             {currentRole && <span className="ml-2 text-[11px] font-semibold">Signed in as <span className="font-black capitalize">{currentRole.replace('_', ' ')}</span></span>}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-slate-700">
+        <div className="flex items-center gap-2 text-[11px] text-black">
           <span className="hidden sm:inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Critical</span>
           <span className="hidden sm:inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" /> High</span>
           <span className="hidden sm:inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> Medium</span>
@@ -978,7 +978,7 @@ export default function AdminReportsPage() {
       {/* Controls */}
       <div className="flex flex-col lg:flex-row gap-3">
         <div className="flex-grow relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none" />
           <Input
             placeholder="Search by report ID, reporter, target, reason, assignee…"
             value={search}
@@ -1018,16 +1018,16 @@ export default function AdminReportsPage() {
       ) : loadError ? (
         <div className="bg-white rounded-2xl border border-red-100 p-10 text-center shadow-sm">
           <p className="text-sm font-semibold text-[#D32F2F]">{loadError}</p>
-          <p className="text-xs text-slate-700 mt-1">Only moderators can read/update reports (RLS: public.is_moderator()).</p>
+          <p className="text-xs text-black mt-1">Only moderators can read/update reports (RLS: public.is_moderator()).</p>
           <button onClick={() => void fetchReports()} className="mt-4 px-5 py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-bold hover:bg-[#D32F2F] transition-colors">Retry</button>
         </div>
       ) : paginated.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-14 text-center shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-            <Flag className="w-6 h-6 text-slate-600" />
+            <Flag className="w-6 h-6 text-black" />
           </div>
-          <p className="text-sm font-semibold text-slate-600">Queue clear — no reports match your filters.</p>
-          <p className="text-xs text-slate-700 mt-1">Try a different status, priority or search.</p>
+          <p className="text-sm font-semibold text-black">Queue clear — no reports match your filters.</p>
+          <p className="text-xs text-black mt-1">Try a different status, priority or search.</p>
           <button
             onClick={() => {
               setSearch('');
@@ -1049,18 +1049,18 @@ export default function AdminReportsPage() {
                 <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="pl-5 pr-3 py-3.5">
                     <span className="font-mono text-xs font-bold text-[#0F172A]">{r.id.slice(0, 8)}</span>
-                    <span className="block text-[11px] text-slate-700 font-mono">{r.id.slice(0, 18)}…</span>
+                    <span className="block text-[11px] text-black font-mono">{r.id.slice(0, 18)}…</span>
                   </td>
                   <td className="px-3 py-3.5">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border capitalize ${typeCls[type]}`}>{type}</span>
                   </td>
                   <td className="px-3 py-3.5">
                     <span className="block text-xs font-semibold text-[#0F172A] truncate max-w-[120px]" title={r.reporter_name}>{r.reporter_name}</span>
-                    <span className="block text-[11px] text-slate-700 font-mono truncate max-w-[120px]">{r.reporter_id.slice(0, 8)}…</span>
+                    <span className="block text-[11px] text-black font-mono truncate max-w-[120px]">{r.reporter_id.slice(0, 8)}…</span>
                   </td>
                   <td className="px-3 py-3.5 max-w-[180px]">
-                    <span className="block text-xs font-semibold text-slate-700 truncate" title={getTargetLabel(r)}>{getTargetLabel(r)}</span>
-                    <span className="block text-[11px] text-slate-700 truncate">
+                    <span className="block text-xs font-semibold text-black truncate" title={getTargetLabel(r)}>{getTargetLabel(r)}</span>
+                    <span className="block text-[11px] text-black truncate">
                       {type === 'ad' && r.ad_id ? `Ad ${r.ad_id.slice(0, 8)}…` : type === 'user' && r.reported_user_id ? `User ${r.reported_user_id.slice(0, 8)}…` : type === 'message' && r.message_id ? `Msg ${r.message_id.slice(0, 8)}…` : truncate(r.description || '', 32)}
                     </span>
                   </td>
@@ -1083,15 +1083,15 @@ export default function AdminReportsPage() {
                       {r.status}
                     </span>
                   </td>
-                  <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap text-xs">
-                    <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-600" />{formatDate(r.created_at)}</span>
+                  <td className="px-3 py-3.5 text-black whitespace-nowrap text-xs">
+                    <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3 text-black" />{formatDate(r.created_at)}</span>
                   </td>
                   <td className="px-3 py-3.5 text-xs max-w-[120px] truncate">
-                    {r.assigned_to_name ? <span className="font-semibold text-[#0F172A]" title={r.assigned_to_name}>{r.assigned_to_name}</span> : <span className="text-slate-700">Unassigned</span>}
+                    {r.assigned_to_name ? <span className="font-semibold text-[#0F172A]" title={r.assigned_to_name}>{r.assigned_to_name}</span> : <span className="text-black">Unassigned</span>}
                   </td>
                   <td className="pr-5 pl-3 py-3.5">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setSelected(r)} title="Investigate / view details" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-700 transition-colors">
+                      <button onClick={() => setSelected(r)} title="Investigate / view details" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-black transition-colors">
                         <Eye className="w-4 h-4" />
                       </button>
                       {r.status === 'open' && (
@@ -1099,7 +1099,7 @@ export default function AdminReportsPage() {
                           onClick={() => void handleInvestigate(r)}
                           disabled={actionLoading}
                           title="Investigate (open → investigating)"
-                          className="p-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 text-slate-700 transition-colors disabled:opacity-40"
+                          className="p-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 text-black transition-colors disabled:opacity-40"
                         >
                           <Search className="w-4 h-4" />
                         </button>
@@ -1108,7 +1108,7 @@ export default function AdminReportsPage() {
                         <button
                           onClick={() => setConfirmResolve(r)}
                           title="Resolve"
-                          className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"
+                          className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-black transition-colors"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                         </button>
@@ -1117,7 +1117,7 @@ export default function AdminReportsPage() {
                         <button
                           onClick={() => setConfirmDismiss(r)}
                           title="Dismiss"
-                          className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"
+                          className="p-2 rounded-lg hover:bg-slate-100 text-black transition-colors"
                         >
                           <XCircle className="w-4 h-4" />
                         </button>
@@ -1129,7 +1129,7 @@ export default function AdminReportsPage() {
             })}
           </DataTable>
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-          <p className="text-center text-[11px] text-slate-700">Page {page} of {totalPages} — {total.toLocaleString('en-IN')} reports • {PAGE_SIZE}/page</p>
+          <p className="text-center text-[11px] text-black">Page {page} of {totalPages} — {total.toLocaleString('en-IN')} reports • {PAGE_SIZE}/page</p>
         </>
       )}
 
@@ -1142,23 +1142,23 @@ export default function AdminReportsPage() {
               <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border capitalize ${priorityCls[selected.priority]}`}>{selected.priority} priority</span>
               <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border capitalize ${statusCls[selected.status]}`}>{selected.status}</span>
               <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border capitalize ${typeCls[getReportType(selected)]}`}>{getReportType(selected)}</span>
-              <span className="text-[11px] text-slate-700">Created {formatDateTime(selected.created_at)}</span>
-              {selected.resolved_at && <span className="text-[11px] text-slate-700">Resolved {formatDateTime(selected.resolved_at)}</span>}
+              <span className="text-[11px] text-black">Created {formatDateTime(selected.created_at)}</span>
+              {selected.resolved_at && <span className="text-[11px] text-black">Resolved {formatDateTime(selected.resolved_at)}</span>}
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-slate-50 rounded-xl px-3 py-3 border border-slate-100">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">Reason</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-black">Reason</p>
                 <p className="font-bold text-[#0F172A] mt-1">{selected.reason}</p>
-                <p className="text-xs text-slate-600 leading-relaxed mt-1">{selected.description || '—'}</p>
+                <p className="text-xs text-black leading-relaxed mt-1">{selected.description || '—'}</p>
               </div>
               <div className="bg-slate-50 rounded-xl px-3 py-3 border border-slate-100">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">Reporter &amp; Target</p>
-                <p className="text-xs mt-1"><span className="text-slate-700">Reporter:</span> <span className="font-semibold text-[#0F172A]">{selected.reporter_name}</span> <span className="font-mono text-[11px] text-slate-700">({selected.reporter_id.slice(0, 8)}…)</span></p>
-                <p className="text-xs mt-1"><span className="text-slate-700">Target:</span> <span className="font-semibold">{getTargetLabel(selected)}</span></p>
-                {selected.reported_user_id && <p className="text-[11px] text-slate-700 mt-1 font-mono">User {selected.reported_user_id}</p>}
-                {selected.ad_id && <p className="text-[11px] text-slate-700 font-mono">Ad {selected.ad_id}</p>}
-                {selected.message_id && <p className="text-[11px] text-slate-700 font-mono">Msg {selected.message_id}</p>}
+                <p className="text-[11px] font-bold uppercase tracking-wide text-black">Reporter &amp; Target</p>
+                <p className="text-xs mt-1"><span className="text-black">Reporter:</span> <span className="font-semibold text-[#0F172A]">{selected.reporter_name}</span> <span className="font-mono text-[11px] text-black">({selected.reporter_id.slice(0, 8)}…)</span></p>
+                <p className="text-xs mt-1"><span className="text-black">Target:</span> <span className="font-semibold">{getTargetLabel(selected)}</span></p>
+                {selected.reported_user_id && <p className="text-[11px] text-black mt-1 font-mono">User {selected.reported_user_id}</p>}
+                {selected.ad_id && <p className="text-[11px] text-black font-mono">Ad {selected.ad_id}</p>}
+                {selected.message_id && <p className="text-[11px] text-black font-mono">Msg {selected.message_id}</p>}
               </div>
             </div>
 
@@ -1200,57 +1200,57 @@ export default function AdminReportsPage() {
               <h4 className="text-sm font-black text-[#0F172A] flex items-center gap-2"><Eye className="w-4 h-4 text-[#E53935]" /> Investigation</h4>
 
               {investigation?.loading ? (
-                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-8 flex items-center justify-center gap-2 text-slate-700">
+                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-8 flex items-center justify-center gap-2 text-black">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading related data...
                 </div>
               ) : (
                 <div className="grid lg:grid-cols-2 gap-4">
                   {/* Reported ad */}
                   <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
-                    <h5 className="text-xs font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5" /> Reported ad</h5>
+                    <h5 className="text-xs font-black uppercase tracking-wide text-black flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5" /> Reported ad</h5>
                     {investigation?.ad ? (
                       <div className="space-y-2 text-sm">
                         <p className="font-bold text-[#0F172A]">{investigation.ad.title}</p>
-                        <p className="text-xs text-slate-700">{investigation.ad.category} · {investigation.ad.location} · <span className="capitalize">{investigation.ad.status}</span> · ₹{investigation.ad.price != null ? Number(investigation.ad.price).toLocaleString('en-IN') : '—'}</p>
-                        <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100">{investigation.ad.description || 'No description'}</p>
-                        <p className="text-[11px] text-slate-700">Seller: <span className="font-semibold text-slate-600">{investigation.ad.sellerName}</span> · Created {formatDate(investigation.ad.created_at)}</p>
+                        <p className="text-xs text-black">{investigation.ad.category} · {investigation.ad.location} · <span className="capitalize">{investigation.ad.status}</span> · ₹{investigation.ad.price != null ? Number(investigation.ad.price).toLocaleString('en-IN') : '—'}</p>
+                        <p className="text-xs text-black leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100">{investigation.ad.description || 'No description'}</p>
+                        <p className="text-[11px] text-black">Seller: <span className="font-semibold text-black">{investigation.ad.sellerName}</span> · Created {formatDate(investigation.ad.created_at)}</p>
                         <Link href={`/admin/ads?search=${encodeURIComponent(investigation.ad.id)}`} className="inline-flex items-center gap-1 text-xs font-bold text-[#E53935] hover:underline">Open in moderation queue <ChevronRight className="w-3 h-3" /></Link>
                       </div>
                     ) : selected.ad_id ? (
-                      <p className="text-xs text-slate-700">Ad {selected.ad_id.slice(0, 8)}… — details unavailable (deleted or no permission).</p>
+                      <p className="text-xs text-black">Ad {selected.ad_id.slice(0, 8)}… — details unavailable (deleted or no permission).</p>
                     ) : (
-                      <p className="text-xs text-slate-700">No ad associated with this report.</p>
+                      <p className="text-xs text-black">No ad associated with this report.</p>
                     )}
                   </div>
 
                   {/* Reported user */}
                   <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
-                    <h5 className="text-xs font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Reported user</h5>
+                    <h5 className="text-xs font-black uppercase tracking-wide text-black flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Reported user</h5>
                     {investigation?.reportedUser ? (
                       <div className="space-y-2 text-sm">
                         <p className="font-bold text-[#0F172A]">{investigation.reportedUser.name}</p>
-                        <p className="text-xs text-slate-700 truncate">{investigation.reportedUser.email}</p>
+                        <p className="text-xs text-black truncate">{investigation.reportedUser.email}</p>
                         <div className="flex flex-wrap gap-1.5">
                           <span className={`inline-flex px-2 py-1 rounded-full text-[11px] font-bold border capitalize ${investigation.reportedUser.account_status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : investigation.reportedUser.account_status === 'suspended' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-red-50 text-[#D32F2F] border-red-100'}`}>{investigation.reportedUser.account_status}</span>
-                          <span className="inline-flex px-2 py-1 rounded-full text-[11px] font-bold border bg-slate-50 text-slate-600 capitalize">{investigation.reportedUser.role.replace('_', ' ')}</span>
-                          {investigation.reportedUser.is_verified ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><ShieldCheck className="w-3 h-3" /> Verified</span> : <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border">Unverified</span>}
+                          <span className="inline-flex px-2 py-1 rounded-full text-[11px] font-bold border bg-slate-50 text-black capitalize">{investigation.reportedUser.role.replace('_', ' ')}</span>
+                          {investigation.reportedUser.is_verified ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><ShieldCheck className="w-3 h-3" /> Verified</span> : <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-black border">Unverified</span>}
                         </div>
-                        <p className="text-xs text-slate-600">Account age: <span className="font-semibold text-[#0F172A]">{investigation.reportedUser.accountAge}</span> · Joined {formatDate(investigation.reportedUser.created_at)}</p>
+                        <p className="text-xs text-black">Account age: <span className="font-semibold text-[#0F172A]">{investigation.reportedUser.accountAge}</span> · Joined {formatDate(investigation.reportedUser.created_at)}</p>
                         <Link href={`/admin/users?search=${encodeURIComponent(investigation.reportedUser.id)}`} className="inline-flex items-center gap-1 text-xs font-bold text-[#E53935] hover:underline">Open user profile <ChevronRight className="w-3 h-3" /></Link>
                       </div>
                     ) : selected.reported_user_id ? (
-                      <p className="text-xs text-slate-700">User {selected.reported_user_id.slice(0, 8)}… — profile unavailable.</p>
+                      <p className="text-xs text-black">User {selected.reported_user_id.slice(0, 8)}… — profile unavailable.</p>
                     ) : (
-                      <p className="text-xs text-slate-700">No user directly reported.</p>
+                      <p className="text-xs text-black">No user directly reported.</p>
                     )}
                     {investigation?.otherAds && investigation.otherAds.length > 0 && (
                       <div className="pt-2 border-t border-slate-100">
-                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1"><Layers className="w-3 h-3" /> Other ads by this user ({investigation.otherAds.length})</p>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-black flex items-center gap-1"><Layers className="w-3 h-3" /> Other ads by this user ({investigation.otherAds.length})</p>
                         <ul className="mt-2 space-y-1.5">
                           {investigation.otherAds.map((a) => (
                             <li key={a.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
                               <span className="font-semibold truncate max-w-[180px]">{a.title}</span>
-                              <span className="text-slate-700 shrink-0 ml-2">{a.status}</span>
+                              <span className="text-black shrink-0 ml-2">{a.status}</span>
                             </li>
                           ))}
                         </ul>
@@ -1260,43 +1260,43 @@ export default function AdminReportsPage() {
 
                   {/* Reported message */}
                   <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
-                    <h5 className="text-xs font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Reported message</h5>
+                    <h5 className="text-xs font-black uppercase tracking-wide text-black flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Reported message</h5>
                     {investigation?.message ? (
                       <div className="space-y-2 text-sm">
-                        <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100 whitespace-pre-wrap break-words">{investigation.message.message}</p>
-                        <p className="text-[11px] text-slate-700">From <span className="font-mono">{investigation.message.sender_id.slice(0, 8)}…</span> · Conversation {investigation.message.conversation_id.slice(0, 8)}… · {formatDateTime(investigation.message.created_at)}</p>
+                        <p className="text-xs text-black leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100 whitespace-pre-wrap break-words">{investigation.message.message}</p>
+                        <p className="text-[11px] text-black">From <span className="font-mono">{investigation.message.sender_id.slice(0, 8)}…</span> · Conversation {investigation.message.conversation_id.slice(0, 8)}… · {formatDateTime(investigation.message.created_at)}</p>
                         <Link href="/admin/messages" className="inline-flex items-center gap-1 text-xs font-bold text-[#E53935] hover:underline">Open messages admin <ChevronRight className="w-3 h-3" /></Link>
                       </div>
                     ) : selected.message_id ? (
-                      <p className="text-xs text-slate-700">Message {selected.message_id.slice(0, 8)}… — content unavailable (RLS).</p>
+                      <p className="text-xs text-black">Message {selected.message_id.slice(0, 8)}… — content unavailable (RLS).</p>
                     ) : (
-                      <p className="text-xs text-slate-700">No message associated.</p>
+                      <p className="text-xs text-black">No message associated.</p>
                     )}
                   </div>
 
                   {/* Related conversations */}
                   <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
-                    <h5 className="text-xs font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Related conversations</h5>
+                    <h5 className="text-xs font-black uppercase tracking-wide text-black flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Related conversations</h5>
                     {investigation?.relatedConversations && investigation.relatedConversations.length > 0 ? (
                       <ul className="space-y-2">
                         {investigation.relatedConversations.map((c) => (
                           <li key={c.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
                             <span className="min-w-0">
                               <span className="block font-semibold truncate max-w-[200px]">{c.ad_title || `Conversation ${c.id.slice(0, 8)}`}</span>
-                              <span className="block text-[11px] text-slate-700">{c.buyer_name} ↔ {c.seller_name}</span>
+                              <span className="block text-[11px] text-black">{c.buyer_name} ↔ {c.seller_name}</span>
                             </span>
-                            <span className="text-[11px] text-slate-700 shrink-0">{formatDate(c.updated_at)}</span>
+                            <span className="text-[11px] text-black shrink-0">{formatDate(c.updated_at)}</span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-slate-700">No related conversations found.</p>
+                      <p className="text-xs text-black">No related conversations found.</p>
                     )}
                   </div>
 
                   {/* Previous reports */}
                   <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
-                    <h5 className="text-xs font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5"><Flag className="w-3.5 h-3.5" /> Previous reports ({investigation?.previousReports.length ?? 0})</h5>
+                    <h5 className="text-xs font-black uppercase tracking-wide text-black flex items-center gap-1.5"><Flag className="w-3.5 h-3.5" /> Previous reports ({investigation?.previousReports.length ?? 0})</h5>
                     {investigation?.previousReports && investigation.previousReports.length > 0 ? (
                       <ul className="space-y-2">
                         {investigation.previousReports.map((pr) => (
@@ -1304,36 +1304,36 @@ export default function AdminReportsPage() {
                             <span className="flex items-center gap-1.5">
                               <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-bold border capitalize ${priorityCls[pr.priority]}`}>{pr.priority}</span>
                               <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-bold border capitalize ${statusCls[pr.status]}`}>{pr.status}</span>
-                              <span className="text-slate-700">{formatDate(pr.created_at)}</span>
+                              <span className="text-black">{formatDate(pr.created_at)}</span>
                             </span>
                             <span className="block mt-1 font-semibold">{pr.reason}</span>
-                            <span className="block text-slate-700 truncate">{pr.description || '—'}</span>
+                            <span className="block text-black truncate">{pr.description || '—'}</span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-slate-700">No prior reports for this target.</p>
+                      <p className="text-xs text-black">No prior reports for this target.</p>
                     )}
                   </div>
 
                   {/* Moderation history */}
                   <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
-                    <h5 className="text-xs font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Moderation history</h5>
+                    <h5 className="text-xs font-black uppercase tracking-wide text-black flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Moderation history</h5>
                     {investigation?.moderationHistory && investigation.moderationHistory.length > 0 ? (
                       <ul className="space-y-1.5">
                         {investigation.moderationHistory.map((h) => (
                           <li key={h.id} className="flex items-start gap-2 text-xs bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
-                            <FileText className="w-3.5 h-3.5 text-slate-700 mt-0.5 shrink-0" />
+                            <FileText className="w-3.5 h-3.5 text-black mt-0.5 shrink-0" />
                             <span className="min-w-0">
                               <span className="font-semibold">{h.action}</span>
-                              <span className="block text-[11px] text-slate-700">{formatDateTime(h.created_at)}</span>
-                              {h.metadata ? <span className="block text-[11px] text-slate-700 font-mono truncate">{JSON.stringify(h.metadata).slice(0, 120)}</span> : null}
+                              <span className="block text-[11px] text-black">{formatDateTime(h.created_at)}</span>
+                              {h.metadata ? <span className="block text-[11px] text-black font-mono truncate">{JSON.stringify(h.metadata).slice(0, 120)}</span> : null}
                             </span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-slate-700">No audit entries for this report / target. Actions are written to admin_audit_logs when available.</p>
+                      <p className="text-xs text-black">No audit entries for this report / target. Actions are written to admin_audit_logs when available.</p>
                     )}
                   </div>
                 </div>

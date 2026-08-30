@@ -22,7 +22,7 @@ const SEO_STATS = [
   { label: 'Search Impressions', value: '1.4M', icon: Search, cls: 'bg-amber-50 text-amber-600' },
   { label: 'Search Clicks', value: '84.2K', icon: MousePointerClick, cls: 'bg-emerald-50 text-emerald-600' },
   { label: 'Average CTR', value: '6.0%', icon: BarChart3, cls: 'bg-red-50 text-[#E53935]' },
-  { label: 'Average Position', value: '#8.4', icon: BarChart3, cls: 'bg-slate-100 text-slate-600' },
+  { label: 'Average Position', value: '#8.4', icon: BarChart3, cls: 'bg-slate-100 text-black' },
   { label: 'SEO Errors', value: '14', icon: AlertTriangle, cls: 'bg-red-50 text-[#D32F2F]' },
 ];
 
@@ -71,7 +71,7 @@ export default function AdminSeoPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black tracking-tight">SEO Management</h1>
-        <p className="text-xs text-slate-700 mt-1">Search visibility, metadata templates and technical health.</p>
+        <p className="text-xs text-black mt-1">Search visibility, metadata templates and technical health.</p>
       </div>
 
       {/* Stats */}
@@ -82,7 +82,7 @@ export default function AdminSeoPage() {
               <s.icon className="w-4 h-4" />
             </span>
             <p className="text-lg font-black">{s.value}</p>
-            <p className="text-[10px] font-semibold text-slate-700 mt-0.5 leading-tight">{s.label}</p>
+            <p className="text-[10px] font-semibold text-black mt-0.5 leading-tight">{s.label}</p>
           </div>
         ))}
       </div>
@@ -98,7 +98,7 @@ export default function AdminSeoPage() {
             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-mono text-xs font-bold">{item.title}</p>
-              <p className="text-xs text-slate-700 mt-1 leading-relaxed">{item.desc}</p>
+              <p className="text-xs text-black mt-1 leading-relaxed">{item.desc}</p>
             </div>
           </div>
         ))}
@@ -146,7 +146,7 @@ export default function AdminSeoPage() {
       {/* Errors list */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <h3 className="text-base font-bold mb-4">Top SEO Errors to Fix</h3>
-        <ul className="space-y-2.5 text-xs text-slate-600">
+        <ul className="space-y-2.5 text-xs text-black">
           {[
             '6 category pages missing meta descriptions',
             '4 images missing alt attributes on /business/quickfix-plumbing',

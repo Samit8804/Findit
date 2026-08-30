@@ -30,7 +30,7 @@ export function Input({ label, error, hint, id, className = '', ...props }: Inpu
         {...props}
       />
       {hint && !error && (
-        <p id={`${inputId}-hint`} className="text-xs text-slate-600 mt-1">{hint}</p>
+        <p id={`${inputId}-hint`} className="text-xs text-black mt-1">{hint}</p>
       )}
       {error && (
         <p role="alert" className="text-xs text-red-600 font-medium mt-1">{error}</p>
@@ -72,7 +72,7 @@ export function Select({ label, options, placeholder, id, className = '', ...pro
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none" />
       </div>
     </div>
   );
@@ -100,7 +100,7 @@ export function Tabs({
           className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
             active === t
               ? 'bg-[#E53935] text-white border-[#E53935]'
-              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              : 'bg-white text-black border-slate-200 hover:border-slate-300'
           }`}
         >
           {t}
@@ -139,14 +139,14 @@ export function Pagination({
       </button>
       {pages.map((p, i) => (
         <React.Fragment key={p}>
-          {i > 0 && pages[i - 1] !== p - 1 && <span className="px-1 text-slate-500">…</span>}
+          {i > 0 && pages[i - 1] !== p - 1 && <span className="px-1 text-black">…</span>}
           <button
             onClick={() => onChange(p)}
             aria-current={p === page ? 'page' : undefined}
             className={`min-w-[40px] h-10 px-3 rounded-xl text-sm font-bold transition-colors ${
               p === page
                 ? 'bg-[#E53935] text-white shadow-md shadow-red-100'
-                : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+                : 'bg-white border border-slate-200 text-black hover:border-slate-300'
             }`}
           >
             {p}

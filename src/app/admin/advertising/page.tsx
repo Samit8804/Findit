@@ -75,7 +75,7 @@ export default function AdminAdvertisingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Advertising</h1>
-          <p className="text-xs text-slate-700 mt-1">Manage banner campaigns across the platform.</p>
+          <p className="text-xs text-black mt-1">Manage banner campaigns across the platform.</p>
         </div>
         <button
           onClick={() => setFormOpen(true)}
@@ -95,7 +95,7 @@ export default function AdminAdvertisingPage() {
               </span>
             )}
             <p className="text-lg font-black">{s.value}</p>
-            <p className="text-[10px] font-semibold text-slate-700 mt-0.5">{s.label}</p>
+            <p className="text-[10px] font-semibold text-black mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
@@ -106,17 +106,17 @@ export default function AdminAdvertisingPage() {
         {visible.map((c) => (
           <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
             <td className="pl-5 pr-3 py-3.5 font-bold whitespace-nowrap">{c.advertiser}</td>
-            <td className="px-3 py-3.5 text-slate-700 max-w-[220px] truncate">{c.bannerText}</td>
+            <td className="px-3 py-3.5 text-black max-w-[220px] truncate">{c.bannerText}</td>
             <td className="px-3 py-3.5">
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">{c.placement}</span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-black">{c.placement}</span>
             </td>
-            <td className="px-3 py-3.5 text-slate-600">{c.impressions.toLocaleString('en-IN')}</td>
-            <td className="px-3 py-3.5 text-slate-600">{c.clicks.toLocaleString('en-IN')}</td>
-            <td className="px-3 py-3.5 text-slate-600">{c.impressions ? `${((c.clicks / c.impressions) * 100).toFixed(1)}%` : 'â€”'}</td>
+            <td className="px-3 py-3.5 text-black">{c.impressions.toLocaleString('en-IN')}</td>
+            <td className="px-3 py-3.5 text-black">{c.clicks.toLocaleString('en-IN')}</td>
+            <td className="px-3 py-3.5 text-black">{c.impressions ? `${((c.clicks / c.impressions) * 100).toFixed(1)}%` : 'â€”'}</td>
             <td className="px-3 py-3.5 font-bold whitespace-nowrap">â‚¹{c.price.toLocaleString('en-IN')}</td>
             <td className="pr-5 pl-3 py-3.5">
               <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                c.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : c.status === 'Scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-700'
+                c.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : c.status === 'Scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-black'
               }`}>{c.status}</span>
             </td>
           </tr>

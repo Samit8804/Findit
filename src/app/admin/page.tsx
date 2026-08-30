@@ -82,11 +82,11 @@ export default function AdminDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Admin Dashboard</h1>
-          <p className="text-xs text-slate-700 mt-1">Platform health — {isSupabaseConfigured ? 'live Supabase data' : 'demo data'}.</p>
+          <p className="text-xs text-black mt-1">Platform health — {isSupabaseConfigured ? 'live Supabase data' : 'demo data'}.</p>
         </div>
         <div className="flex gap-1.5">
           {(['7', '30', '90', '365'] as const).map((r) => (
-            <button key={r} onClick={() => setRange(r)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${range === r ? 'bg-[#E53935] text-white border-[#E53935]' : 'bg-white border-slate-200 text-slate-600'}`}>
+            <button key={r} onClick={() => setRange(r)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${range === r ? 'bg-[#E53935] text-white border-[#E53935]' : 'bg-white border-slate-200 text-black'}`}>
               {r === '365' ? 'This year' : `${r} days`}
             </button>
           ))}
@@ -101,8 +101,8 @@ export default function AdminDashboard() {
               <MiniIcon name={s.icon} />
             </span>
             <p className="text-xl font-black">{s.value}</p>
-            <p className="text-[11px] font-semibold text-slate-700 mt-0.5">{s.label}</p>
-            <p className="text-[10px] text-slate-700 mt-1.5 flex items-center gap-1 truncate">
+            <p className="text-[11px] font-semibold text-black mt-0.5">{s.label}</p>
+            <p className="text-[10px] text-black mt-1.5 flex items-center gap-1 truncate">
               <ArrowUpRight className="w-3 h-3 shrink-0" style={{ color: s.color }} /> {s.trend}
             </p>
           </div>
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
           const max = Math.max(...chart.data);
           return (
             <div key={chart.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 className="text-xs font-bold text-slate-700 mb-4">{chart.title}</h3>
+              <h3 className="text-xs font-bold text-black mb-4">{chart.title}</h3>
               <div className="flex items-end justify-between gap-1.5 h-28" role="img" aria-label={chart.title}>
                 {chart.data.map((v, i) => (
                   <div key={i} className="flex-1 flex flex-col justify-end items-center gap-1 h-full" title={`${v}`}>
@@ -123,11 +123,11 @@ export default function AdminDashboard() {
                       className="w-full max-w-[16px] rounded-t-md transition-all hover:opacity-75"
                       style={{ height: `${(v / max) * 100}%`, background: chart.color, minHeight: 4 }}
                     />
-                    <span className="text-[8px] font-semibold text-slate-600">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
+                    <span className="text-[8px] font-semibold text-black">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-700 mt-3">Last {range} days</p>
+              <p className="text-[10px] text-black mt-3">Last {range} days</p>
             </div>
           );
         })}
@@ -142,8 +142,8 @@ export default function AdminDashboard() {
               <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${a.color}`}>
                 <ActivityIcon name={a.icon} />
               </span>
-              <p className="text-sm text-slate-600 flex-grow min-w-0">{a.text}</p>
-              <span className="text-[11px] text-slate-700 shrink-0">{a.time}</span>
+              <p className="text-sm text-black flex-grow min-w-0">{a.text}</p>
+              <span className="text-[11px] text-black shrink-0">{a.time}</span>
             </li>
           ))}
         </ul>

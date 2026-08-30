@@ -36,18 +36,18 @@ export default function BusinessVerificationPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Business Verification</h1>
-          <p className="text-xs text-slate-700 mt-1">Review verification requests — approve, reject or request changes.</p>
+          <p className="text-xs text-black mt-1">Review verification requests — approve, reject or request changes.</p>
         </div>
         <div className="flex gap-2">
           {(['pending','verified','rejected','all'] as const).map((f)=>(
-            <button key={f} onClick={()=>setFilter(f)} className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize border ${filter===f?'bg-[#E53935] text-white border-[#E53935]':'bg-white border-slate-200 text-slate-600'}`}>{f}</button>
+            <button key={f} onClick={()=>setFilter(f)} className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize border ${filter===f?'bg-[#E53935] text-white border-[#E53935]':'bg-white border-slate-200 text-black'}`}>{f}</button>
           ))}
         </div>
       </div>
 
-      {loading ? <p className="text-sm text-slate-700">Loading...</p> : items.length===0 ? (
+      {loading ? <p className="text-sm text-black">Loading...</p> : items.length===0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-          <p className="text-sm text-slate-700">No {filter} requests.</p>
+          <p className="text-sm text-black">No {filter} requests.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -58,7 +58,7 @@ export default function BusinessVerificationPage() {
                 <p className="font-bold flex items-center gap-2">{r.business_profiles.business_name}
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.status==='pending'?'bg-amber-50 text-amber-700':r.status==='verified'?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-700'}`}>{r.status}</span>
                 </p>
-                <p className="text-xs text-slate-700">by {r.profiles?.display_name || r.profiles?.username} · {new Date(r.submitted_at).toLocaleDateString()}</p>
+                <p className="text-xs text-black">by {r.profiles?.display_name || r.profiles?.username} · {new Date(r.submitted_at).toLocaleDateString()}</p>
                 <Link href={`/business/${r.business_profiles.business_slug}`} className="text-xs text-[#E53935] font-semibold hover:underline">View business →</Link>
               </div>
               {r.status==='pending' && (

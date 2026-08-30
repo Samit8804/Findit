@@ -33,14 +33,14 @@ export default function AdminBusinessesPage() {
   const subCls: Record<string, string> = {
     'BUSINESS PRO': 'bg-violet-50 text-violet-700',
     BUSINESS: 'bg-sky-50 text-sky-700',
-    FREE: 'bg-slate-100 text-slate-700',
+    FREE: 'bg-slate-100 text-black',
   };
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Businesses</h1>
-        <p className="text-xs text-slate-700 mt-1">{rows.length} registered businesses</p>
+        <p className="text-xs text-black mt-1">{rows.length} registered businesses</p>
       </div>
 
       <FilterTabs tabs={['All', 'Active', 'Pending Review', 'Suspended']} active={filter} onChange={setFilter} />
@@ -53,17 +53,17 @@ export default function AdminBusinessesPage() {
                 {b.name}
               </Link>
             </td>
-            <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap">{b.owner}</td>
-            <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{b.category}</td>
-            <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap">{b.location}</td>
+            <td className="px-3 py-3.5 text-black whitespace-nowrap">{b.owner}</td>
+            <td className="px-3 py-3.5 text-black whitespace-nowrap">{b.category}</td>
+            <td className="px-3 py-3.5 text-black whitespace-nowrap">{b.location}</td>
             <td className="px-3 py-3.5">
               {b.verified ? (
                 <ShieldCheck className="w-4 h-4 text-emerald-500" aria-label="Verified" />
               ) : (
-                <span className="text-xs text-slate-600">â€”</span>
+                <span className="text-xs text-black">â€”</span>
               )}
             </td>
-            <td className="px-3 py-3.5 text-slate-600">{b.listings}</td>
+            <td className="px-3 py-3.5 text-black">{b.listings}</td>
             <td className="px-3 py-3.5">
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${subCls[b.subscription]}`}>{b.subscription}</span>
             </td>
@@ -75,11 +75,11 @@ export default function AdminBusinessesPage() {
             <td className="pr-5 pl-3 py-3.5">
               <div className="flex items-center gap-1">
                 {!b.verified && (
-                  <button onClick={() => act(b.name, 'Verify')} title="Verify" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-colors"><ShieldCheck className="w-4 h-4" /></button>
+                  <button onClick={() => act(b.name, 'Verify')} title="Verify" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-black transition-colors"><ShieldCheck className="w-4 h-4" /></button>
                 )}
-                <button onClick={() => setConfirm({ name: b.name, action: 'Reject' })} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-700 transition-colors"><XCircle className="w-4 h-4" /></button>
-                <button onClick={() => setConfirm({ name: b.name, action: 'Suspend' })} title="Suspend" disabled={b.status === 'Suspended'} className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-slate-700 disabled:opacity-40 transition-colors"><Ban className="w-4 h-4" /></button>
-                <Link href={`/business/${b.slug}`} title="Edit / View profile" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-700 transition-colors"><Pencil className="w-4 h-4" /></Link>
+                <button onClick={() => setConfirm({ name: b.name, action: 'Reject' })} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-black transition-colors"><XCircle className="w-4 h-4" /></button>
+                <button onClick={() => setConfirm({ name: b.name, action: 'Suspend' })} title="Suspend" disabled={b.status === 'Suspended'} className="p-2 rounded-lg hover:bg-amber-50 hover:text-amber-700 text-black disabled:opacity-40 transition-colors"><Ban className="w-4 h-4" /></button>
+                <Link href={`/business/${b.slug}`} title="Edit / View profile" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-black transition-colors"><Pencil className="w-4 h-4" /></Link>
               </div>
             </td>
           </tr>

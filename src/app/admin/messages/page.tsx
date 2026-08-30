@@ -434,7 +434,7 @@ export default function AdminMessagesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-[#0F172A]">Messages</h1>
-          <p className="text-xs text-slate-700 mt-1">
+          <p className="text-xs text-black mt-1">
             {loading ? 'Loading…' : `${headerCount} conversations`}
             {!isSupabaseConfigured && (
               <span className="ml-2 inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold">
@@ -443,12 +443,12 @@ export default function AdminMessagesPage() {
             )}
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2 text-[11px] text-slate-700">
+        <div className="hidden sm:flex items-center gap-2 text-[11px] text-black">
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#E53935]" /> Oversight
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <MessageSquare className="w-3.5 h-3.5 text-slate-600" /> Read-only
+            <MessageSquare className="w-3.5 h-3.5 text-black" /> Read-only
           </span>
         </div>
       </div>
@@ -456,7 +456,7 @@ export default function AdminMessagesPage() {
       {/* Search */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
         <div className="relative max-w-xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none" />
           <Input
             placeholder="Search by ad title, buyer or seller…"
             value={search}
@@ -465,7 +465,7 @@ export default function AdminMessagesPage() {
             className="pl-9"
           />
         </div>
-        <p className="text-[11px] text-slate-700 mt-2">
+        <p className="text-[11px] text-black mt-2">
           Tip: click a row to open the read-only transcript. Admins cannot send messages from this view.
         </p>
       </div>
@@ -500,10 +500,10 @@ export default function AdminMessagesPage() {
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-14 text-center shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-            <MessageSquare className="w-6 h-6 text-slate-600" />
+            <MessageSquare className="w-6 h-6 text-black" />
           </div>
-          <p className="text-sm font-semibold text-slate-600">No conversations match your search.</p>
-          <p className="text-xs text-slate-700 mt-1">Try a different term or clear the search.</p>
+          <p className="text-sm font-semibold text-black">No conversations match your search.</p>
+          <p className="text-xs text-black mt-1">Try a different term or clear the search.</p>
           {debouncedSearch && (
             <button
               onClick={() => setSearch('')}
@@ -526,22 +526,22 @@ export default function AdminMessagesPage() {
                 title="Open read-only transcript"
               >
                 <td className="pl-5 pr-3 py-3.5">
-                  <span className="font-mono text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg whitespace-nowrap" title={r.id}>
+                  <span className="font-mono text-[11px] font-bold text-black bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg whitespace-nowrap" title={r.id}>
                     {r.id.slice(0, 8)}…{r.id.slice(-4)}
                   </span>
-                  <span className="block font-mono text-[10px] text-slate-700 mt-1 truncate max-w-[140px]" title={r.id}>
+                  <span className="block font-mono text-[10px] text-black mt-1 truncate max-w-[140px]" title={r.id}>
                     {r.id}
                   </span>
                 </td>
                 <td className="px-3 py-3.5 max-w-[220px]">
                   <span className="flex items-center gap-1.5 font-semibold text-[#0F172A] truncate" title={r.adTitle}>
-                    <ShoppingBag className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                    <ShoppingBag className="w-3.5 h-3.5 text-black shrink-0" />
                     <span className="truncate">{r.adTitle}</span>
                   </span>
-                  {r.adId && <span className="block text-[10px] font-mono text-slate-700 truncate mt-0.5">{r.adId.slice(0, 12)}…</span>}
+                  {r.adId && <span className="block text-[10px] font-mono text-black truncate mt-0.5">{r.adId.slice(0, 12)}…</span>}
                 </td>
                 <td className="px-3 py-3.5">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap" title={r.buyerId || undefined}>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-black whitespace-nowrap" title={r.buyerId || undefined}>
                     <span className="w-7 h-7 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 flex items-center justify-center text-[11px] font-black shrink-0">
                       {r.buyerName.charAt(0).toUpperCase()}
                     </span>
@@ -549,28 +549,28 @@ export default function AdminMessagesPage() {
                   </span>
                 </td>
                 <td className="px-3 py-3.5">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap" title={r.sellerId || undefined}>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-black whitespace-nowrap" title={r.sellerId || undefined}>
                     <span className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center text-[11px] font-black shrink-0">
                       {r.sellerName.charAt(0).toUpperCase()}
                     </span>
                     <span className="truncate max-w-[120px]">{r.sellerName}</span>
                   </span>
                 </td>
-                <td className="px-3 py-3.5 whitespace-nowrap text-xs text-slate-700">
+                <td className="px-3 py-3.5 whitespace-nowrap text-xs text-black">
                   <span className="inline-flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-600" />
+                    <Clock className="w-3 h-3 text-black" />
                     {formatDate(r.createdAt)}
                   </span>
                 </td>
-                <td className="px-3 py-3.5 whitespace-nowrap text-xs text-slate-700">{formatDate(r.updatedAt)}</td>
+                <td className="px-3 py-3.5 whitespace-nowrap text-xs text-black">{formatDate(r.updatedAt)}</td>
                 <td className="px-3 py-3.5">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-700">
-                    <MessageSquare className="w-3 h-3 text-slate-700" />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-bold text-black">
+                    <MessageSquare className="w-3 h-3 text-black" />
                     {r.messageCount}
                   </span>
                 </td>
                 <td className="px-3 py-3.5 max-w-[200px]">
-                  <span className="block text-xs text-slate-600 truncate" title={r.lastPreview}>
+                  <span className="block text-xs text-black truncate" title={r.lastPreview}>
                     {r.lastPreview}
                   </span>
                 </td>
@@ -581,7 +581,7 @@ export default function AdminMessagesPage() {
                       void openConversation(r);
                     }}
                     aria-label={`Open conversation ${r.id}`}
-                    className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-700 transition-colors"
+                    className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-black transition-colors"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
@@ -591,7 +591,7 @@ export default function AdminMessagesPage() {
           </DataTable>
 
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-          <p className="text-center text-[11px] text-slate-700">
+          <p className="text-center text-[11px] text-black">
             Page {page} of {totalPages} — {total.toLocaleString('en-IN')} conversations • {PAGE_SIZE}/page
           </p>
         </>
@@ -605,46 +605,46 @@ export default function AdminMessagesPage() {
             <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">Advertisement</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-black">Advertisement</p>
                   <p className="font-bold text-[#0F172A] mt-1 flex items-center gap-2">
                     <span className="w-8 h-8 rounded-xl bg-[#E53935] text-white flex items-center justify-center shrink-0">
                       <ShoppingBag className="w-4 h-4" />
                     </span>
                     <span className="truncate">{selected.adTitle}</span>
                   </p>
-                  <p className="text-[11px] font-mono text-slate-700 mt-1 truncate">Ad: {selected.adId || '—'} · Conversation: {selected.id}</p>
+                  <p className="text-[11px] font-mono text-black mt-1 truncate">Ad: {selected.adId || '—'} · Conversation: {selected.id}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-black">
                     <User className="w-3 h-3" /> Buyer: {selected.buyerName}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-black">
                     <User className="w-3 h-3" /> Seller: {selected.sellerName}
                   </span>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3 mt-4 text-center">
                 <div className="bg-white rounded-xl border border-slate-100 px-3 py-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700">Created</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-black">Created</p>
                   <p className="text-xs font-bold text-[#0F172A] mt-1">{formatDate(selected.createdAt)}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-100 px-3 py-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700">Updated</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-black">Updated</p>
                   <p className="text-xs font-bold text-[#0F172A] mt-1">{formatDate(selected.updatedAt)}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-100 px-3 py-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700">Messages</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-black">Messages</p>
                   <p className="text-xs font-black text-[#E53935] mt-1">{selected.messageCount}</p>
                 </div>
               </div>
-              <p className="text-[11px] text-slate-700 mt-3 flex items-center gap-1.5">
+              <p className="text-[11px] text-black mt-3 flex items-center gap-1.5">
                 <MessageSquare className="w-3 h-3" /> Read-only oversight — admins cannot send messages from this view.
               </p>
             </div>
 
             {/* Messages */}
             {msgLoading ? (
-              <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-slate-700">
+              <div className="bg-white rounded-2xl border border-slate-100 p-10 flex items-center justify-center gap-2 text-black">
                 <Loader2 className="w-5 h-5 animate-spin" /> Loading messages…
               </div>
             ) : msgError ? (
@@ -660,9 +660,9 @@ export default function AdminMessagesPage() {
             ) : messages.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
                 <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-                  <MessageSquare className="w-5 h-5 text-slate-600" />
+                  <MessageSquare className="w-5 h-5 text-black" />
                 </div>
-                <p className="text-sm font-semibold text-slate-700">No messages in this conversation yet.</p>
+                <p className="text-sm font-semibold text-black">No messages in this conversation yet.</p>
               </div>
             ) : (
               <div className="space-y-3 max-h-[52vh] overflow-y-auto pr-1">
@@ -679,11 +679,11 @@ export default function AdminMessagesPage() {
                         </span>
                       )}
                       <div className={`max-w-[78%] rounded-2xl px-4 py-3 border ${isBuyer ? 'bg-white border-slate-100' : 'bg-[#0F172A] border-[#0F172A] text-white'}`}>
-                        <p className={`text-[11px] font-bold ${isBuyer ? 'text-slate-700' : 'text-slate-600'}`}>
+                        <p className={`text-[11px] font-bold ${isBuyer ? 'text-black' : 'text-black'}`}>
                           {m.senderName} · <span className="font-normal">{formatDateTime(m.createdAt)}</span>
                           {m.isRead ? ' · read' : ' · unread'}
                         </p>
-                        <p className={`text-sm leading-relaxed mt-1 whitespace-pre-wrap break-words ${isBuyer ? 'text-slate-700' : 'text-white'}`}>{m.message}</p>
+                        <p className={`text-sm leading-relaxed mt-1 whitespace-pre-wrap break-words ${isBuyer ? 'text-black' : 'text-white'}`}>{m.message}</p>
                       </div>
                       {!isBuyer && (
                         <span className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center text-xs font-black shrink-0 mt-1">
