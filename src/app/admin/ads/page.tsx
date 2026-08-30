@@ -150,12 +150,12 @@ export default function AdminAdsPage() {
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#0F172A]">Advertisements</h1>
-          <p className="text-xs text-black mt-1">Moderate listings before they go live. <span className="font-black text-amber-600">{tabCounts['Pending'] ?? 0} awaiting review</span> • {ads.length} total</p>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">Advertisements</h1>
+          <p className="text-xs text-slate-600 mt-1">Moderate listings before they go live. <span className="font-bold text-amber-600">{tabCounts['Pending'] ?? 0} awaiting review</span> • {ads.length} total</p>
         </div>
         <div className="relative sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none" />
-          <Input placeholder="Search title, ID, seller, email, category..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search ads" className="pl-9" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <Input placeholder="Search title, ID, seller..." value={search} onChange={e => setSearch(e.target.value)} aria-label="Search ads" className="pl-9 text-slate-900" />
         </div>
       </div>
 
@@ -176,21 +176,21 @@ export default function AdminAdsPage() {
         </div>
       ) : loadError ? (
         <div className="bg-white rounded-2xl border border-red-100 p-10 text-center">
-          <p className="text-sm font-semibold text-[#D32F2F]">{loadError}</p>
-          <p className="text-xs text-black mt-2">Check console for technical details. RLS: ensure admin role is set and is_admin() returns true.</p>
+          <p className="text-sm font-semibold text-red-600">{loadError}</p>
+          <p className="text-xs text-slate-600 mt-2">Check console for technical details. RLS: ensure admin role is set and is_admin() returns true.</p>
           <button onClick={() => void load()} className="mt-4 px-5 py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-bold">Retry</button>
         </div>
       ) : filteredVisible.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-14 text-center">
-          <p className="text-sm font-semibold text-black">No advertisements in this state.</p>
-          <p className="text-xs text-black mt-1">Try another filter or search term.</p>
+          <p className="text-sm font-semibold text-slate-800">No advertisements in this state.</p>
+          <p className="text-xs text-slate-500 mt-1">Try another filter or search term.</p>
         </div>
       ) : (
         <>
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
             <table className="w-full text-sm min-w-[980px]">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] uppercase tracking-wider text-black">
+                <tr className="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] uppercase tracking-wider text-slate-700">
                   <th className="pl-5 pr-3 py-3.5 font-bold">Advertisement</th>
                   <th className="px-3 py-3.5 font-bold">Seller</th>
                   <th className="px-3 py-3.5 font-bold">Category</th>
@@ -205,36 +205,36 @@ export default function AdminAdsPage() {
                   <tr key={ad.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="pl-5 pr-3 py-3.5">
                       <div className="flex items-center gap-3 min-w-0 max-w-[280px]">
-                        {ad.image ? <img src={ad.image} alt="" className="w-12 h-9 rounded-lg object-cover shrink-0 bg-slate-100" /> : <span className="w-12 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center text-[10px] text-black">No img</span>}
+                        {ad.image ? <img src={ad.image} alt="" className="w-12 h-9 rounded-lg object-cover shrink-0 bg-slate-100" /> : <span className="w-12 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center text-[10px] text-slate-500">No img</span>}
                         <span className="min-w-0">
-                          <span className="block font-bold truncate text-[#0F172A]" title={ad.title}>{ad.title}</span>
-                          <span className="block text-[11px] text-black">₹{ad.price.toLocaleString('en-IN')} • {ad.id.slice(0,8)} {ad.isFeatured && <span className="ml-1 inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-bold">⭐ Featured</span>}</span>
+                          <span className="block font-bold truncate text-slate-900" title={ad.title}>{ad.title}</span>
+                          <span className="block text-[11px] text-slate-500">₹{ad.price.toLocaleString('en-IN')} • {ad.id.slice(0,8)} {ad.isFeatured && <span className="ml-1 inline-flex px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-bold">⭐ Featured</span>}</span>
                         </span>
                       </div>
                     </td>
                     <td className="px-3 py-3.5 whitespace-nowrap">
-                      <span className="block text-xs font-semibold text-[#0F172A]">{ad.seller}</span>
-                      {ad.sellerEmail && <span className="block text-[11px] text-black truncate max-w-[140px]">{ad.sellerEmail}</span>}
+                      <span className="block text-xs font-semibold text-slate-900">{ad.seller}</span>
+                      {ad.sellerEmail && <span className="block text-[11px] text-slate-500 truncate max-w-[140px]">{ad.sellerEmail}</span>}
                     </td>
-                    <td className="px-3 py-3.5 text-black whitespace-nowrap text-xs">{ad.category}</td>
-                    <td className="px-3 py-3.5 text-black whitespace-nowrap text-xs">{ad.location}</td>
+                    <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap text-xs">{ad.category}</td>
+                    <td className="px-3 py-3.5 text-slate-700 whitespace-nowrap text-xs">{ad.location}</td>
                     <td className="px-3 py-3.5">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusBadgeCls(ad.status)}`}>{ad.status}</span>
                     </td>
-                    <td className="px-3 py-3.5 text-black whitespace-nowrap text-xs">{ad.date}</td>
+                    <td className="px-3 py-3.5 text-slate-600 whitespace-nowrap text-xs">{ad.date}</td>
                     <td className="pr-5 pl-3 py-3.5">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => openDetail(ad)} title="View full details" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-black transition-colors"><Eye className="w-4 h-4" /></button>
-                        <button onClick={() => openHistory(ad.id)} title="History" className="p-2 rounded-lg hover:bg-slate-100 text-black transition-colors"><History className="w-4 h-4" /></button>
+                        <button onClick={() => openDetail(ad)} title="View full details" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#E53935] text-slate-600 transition-colors"><Eye className="w-4 h-4" /></button>
+                        <button onClick={() => openHistory(ad.id)} title="History" className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"><History className="w-4 h-4" /></button>
                         {((ad.status as string) === 'pending' || (ad.status as string) === 'reported' || (ad.status as string) === 'changes_requested') && (
                           <>
-                            <button onClick={() => void act(ad, 'approve')} title="Approve" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-black transition-colors"><Check className="w-4 h-4" /></button>
-                            <button onClick={() => setRejectTarget(ad)} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-black transition-colors"><X className="w-4 h-4" /></button>
-                            <button onClick={() => setRequestTarget(ad)} title="Request changes" className="p-2 rounded-lg hover:bg-sky-50 hover:text-sky-700 text-black transition-colors"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => void act(ad, 'approve')} title="Approve" className="p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 transition-colors"><Check className="w-4 h-4" /></button>
+                            <button onClick={() => setRejectTarget(ad)} title="Reject" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-600 transition-colors"><X className="w-4 h-4" /></button>
+                            <button onClick={() => setRequestTarget(ad)} title="Request changes" className="p-2 rounded-lg hover:bg-sky-50 hover:text-sky-700 text-slate-600 transition-colors"><Pencil className="w-4 h-4" /></button>
                           </>
                         )}
-                        {(ad.status as string) === 'approved' && <button onClick={() => setSuspendTarget(ad)} title="Suspend" className="p-2 rounded-lg hover:bg-orange-50 hover:text-orange-700 text-black transition-colors"><Ban className="w-4 h-4" /></button>}
-                        <button onClick={() => setConfirmDelete(ad)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-black transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        {(ad.status as string) === 'approved' && <button onClick={() => setSuspendTarget(ad)} title="Suspend" className="p-2 rounded-lg hover:bg-orange-50 hover:text-orange-700 text-slate-600 transition-colors"><Ban className="w-4 h-4" /></button>}
+                        <button onClick={() => setConfirmDelete(ad)} title="Delete" className="p-2 rounded-lg hover:bg-red-50 hover:text-[#D32F2F] text-slate-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -243,26 +243,26 @@ export default function AdminAdsPage() {
             </table>
           </div>
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-          <p className="text-center text-[11px] text-black">Page {page} of {totalPages} — {filteredVisible.length} filtered • {ads.length} total</p>
+          <p className="text-center text-[11px] text-slate-500">Page {page} of {totalPages} — {filteredVisible.length} filtered • {ads.length} total</p>
         </>
       )}
 
       <Modal open={viewing !== null} onClose={() => { setViewing(null); setViewingDetail(null); }} title="Moderation Review" size="lg">
         {viewing && (
           <div className="space-y-5">
-            {detailLoading ? <p className="text-sm text-black py-6 text-center animate-pulse">Loading full advertisement...</p> : viewingDetail ? (
+            {detailLoading ? <p className="text-sm text-slate-500 py-6 text-center animate-pulse">Loading full advertisement...</p> : viewingDetail ? (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(viewingDetail.imagesFull || viewingDetail.images || [viewing.image]).filter(Boolean).map((src: string, i: number) => (
                     <img key={i} src={src} alt={`Image ${i+1}`} className="w-full aspect-[4/3] rounded-xl object-cover bg-slate-100 border border-slate-100" onError={e => (e.currentTarget.style.display='none')} />
                   ))}
-                  {(viewingDetail.imagesFull?.length ?? 0) === 0 && <div className="col-span-full py-8 text-center text-xs text-black bg-slate-50 rounded-xl border border-slate-100">No images</div>}
+                  {(viewingDetail.imagesFull?.length ?? 0) === 0 && <div className="col-span-full py-8 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-100">No images</div>}
                 </div>
                 <div className="flex gap-4">
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-black text-[#0F172A] text-lg">{viewingDetail.title}</h4>
+                    <h4 className="font-black text-slate-900 text-lg">{viewingDetail.title}</h4>
                     <p className="text-xl font-black text-[#E53935] mt-1">₹{Number(viewingDetail.price).toLocaleString('en-IN')}</p>
-                    <p className="text-xs text-black mt-1">By {viewingDetail.seller} {viewingDetail.sellerEmail && <span className="text-black">· {viewingDetail.sellerEmail}</span>} · {viewingDetail.location} · {viewingDetail.date}</p>
+                    <p className="text-xs text-slate-600 mt-1">By {viewingDetail.seller} {viewingDetail.sellerEmail && <span className="text-slate-500">· {viewingDetail.sellerEmail}</span>} · {viewingDetail.location} · {viewingDetail.date}</p>
                     <div className="flex gap-2 mt-2 flex-wrap">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusBadgeCls(viewingDetail.status)}`}>{viewingDetail.status}</span>
                       {viewingDetail.isFeatured && <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 border border-amber-200 text-amber-700">⭐ Featured ₹99</span>}
@@ -271,25 +271,25 @@ export default function AdminAdsPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-black uppercase">Category</span><span className="font-semibold text-[#0F172A]">{viewingDetail.category}{viewingDetail.subcategory ? ` › ${viewingDetail.subcategory}` : ''}</span></div>
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-black uppercase">Location</span><span className="font-semibold text-[#0F172A]">{viewingDetail.location}</span></div>
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-black uppercase">Seller</span><span className="font-semibold text-[#0F172A]">{viewingDetail.seller}</span><span className="block text-[11px] text-black">{viewingDetail.sellerEmail} {viewingDetail.sellerPhone && `· ${viewingDetail.sellerPhone}`}</span></div>
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-black uppercase">Views / Featured</span><span className="font-semibold text-[#0F172A]">{viewingDetail.viewsCount ?? 0} views {viewingDetail.isFeatured ? '• Featured' : ''}</span></div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-slate-500 uppercase">Category</span><span className="font-semibold text-slate-900">{viewingDetail.category}{viewingDetail.subcategory ? ` › ${viewingDetail.subcategory}` : ''}</span></div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-slate-500 uppercase">Location</span><span className="font-semibold text-slate-900">{viewingDetail.location}</span></div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-slate-500 uppercase">Seller</span><span className="font-semibold text-slate-900">{viewingDetail.seller}</span><span className="block text-[11px] text-slate-500">{viewingDetail.sellerEmail} {viewingDetail.sellerPhone && `· ${viewingDetail.sellerPhone}`}</span></div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100"><span className="block text-[11px] font-bold text-slate-500 uppercase">Views / Featured</span><span className="font-semibold text-slate-900">{viewingDetail.viewsCount ?? 0} views {viewingDetail.isFeatured ? '• Featured' : ''}</span></div>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-black mb-1.5">Description</p>
-                  <p className="text-sm text-black leading-relaxed bg-slate-50 rounded-xl p-4 border border-slate-100">{viewingDetail.description}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">Description</p>
+                  <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-xl p-4 border border-slate-100">{viewingDetail.description}</p>
                 </div>
                 {viewingDetail.attributes && Object.keys(viewingDetail.attributes).length>0 && (
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-black mb-1.5">Attributes</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">Attributes</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {Object.entries(viewingDetail.attributes).map(([k,v])=> <span key={k} className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs"><span className="font-bold text-[#0F172A]">{k}:</span> <span className="text-black">{String(v)}</span></span>)}
+                      {Object.entries(viewingDetail.attributes).map(([k,v])=> <span key={k} className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs"><span className="font-bold text-slate-900">{k}:</span> <span className="text-slate-700">{String(v)}</span></span>)}
                     </div>
                   </div>
                 )}
-                {viewingDetail.rejectionReason && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-xs"><span className="font-bold text-[#D32F2F]">Rejection reason:</span> <span className="text-black">{viewingDetail.rejectionReason}</span></div>}
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                {viewingDetail.rejectionReason && <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-xs"><span className="font-bold text-red-600">Rejection reason:</span> <span className="text-slate-700">{viewingDetail.rejectionReason}</span></div>}
+                <div className="grid grid-cols-2 gap-3 text-xs text-slate-700">
                   <div className="p-3 rounded-xl bg-slate-50 flex items-center gap-2 border border-slate-100"><ShieldAlert className="w-4 h-4 text-amber-500" /> Image: JPEG/PNG/WebP, &lt;10MB</div>
                   <div className="p-3 rounded-xl bg-slate-50 flex items-center gap-2 border border-slate-100"><AlertTriangle className="w-4 h-4 text-sky-500" /> Keyword scan: no prohibited terms</div>
                 </div>
@@ -303,19 +303,19 @@ export default function AdminAdsPage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-black">Failed to load details.</p>
+              <p className="text-sm text-slate-600">Failed to load details.</p>
             )}
           </div>
         )}
       </Modal>
 
       <Modal open={historyAd !== null} onClose={() => setHistoryAd(null)} title="Moderation History" size="md">
-        {historyLoading ? <p className="text-sm text-black py-6 text-center">Loading history...</p> : historyItems.length === 0 ? <p className="text-sm text-black py-6 text-center">No moderation history for this ad.</p> : (
+        {historyLoading ? <p className="text-sm text-slate-500 py-6 text-center">Loading history...</p> : historyItems.length === 0 ? <p className="text-sm text-slate-500 py-6 text-center">No moderation history for this ad.</p> : (
           <ul className="space-y-3">
             {historyItems.map((h,i) => (
-              <li key={i} className="flex gap-3 text-sm">
+              <li key={i} className="flex gap-3 text-sm text-slate-800">
                 <span className="w-2 h-2 rounded-full bg-[#E53935] mt-2 shrink-0" />
-                <span><span className="font-bold">{h.action}</span> <span className="text-black">· {new Date(h.created_at).toLocaleString('en-IN')}</span><span className="block text-xs text-black mt-1">{h.metadata?.reason || JSON.stringify(h.metadata || {}).slice(0,120)}</span></span>
+                <span><span className="font-bold">{h.action}</span> <span className="text-slate-500">· {new Date(h.created_at).toLocaleString('en-IN')}</span><span className="block text-xs text-slate-600 mt-1">{h.metadata?.reason || JSON.stringify(h.metadata || {}).slice(0,120)}</span></span>
               </li>
             ))}
           </ul>
@@ -324,23 +324,23 @@ export default function AdminAdsPage() {
 
       <Modal open={requestTarget !== null} onClose={() => setRequestTarget(null)} title="Request Changes" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-black">Seller will be notified and can edit and resubmit. Status becomes <span className="font-bold">changes_requested</span>.</p>
-          <div><label className="block text-xs font-bold text-black mb-1.5">Message to seller</label><textarea value={requestMsg} onChange={e => setRequestMsg(e.target.value)} rows={3} placeholder="Please add clearer photos and correct the category..." className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent" /></div>
+          <p className="text-sm text-slate-600">Seller will be notified and can edit and resubmit. Status becomes <span className="font-bold text-slate-900">changes_requested</span>.</p>
+          <div><label className="block text-xs font-bold text-slate-700 mb-1.5">Message to seller</label><textarea value={requestMsg} onChange={e => setRequestMsg(e.target.value)} rows={3} placeholder="Please add clearer photos and correct the category..." className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-[#E53935] focus:border-transparent" /></div>
           <button onClick={() => { const t=requestTarget; setRequestTarget(null); if(t) void act(t,'request_changes'); setRequestMsg(''); }} className="w-full py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-bold transition-colors">Send Request</button>
         </div>
       </Modal>
 
       <Modal open={suspendTarget !== null} onClose={() => setSuspendTarget(null)} title="Suspend Advertisement" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-black">Suspended ads are hidden from public until unsuspended.</p>
-          <div><label className="block text-xs font-bold text-black mb-1.5">Reason</label><input value={suspendReason} onChange={e => setSuspendReason(e.target.value)} placeholder="Violation of community guidelines" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent" /></div>
+          <p className="text-sm text-slate-600">Suspended ads are hidden from public until unsuspended.</p>
+          <div><label className="block text-xs font-bold text-slate-700 mb-1.5">Reason</label><input value={suspendReason} onChange={e => setSuspendReason(e.target.value)} placeholder="Violation of community guidelines" className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-[#E53935] focus:border-transparent" /></div>
           <button onClick={() => { const t=suspendTarget; setSuspendTarget(null); if(t) void act(t,'suspend'); setSuspendReason(''); }} className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors">Suspend Ad</button>
         </div>
       </Modal>
 
       <Modal open={rejectTarget !== null} onClose={() => setRejectTarget(null)} title="Reject Advertisement" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-black">The seller will be notified with this reason and can edit & resubmit.</p>
+          <p className="text-sm text-slate-600">The seller will be notified with this reason and can edit & resubmit.</p>
           <Select label="Rejection reason" value={rejectReason} onChange={e => setRejectReason(e.target.value)} options={REJECTION_REASONS.map(r => ({ value: r, label: r }))} />
           <button onClick={() => { const t = rejectTarget; setRejectTarget(null); if (t) void act(t, 'reject'); }} className="w-full py-3 rounded-xl bg-[#D32F2F] hover:bg-red-700 text-white text-sm font-bold transition-colors">Reject Advertisement</button>
         </div>
