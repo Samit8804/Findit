@@ -152,7 +152,7 @@ function buildMockLogs(): AuditLogRow[] {
       offsetMs = n * 60 * 60 * 1000;
     }
     const created = new Date(now - offsetMs).toISOString();
-    const id = `mock-${idx + 1}-${(item.icon || 'bell').toLowerCase()}`;
+    const id = `mock-${idx + 1}-${(item?.icon || 'bell').toLowerCase()}`;
     const reason = item.text;
     return {
       id,
@@ -161,7 +161,7 @@ function buildMockLogs(): AuditLogRow[] {
       action: m.action,
       entity_type: m.entity_type,
       entity_id: `entity-${idx + 1}`,
-      metadata: { reason, icon: item.icon, time: item.time },
+      metadata: { reason, icon: item?.icon || 'bell', time: item.time },
       created_at: created,
       ip_hash: null,
     } as AuditLogRow;
