@@ -146,24 +146,33 @@ export async function adminGetOrders(status?: string): Promise<AdminOrderRow[]> 
   let q = sb
     .from('orders')
     .select(`id, amount, provider, status, created_at, user_id,
-             promotions(name), ads(title),
-             profiles:user_id(email, name)`)
+             promotions(name), ads(title)`)
     .order('created_at', { ascending: false })
     .limit(100);
   if (status && status !== 'All') q = q.eq('status', status.toLowerCase());
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return (data || []).map((o: any) => ({
-    id: o.id,
-    user_email: o.profiles?.email ?? o.profiles?.name ?? null,
-    adTitle: o.ads?.title ?? '—',
-    productName: o.promotions?.name ?? '—',
-    amount: Number(o.amount ?? 0),
-    provider: o.provider,
-    status: o.status,
-    date: new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-  }));
+  const rows = (data || []) as any[];
+  const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
+  let profileMap = new Map<string, any>();
+  if (userIds.length > 0) {
+    const { data: profs } = await sb.from('profiles').select('id, email, name').in('id', userIds);
+    if (profs) profs.forEach((p: any) => profileMap.set(p.id, p));
+  }
+  return rows.map((o: any) => {
+    const prof = profileMap.get(o.user_id);
+    return {
+      id: o.id,
+      user_email: prof?.email ?? prof?.name ?? null,
+      adTitle: o.ads?.title ?? '—',
+      productName: o.promotions?.name ?? '—',
+      amount: Number(o.amount ?? 0),
+      provider: o.provider,
+      status: o.status,
+      date: new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+    };
+  });
 }
 
 export interface RevenueStats {

@@ -310,6 +310,3 @@ as $$
     count(*) filter (where status in ('refunded','partially_refunded'))
   from public.orders;
 $$;
-DROP FUNCTION IF EXISTS public.expire_promotions() CASCADE;
-DROP FUNCTION IF EXISTS public.mark_order_failed() CASCADE;
-DROP FUNCTION IF EXISTS public.revenue_stats() CASCADE;

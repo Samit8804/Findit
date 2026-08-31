@@ -25,16 +25,18 @@ const CHARTS = [
   { title: 'Listing Views (M)', data: [1.8, 2.1, 2.0, 2.6, 3.0, 3.6, 3.9], color: '#E53935' },
 ];
 
-function MiniIcon({ name }: { name: string }) {
+function MiniIcon({ name }: { name?: string | null }) {
+  const key = (name || 'Folder') as string;
   const Icon =
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }> & Record<string, unknown>>)[name] ||
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }> & Record<string, unknown>>)[key] ||
     Icons.Folder;
   return <Icon className="w-5 h-5" />;
 }
 
-function ActivityIcon({ name }: { name: string }) {
+function ActivityIcon({ name }: { name?: string | null }) {
+  const key = (name || 'Bell') as string;
   const Icon =
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & Record<string, unknown>>)[name] ||
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & Record<string, unknown>>)[key] ||
     Icons.Bell;
   return <Icon className="w-4 h-4" />;
 }
@@ -137,13 +139,13 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <h2 className="text-base font-bold mb-5">Recent Activity</h2>
         <ul className="space-y-4">
-          {mockActivity.map((a, i) => (
+          {mockActivity.filter(Boolean).map((a, i) => (
             <li key={i} className="flex items-center gap-3.5">
-              <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${a.color}`}>
-                <ActivityIcon name={a.icon} />
+              <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${a?.color || 'bg-slate-100 text-slate-600'}`}>
+                <ActivityIcon name={a?.icon} />
               </span>
-              <p className="text-sm text-black flex-grow min-w-0">{a.text}</p>
-              <span className="text-[11px] text-black shrink-0">{a.time}</span>
+              <p className="text-sm text-black flex-grow min-w-0">{a?.text || 'Activity'}</p>
+              <span className="text-[11px] text-black shrink-0">{a?.time || ''}</span>
             </li>
           ))}
         </ul>
