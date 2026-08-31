@@ -25,9 +25,9 @@ export default function GlobalError({
       <main className="flex-grow flex items-center justify-center py-16 px-4">
         <div className="text-center max-w-lg">
           <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-7">
-            <AlertOctagon className="w-12 h-12 text-[#E53935]" />
+            <AlertOctagon className="w-12 h-12 text-[#D32F2F]" />
           </div>
-          <p className="text-6xl font-black text-slate-200 mb-3">500</p>
+          <p className="text-6xl font-black text-slate-400 mb-3">500</p>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Something went wrong</h1>
           <p className="text-sm text-slate-500 leading-relaxed mb-8 max-w-md mx-auto">
             An unexpected error interrupted your request. Our engineers have been notified

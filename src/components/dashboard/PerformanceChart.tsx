@@ -77,7 +77,7 @@ export const PerformanceChart: React.FC = () => {
                   />
                 ))}
               </div>
-              <span className="text-[10px] font-semibold text-slate-400">{label}</span>
+              <span className="text-[10px] font-semibold text-slate-600">{label}</span>
             </div>
           );
         })}

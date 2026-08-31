@@ -20,16 +20,18 @@ const CARD_DEFS = [
   { key: 'messages', label: 'Messages', icon: 'MessageSquare', trend: 'Buyer enquiries', color: '#7C3AED' },
 ] as const;
 
-function MiniIcon({ name }: { name: string }) {
+function MiniIcon({ name }: { name?: string | null }) {
+  const key = (name || 'Folder') as string;
   const Icon =
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & Record<string, unknown>>)[name] ||
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & Record<string, unknown>>)[key] ||
     Icons.Folder;
   return <Icon className="w-5 h-5" />;
 }
 
-function ActivityIcon({ name }: { name: string }) {
+function ActivityIcon({ name }: { name?: string | null }) {
+  const key = (name || 'Bell') as string;
   const Icon =
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & Record<string, unknown>>)[name] ||
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & Record<string, unknown>>)[key] ||
     Icons.Bell;
   return <Icon className="w-4 h-4" />;
 }
@@ -92,12 +94,12 @@ export default function DashboardOverview() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Welcome back, Demo User</h1>
-          <p className="text-sm text-slate-500 mt-1">Here&apos;s what&apos;s happening with your listings today.</p>
+          <p className="text-sm text-slate-600 mt-1">Here&apos;s what&apos;s happening with your listings today.</p>
         </div>
-        <Link
-          href="/post-ad"
-          className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold shadow-lg shadow-red-200 transition-colors"
-        >
+          <Link
+            href="/post-ad"
+            className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#D32F2F] hover:bg-[#B71C1C] text-white text-sm font-bold shadow-lg shadow-red-200 transition-colors"
+          >
           <PlusCircle className="w-4 h-4" /> Post New Ad
         </Link>
       </div>
@@ -110,8 +112,8 @@ export default function DashboardOverview() {
               <MiniIcon name={s.icon} />
             </span>
             <p className="text-xl font-black">{isSupabaseConfigured ? valueFor(s.key) : (s.key === 'pending' ? '2' : s.key === 'favorites' ? '12' : s.key === 'messages' ? '3' : '—')}</p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">{s.label}</p>
-            <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1 truncate">
+            <p className="text-[11px] font-semibold text-slate-600 mt-0.5">{s.label}</p>
+            <p className="text-[10px] text-slate-600 mt-1.5 flex items-center gap-1 truncate">
               {!isSupabaseConfigured && s.key !== 'pending' ? null : null}
               {s.trend}
             </p>
