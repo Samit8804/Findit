@@ -21,9 +21,10 @@ import { locations, categories } from '@/data/mockData';
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import { useUnread } from '@/components/providers/UnreadProvider';
 
-function CategoryIcon({ name }: { name: string }) {
+function CategoryIcon({ name }: { name?: string | null }) {
+  const key = (name || 'Folder') as string;
   const Icon =
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[name] ||
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] ||
     Icons.Folder;
   return <Icon className="w-5 h-5" />;
 }
@@ -61,13 +62,14 @@ export const Header: React.FC = () => {
           .from('profiles')
           .select('name, avatar_url')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
+        if (!data && !metaName) return { name: userId.slice(0, 6) };
         return {
           name: (metaName && !metaName.includes('@') ? metaName : data?.name) || userId.slice(0, 6),
           avatarUrl: data?.avatar_url || undefined,
         };
       } catch {
-        return metaName ? { name: metaName } : undefined;
+        return metaName ? { name: metaName } : { name: userId.slice(0, 6) };
       }
     };
 

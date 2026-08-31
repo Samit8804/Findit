@@ -62,12 +62,11 @@ export async function listPublicAds(params: PublicListParams = {}): Promise<{ ad
   let query = sb
     .from('ads')
     .select(
-      `id, slug, title, description, price, condition, attributes, created_at,
+      `id, slug, title, description, price, condition, attributes, created_at, user_id,
        views_count, favorites_count, is_featured,
        contact_show_phone, contact_show_whatsapp, contact_allow_messages,
        categories!ads_category_id_fkey(name, slug),
        locations(name),
-       profiles:user_id(name, is_verified, phone, whatsapp),
        ad_images(image_url, is_primary, sort_order)`,
       { count: 'exact' }
     )
@@ -86,9 +85,19 @@ export async function listPublicAds(params: PublicListParams = {}): Promise<{ ad
 
   const { data, error, count } = await query;
   if (error) throw new Error(error.message);
-
+  const rows = (data || []) as any[];
+  const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
+  let profileMap = new Map<string, any>();
+  if (userIds.length > 0) {
+    const { data: profs } = await sb.from('profiles').select('id, name, is_verified, phone, whatsapp').in('id', userIds);
+    if (profs) profs.forEach((p: any) => profileMap.set(p.id, p));
+  }
   return {
-    ads: (data || []).map(mapRowToPublicAd),
+    ads: rows.map(row => {
+      const prof = profileMap.get(row.user_id);
+      const enriched = { ...row, profiles: prof };
+      return mapRowToPublicAd(enriched);
+    }),
     hasMore: (count ?? 0) > from + PAGE_SIZE,
   };
 }
@@ -146,7 +155,6 @@ export async function getPublicAdBySlug(slug: string): Promise<PublicAd | null> 
        views_count, favorites_count, is_featured, status, user_id, deleted_at, expires_at,
        contact_show_phone, contact_show_whatsapp, contact_allow_messages,
        categories!ads_category_id_fkey(name, slug), locations(name),
-       profiles:user_id(name, is_verified, phone, whatsapp),
        ad_images(image_url, is_primary, sort_order)`
     )
     .eq('slug', slug)
@@ -155,14 +163,22 @@ export async function getPublicAdBySlug(slug: string): Promise<PublicAd | null> 
   if (error || !data) return null;
 
   // Non-public ads are only visible to their owner
-  const isPublic = data.status === 'approved' && !data.deleted_at && (!data.expires_at || new Date(data.expires_at) > new Date());
+  const isPublic = (data as any).status === 'approved' && !(data as any).deleted_at && (!(data as any).expires_at || new Date((data as any).expires_at) > new Date());
   if (!isPublic) {
     const { data: me } = await sb.auth.getUser();
-    if (!me.user || me.user.id !== data.user_id) return null;
+    if (!me.user || me.user.id !== (data as any).user_id) return null;
   }
 
-  void incrementAdViews(data.id);
-  return mapRowToPublicAd(data);
+  // Enrich with seller profile separately (ads.user_id -> profiles.id via auth.users)
+  const profId = (data as any).user_id;
+  let enriched: any = data;
+  if (profId) {
+    const { data: prof } = await sb.from('profiles').select('id, name, is_verified, phone, whatsapp').eq('id', profId).maybeSingle();
+    if (prof) enriched = { ...data, profiles: prof };
+  }
+
+  void incrementAdViews((data as any).id);
+  return mapRowToPublicAd(enriched);
 }
 
 /* ------------------------------------------------------------------ */
