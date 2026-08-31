@@ -17,7 +17,8 @@ export const StepCategory: React.FC<{
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="radiogroup" aria-label="Ad category">
         {WIZARD_CATEGORIES.map((cat, idx) => {
-          const Icon = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & { displayName?: string }>)[cat.icon] || Icons.Folder;
+          const key = (cat as any)?.icon || 'Folder';
+          const Icon = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> & { displayName?: string }>)[key] || Icons.Folder;
           const selected = value === cat.name;
           return (
             <motion.button

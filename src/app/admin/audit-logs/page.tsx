@@ -152,7 +152,7 @@ function buildMockLogs(): AuditLogRow[] {
       offsetMs = n * 60 * 60 * 1000;
     }
     const created = new Date(now - offsetMs).toISOString();
-    const id = `mock-${idx + 1}-${item.icon.toLowerCase()}`;
+    const id = `mock-${idx + 1}-${(item.icon || 'bell').toLowerCase()}`;
     const reason = item.text;
     return {
       id,

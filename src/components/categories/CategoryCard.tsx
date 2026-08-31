@@ -9,7 +9,8 @@ interface CategoryCardProps {
 
 export const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
   // Dynamically resolve icon from lucide-react
-  const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[category.icon] || Icons.Folder;
+  const key = (category as any)?.icon || 'Folder';
+  const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] || Icons.Folder;
 
   return (
     <Link
