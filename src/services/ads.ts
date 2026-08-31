@@ -512,7 +512,7 @@ export async function adminListAds(statusFilter?: string): Promise<AdminAdRow[]>
   let q = sb
     .from('ads')
     .select(`id, slug, title, price, status, description, created_at, user_id, rejection_reason, is_featured, views_count,
-             profiles:user_id(name, email, is_verified, phone, whatsapp), categories:category_id(name), locations:location_id(name),
+             categories:category_id(name), locations:location_id(name),
              ad_images(image_url, is_primary, sort_order)`)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -520,27 +520,38 @@ export async function adminListAds(statusFilter?: string): Promise<AdminAdRow[]>
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    slug: row.slug,
-    title: row.title,
-    image: (row.ad_images || []).find((i: any) => i.is_primary)?.image_url || (row.ad_images?.[0]?.image_url ?? ''),
-    images: (row.ad_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((i: any) => i.image_url),
-    seller: row.profiles?.name ?? '—',
-    sellerEmail: row.profiles?.email ?? undefined,
-    sellerVerified: !!row.profiles?.is_verified,
-    sellerPhone: row.profiles?.phone ?? undefined,
-    category: row.categories?.name ?? '—',
-    location: row.locations?.name ?? '—',
-    status: row.status,
-    date: new Date(row.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-    price: Number(row.price ?? 0),
-    description: row.description,
-    rejectionReason: row.rejection_reason ?? null,
-    isFeatured: !!row.is_featured,
-    viewsCount: row.views_count ?? 0,
-    userId: row.user_id,
-  } as AdminAdRow));
+  const rows = (data || []) as any[];
+  // Fetch seller profiles separately (ads.user_id -> profiles.id via auth.users)
+  const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+  let profileMap = new Map<string, any>();
+  if (userIds.length > 0) {
+    const { data: profs } = await sb.from('profiles').select('id, name, email, is_verified, phone, whatsapp').in('id', userIds);
+    if (profs) profs.forEach((p: any) => profileMap.set(p.id, p));
+  }
+  return rows.map((row: any) => {
+    const prof = profileMap.get(row.user_id);
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      image: (row.ad_images || []).find((i: any) => i.is_primary)?.image_url || (row.ad_images?.[0]?.image_url ?? ''),
+      images: (row.ad_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((i: any) => i.image_url),
+      seller: prof?.name ?? '—',
+      sellerEmail: prof?.email ?? undefined,
+      sellerVerified: !!prof?.is_verified,
+      sellerPhone: prof?.phone ?? undefined,
+      category: row.categories?.name ?? '—',
+      location: row.locations?.name ?? '—',
+      status: row.status,
+      date: new Date(row.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      price: Number(row.price ?? 0),
+      description: row.description,
+      rejectionReason: row.rejection_reason ?? null,
+      isFeatured: !!row.is_featured,
+      viewsCount: row.views_count ?? 0,
+      userId: row.user_id,
+    } as AdminAdRow;
+  });
 }
 
 export async function adminGetAdDetail(adId: string): Promise<AdminAdRow & { imagesFull: string[]; sellerProfile: any }> {
@@ -549,13 +560,18 @@ export async function adminGetAdDetail(adId: string): Promise<AdminAdRow & { ima
   const { data, error } = await sb
     .from('ads')
     .select(`id, slug, title, price, status, description, created_at, user_id, rejection_reason, is_featured, views_count, favorites_count, condition, attributes,
-             profiles:user_id(id, name, email, is_verified, phone, whatsapp, role, created_at), categories:category_id(name, slug), categories_sub:subcategory_id(name, slug), locations:location_id(name, slug),
+             categories:category_id(name, slug), categories_sub:subcategory_id(name, slug), locations:location_id(name, slug),
              ad_images(image_url, is_primary, sort_order, storage_path)`)
     .eq('id', adId)
     .single();
   if (error) throw new Error(error.message);
   const row: any = data;
   const images = (row.ad_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((i: any) => i.image_url);
+  let prof: any = null;
+  if (row.user_id) {
+    const { data: p } = await sb.from('profiles').select('id, name, email, is_verified, phone, whatsapp, role, created_at').eq('id', row.user_id).single();
+    prof = p;
+  }
   return {
     id: row.id,
     slug: row.slug,
@@ -563,11 +579,11 @@ export async function adminGetAdDetail(adId: string): Promise<AdminAdRow & { ima
     image: images[0] || '',
     images,
     imagesFull: images,
-    seller: row.profiles?.name ?? '—',
-    sellerEmail: row.profiles?.email,
-    sellerVerified: !!row.profiles?.is_verified,
-    sellerPhone: row.profiles?.phone,
-    sellerProfile: row.profiles,
+    seller: prof?.name ?? '—',
+    sellerEmail: prof?.email,
+    sellerVerified: !!prof?.is_verified,
+    sellerPhone: prof?.phone,
+    sellerProfile: prof,
     category: row.categories?.name ?? '—',
     categorySlug: row.categories?.slug,
     subcategory: row.categories_sub?.name ?? null,
