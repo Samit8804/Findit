@@ -60,9 +60,9 @@ export async function POST(req: Request) {
       if (adRow.user_id !== user.id) {
         return NextResponse.json({ error: 'AD_NOT_OWNED' }, { status: 403 });
       }
-      if (adRow.status !== 'approved') {
+      if (!['pending','approved'].includes(adRow.status)) {
         return NextResponse.json(
-          { error: 'AD_NOT_ELIGIBLE', detail: 'Only approved advertisements can be promoted.' },
+          { error: 'AD_NOT_ELIGIBLE', detail: 'Only pending or approved advertisements can be promoted. Draft must be submitted first.' },
           { status: 409 },
         );
       }
