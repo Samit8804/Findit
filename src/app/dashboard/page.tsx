@@ -8,6 +8,7 @@ import { recentActivity } from '@/data/adminData2';
 import { PerformanceChart } from '@/components/dashboard/PerformanceChart';
 import { StatusBadge } from '@/components/dashboard/AdCard';
 import type { AdStatus } from '@/lib/adStore';
+import { normalizeAdStatus } from '@/lib/adStatus';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { getDashboardStats, getMyAds, DashboardStats } from '@/services/ads';
 
@@ -66,7 +67,7 @@ export default function DashboardOverview() {
             price: a.price,
             views: a.views,
             enquiries: a.enquiries,
-            status: a.status.charAt(0).toUpperCase() + a.status.slice(1),
+            status: normalizeAdStatus(a.status),
           }))
         )
       )

@@ -29,7 +29,7 @@ const STATUS_STYLES: Record<AdStatus, { classes: string; icon: React.ElementType
 };
 
 export function StatusBadge({ status }: { status: AdStatus }) {
-  const s = STATUS_STYLES[status];
+  const s = STATUS_STYLES[status] ?? STATUS_STYLES.Pending;
   const Icon = s.icon;
   return (
     <span

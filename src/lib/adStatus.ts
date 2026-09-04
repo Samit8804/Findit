@@ -1,4 +1,31 @@
-export type AdStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'expired' | 'sold' | 'deleted' | 'changes_requested' | 'suspended' | 'reported';
+import type { AdStatus } from '@/lib/adStore';
+
+export type AdStatusDb = 'draft' | 'pending' | 'approved' | 'rejected' | 'expired' | 'sold' | 'deleted' | 'changes_requested' | 'suspended' | 'reported';
+
+export const normalizeAdStatus = (status: string | null | undefined): AdStatus => {
+  switch ((status || '').toLowerCase()) {
+    case 'approved':
+      return 'Active';
+    case 'pending':
+      return 'Pending';
+    case 'draft':
+      return 'Pending';
+    case 'changes_requested':
+      return 'Pending Review';
+    case 'rejected':
+      return 'Rejected';
+    case 'expired':
+      return 'Expired';
+    case 'sold':
+      return 'Sold';
+    case 'deleted':
+      return 'Archived';
+    case 'suspended':
+      return 'Archived';
+    default:
+      return 'Pending';
+  }
+};
 
 /** Centralized status → color mapping per spec */
 export const STATUS_COLORS: Record<string, { bg: string; text: string; hex: string }> = {
@@ -25,4 +52,4 @@ export function statusHex(status: string): string {
   return STATUS_COLORS[status.toLowerCase()]?.hex ?? '#6B7280';
 }
 
-export const ALL_STATUSES: AdStatus[] = ['pending','changes_requested','approved','rejected','reported','expired','sold','draft','suspended'];
+export const ALL_STATUSES: AdStatus[] = ['Pending','Pending Review','Rejected','Expired','Sold','Archived','Active'] as unknown as AdStatus[];
