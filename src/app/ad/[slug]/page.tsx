@@ -36,11 +36,18 @@ async function fetchSupabaseAd(slug: string) {
     const sb = createClient(url, key);
     const { data } = await sb
       .from('ads')
-      .select('id, slug, title, description, price, currency, status, created_at, published_at, expires_at, deleted_at, city:location_id(name), category:category_id(name, slug), ad_images(image_url, is_primary, sort_order), profiles:user_id(name)')
+      .select('id, slug, title, description, price, currency, status, created_at, published_at, expires_at, deleted_at, user_id, city:location_id(name), category:category_id(name, slug), ad_images(image_url, is_primary, sort_order)')
       .eq('slug', slug)
       .maybeSingle();
     if (!data) return null;
-    return data as any;
+    // Fetch seller profile separately (ads.user_id -> profiles.id via auth)
+    const profId = (data as any).user_id;
+    let enriched: any = data;
+    if (profId) {
+      const { data: prof } = await sb.from('profiles').select('name').eq('id', profId).maybeSingle();
+      if (prof) enriched = { ...data, profiles: prof };
+    }
+    return enriched as any;
   } catch {
     return null;
   }
