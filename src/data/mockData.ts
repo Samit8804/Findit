@@ -9,39 +9,43 @@ export const locations: Location[] = [
     name: 'Noida',
     slug: 'noida',
     image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&q=80&w=600',
-    listingCount: 15420,
+    listingCount: 0,
   },
   {
     id: 'l2',
     name: 'Greater Noida',
     slug: 'greater-noida',
     image: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&q=80&w=600',
-    listingCount: 8250,
+    listingCount: 0,
   },
   {
     id: 'l3',
     name: 'Delhi',
     slug: 'delhi',
     image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&q=80&w=600',
-    listingCount: 34100,
+    listingCount: 0,
   },
   {
     id: 'l4',
     name: 'Gurgaon',
     slug: 'gurgaon',
     image: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&q=80&w=600',
-    listingCount: 22800,
+    listingCount: 0,
   },
   {
     id: 'l5',
     name: 'Ghaziabad',
     slug: 'ghaziabad',
     image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=600',
-    listingCount: 9400,
+    listingCount: 0,
   },
 ];
 
-export const mockListings: Listing[] = [
+export const mockListings: Listing[] = [];
+/* REMOVED: Fake demo listings (Luxury 3 BHK etc.) — production must use real DB via listPublicAds.
+   Keeping empty array only to satisfy legacy imports until fully removed.
+*/
+const _removedMockListings: Listing[] = [
   {
     id: 'lst-1',
     title: 'Luxury 3 BHK Apartment with Modern Interior in Sector 150',
@@ -356,7 +360,10 @@ export const mockListings: Listing[] = [
   },
 ];
 
-export const promotedBusinesses: Business[] = [
+export const promotedBusinesses: Business[] = [];
+/* REMOVED: Fake promoted businesses — production must use real business_profiles DB.
+*/
+const _removedPromotedBusinesses: Business[] = [
   {
     id: 'biz-1',
     name: 'Apex Modular Kitchens & Interiors',

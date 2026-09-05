@@ -8,7 +8,9 @@ export interface AdminUser {
   joinedAt: string;
 }
 
-export const adminUsers: AdminUser[] = [
+export const adminUsers: AdminUser[] = [];
+// REMOVED: Fake users - production uses real profiles DB
+const _removedAdminUsers: AdminUser[] = [
   { id: 'u-1', name: 'Rohit Sharma', email: 'rohit@example.com', status: 'Active', verified: true, totalAds: 14, joinedAt: 'Mar 2024' },
   { id: 'u-2', name: 'Priya Sen', email: 'priya@example.com', status: 'Active', verified: false, totalAds: 3, joinedAt: 'Feb 2026' },
   { id: 'u-3', name: 'Vikram Malhotra', email: 'vikram@example.com', status: 'Active', verified: true, totalAds: 9, joinedAt: 'Nov 2023' },
@@ -30,7 +32,9 @@ export interface AdminAd {
   description: string;
 }
 
-export const adminAds: AdminAd[] = [
+export const adminAds: AdminAd[] = [];
+// REMOVED: Fake admin ads - production uses real ads table
+const _removedAdminAds: AdminAd[] = [
   { id: 'adm-1', title: 'Luxury 3 BHK Apartment Sector 150', image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=200', seller: 'Apex Real Estate', category: 'Property', location: 'Noida', status: 'Pending', date: '22 Aug 2026', price: 14500000, description: 'Fully furnished 3 BHK with modular kitchen, park facing balcony and 2 parking slots near metro.' },
   { id: 'adm-2', title: 'iPhone 15 Pro Max 256GB', image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&q=80&w=200', seller: 'Rohit Sharma', category: 'For Sale', location: 'Delhi', status: 'Active', date: '20 Aug 2026', price: 119999, description: 'Battery health 99%, bill and box available, warranty till late 2027.' },
   { id: 'adm-3', title: 'Cheap Followers Instant Delivery', image: '', seller: 'Spam Bot 3000', category: 'Other', location: 'Unknown', status: 'Reported', date: '21 Aug 2026', price: 99, description: 'Get 10k followers for just 99 rupees. DM now. Limited offer.' },
@@ -48,7 +52,9 @@ export interface AdminReport {
   date: string;
 }
 
-export const adminReports: AdminReport[] = [
+export const adminReports: AdminReport[] = [];
+// REMOVED: Fake reports - production uses real reports table
+const _removedAdminReports: AdminReport[] = [
   { id: 'rpt-1', adTitle: 'Cheap Followers Instant Delivery', reporter: 'Anita Desai', reason: 'Spam', details: 'Obvious bot spam posted 40 times across categories.', date: '22 Aug 2026' },
   { id: 'rpt-2', adTitle: 'iPhone 13 Pro Sealed Box Rs 19,999', reporter: 'Kabir Sethi', reason: 'Scam', details: 'Seller asks for advance UPI before meeting. Classic scam pattern.', date: '21 Aug 2026' },
   { id: 'rpt-3', adTitle: 'Sony Bravia OLED Duplicate', reporter: 'Manish Kumar', reason: 'Duplicate', details: 'Same TV listed 5 times with slightly different prices.', date: '20 Aug 2026' },

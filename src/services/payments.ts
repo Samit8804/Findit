@@ -89,18 +89,7 @@ export interface PaymentHistoryRow {
 
 export async function getMyPaymentHistory(): Promise<PaymentHistoryRow[]> {
   const sb = getSupabaseBrowser();
-  if (!sb) {
-    const { adminPayments } = await import('@/data/adminData2');
-    return adminPayments.map((p) => ({
-      id: p.orderId,
-      orderId: p.orderId,
-      adTitle: p.advertisement,
-      productName: p.user ?? p.advertisement,
-      amount: p.amount,
-      status: p.status === 'Success' ? 'paid' : p.status.toLowerCase(),
-      date: p.date,
-    }));
-  }
+  if (!sb) throw new Error('Supabase not configured');
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return [];
   const { data, error } = await sb
@@ -135,14 +124,7 @@ export interface AdminOrderRow {
 
 export async function adminGetOrders(status?: string): Promise<AdminOrderRow[]> {
   const sb = getSupabaseBrowser();
-  if (!sb) {
-    const { adminPayments } = await import('@/data/adminData2');
-    return adminPayments.map((p) => ({
-      id: p.orderId, user_email: p.user, adTitle: p.advertisement,
-      productName: p.advertisement ?? '', amount: p.amount,
-      provider: p.method, status: p.status.toLowerCase(), date: p.date,
-    }));
-  }
+  if (!sb) throw new Error('Supabase not configured');
   let q = sb
     .from('orders')
     .select(`id, amount, provider, status, created_at, user_id,

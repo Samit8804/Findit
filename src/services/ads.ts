@@ -1,8 +1,6 @@
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import { generateSlug } from '@/lib/images';
 import { adSubmissionSchema } from '@/lib/validation/ad';
-import { mockListings } from '@/data/mockData';
-import { demoAds } from '@/data/accountData';
 
 export type DbAdStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'expired' | 'sold' | 'deleted';
 
@@ -54,7 +52,7 @@ export interface PublicListParams {
 
 export async function listPublicAds(params: PublicListParams = {}): Promise<{ ads: PublicAd[]; hasMore: boolean }> {
   const page = params.page ?? 1;
-  if (!isSupabaseConfigured) return { ads: mockAsPublic(), hasMore: false };
+  if (!isSupabaseConfigured) throw new Error('Supabase not configured');
 
   const sb = getSupabaseBrowser()!;
   const from = (page - 1) * PAGE_SIZE;
@@ -143,10 +141,7 @@ function mapRowToPublicAd(row: any): PublicAd {
 /* ------------------------------------------------------------------ */
 
 export async function getPublicAdBySlug(slug: string): Promise<PublicAd | null> {
-  if (!isSupabaseConfigured) {
-    const mock = mockAsPublic().find((m) => m.slug === slug) || null;
-    return mock;
-  }
+  if (!isSupabaseConfigured) throw new Error('Supabase not configured');
   const sb = getSupabaseBrowser()!;
   const { data, error } = await sb
     .from('ads')
@@ -417,14 +412,7 @@ export interface MyAdRow {
 
 export async function getMyAds(): Promise<MyAdRow[]> {
   const sb = getSupabaseBrowser();
-  if (!sb) {
-    // Mock fallback mirrors demo dashboard rows
-    return demoAds.map((d) => ({
-      id: d.id, slug: d.title.toLowerCase().replace(/\W+/g, '-').slice(0, 50), title: d.title,
-      image: d.image, price: d.price, status: d.status.toLowerCase() as DbAdStatus,
-      views: d.views, enquiries: d.enquiries, createdAt: d.createdAt,
-    }));
-  }
+  if (!sb) throw new Error('Supabase not configured');
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return [];
   const { data, error } = await sb
@@ -461,11 +449,7 @@ export interface DashboardStats {
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   const sb = getSupabaseBrowser();
-  if (!sb) {
-    return { total: demoAds.length, active: demoAds.filter((d) => d.status === 'Active').length,
-      pending: demoAds.filter((d) => d.status === 'Pending').length,
-      views: demoAds.reduce((s, d) => s + d.views, 0), favorites: 12, messages: 3 };
-  }
+  if (!sb) throw new Error('Supabase not configured');
   const { data: authData } = await sb.auth.getUser();
   if (!authData.user) {
     return { total: 0, active: 0, pending: 0, views: 0, favorites: 0, messages: 0 };
@@ -837,32 +821,5 @@ export async function markNotificationRead(id: string): Promise<void> {
 /* ------------------------------------------------------------------ */
 
 function mockAsPublic(): PublicAd[] {
-  return [...mockListings, ...mockListings].map((l, idx) => ({
-    id: l.id,
-    slug: generateSlug(l.title) || `ad-${idx}`,
-    title: l.title,
-    description: l.description,
-    price: l.price,
-    condition: l.condition,
-    images: l.images.map((url, i) => ({ url, isPrimary: i === 0, sortOrder: i })),
-    categoryName: l.category,
-    categorySlug: l.categorySlug,
-    locationLabel: l.location,
-    city: l.city,
-    attributes: {},
-    createdAt: new Date().toISOString(),
-    viewsCount: l.views,
-    favoritesCount: l.favorites,
-    isFeatured: l.featured,
-    status: 'approved',
-    seller: {
-      id: l.seller.name,
-      name: l.seller.name,
-      verified: l.seller.verified,
-      showPhone: true,
-      showWhatsApp: true,
-      allowMessages: true,
-      email: l.contactEmail,
-    },
-  })).filter((ad, i, arr) => arr.findIndex((a) => a.slug === ad.slug) === i);
+  throw new Error('Supabase not configured - no mock data in production');
 }

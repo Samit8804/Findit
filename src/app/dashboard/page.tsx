@@ -98,7 +98,7 @@ export default function DashboardOverview() {
     }
   };
 
-  const recent = isSupabaseConfigured ? recentAds : mockRecent;
+  const recent = recentAds;
 
   return (
     <div className="space-y-6">
@@ -123,7 +123,7 @@ export default function DashboardOverview() {
             <span className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: `${s.color}14`, color: s.color }}>
               <MiniIcon name={s.icon} />
             </span>
-            <p className="text-xl font-black">{isSupabaseConfigured ? valueFor(s.key) : (s.key === 'pending' ? '2' : s.key === 'favorites' ? '12' : s.key === 'messages' ? '3' : '—')}</p>
+            <p className="text-xl font-black">{valueFor(s.key)}</p>
             <p className="text-[11px] font-semibold text-slate-600 mt-0.5">{s.label}</p>
             <p className="text-[10px] text-slate-600 mt-1.5 flex items-center gap-1 truncate">
               {!isSupabaseConfigured && s.key !== 'pending' ? null : null}
