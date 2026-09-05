@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { MailCheck, ShieldCheck, XCircle, Clock } from 'lucide-react';
+import { ResendForm } from './ResendForm';
 
 export function generateStaticParams() {
   return [
@@ -62,6 +63,8 @@ export default async function AuthStatePage({ params }: AuthStatePageProps) {
   const config = STATES[(state as StateKey) in STATES ? (state as StateKey) : 'verify-email'];
   const Icon = config.icon;
 
+  const showResend = state === 'verify-email' || state === 'verification-failed';
+
   return (
     <AuthShell title={config.title}>
       <div className="text-center py-2">
@@ -70,7 +73,9 @@ export default async function AuthStatePage({ params }: AuthStatePageProps) {
         </div>
         <p className="text-sm text-slate-500 leading-relaxed mb-7">{config.message}</p>
 
-        <div className="space-y-3">
+        {showResend ? <ResendForm /> : null}
+
+        <div className="space-y-3 mt-4">
           <Link
             href={config.primary.href}
             className="block w-full py-3 bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-semibold rounded-xl transition-colors shadow-md shadow-red-100"

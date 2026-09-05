@@ -19,6 +19,9 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -64,13 +67,23 @@ export default function RegisterPage() {
     const { data, error: authError } = await sb.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { name: form.fullName, phone: form.phone } },
+      options: {
+        data: { name: form.fullName, phone: form.phone },
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+      },
     });
 
     setLoading(false);
 
     if (authError) {
-      setErrors({ form: authError.message });
+      const msg = authError.message || '';
+      const lower = msg.toLowerCase();
+      if (lower.includes('already') || lower.includes('exists') || lower.includes('registered')) {
+        setErrors({ form: 'An account with this email already exists. Please check your inbox for the confirmation email or request a new confirmation email.' });
+        setCanResend(true);
+      } else {
+        setErrors({ form: msg });
+      }
       return;
     }
 
@@ -79,6 +92,33 @@ export default function RegisterPage() {
     setTimeout(() => {
       window.location.href = data.session ? '/' : '/auth/verify-email';
     }, 900);
+  };
+
+  const handleResend = async () => {
+    if (!form.email || !/^\S+@\S+\.\S+$/.test(form.email)) {
+      setErrors({ form: 'Please enter a valid email address to resend confirmation.' });
+      return;
+    }
+    setResendLoading(true);
+    setResendSuccess(false);
+    try {
+      const sb = getSupabaseBrowser()!;
+      const { error } = await sb.auth.resend({
+        type: 'signup',
+        email: form.email,
+        options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      });
+      if (error) {
+        setErrors({ form: error.message });
+      } else {
+        setResendSuccess(true);
+        setErrors({});
+      }
+    } catch (e: any) {
+      setErrors({ form: e?.message || 'Failed to resend confirmation email.' });
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const inputCls = (err?: string) =>
@@ -163,6 +203,25 @@ export default function RegisterPage() {
           </label>
           {errors.terms && <p role="alert" className="text-xs text-red-600 font-medium mt-1">{errors.terms}</p>}
         </div>
+
+        {errors.form && (
+          <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-[#D32F2F]">
+            {errors.form}
+          </div>
+        )}
+        {canResend && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendLoading || resendSuccess}
+              className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-sm font-semibold rounded-xl transition-colors"
+            >
+              {resendLoading ? 'Resending…' : resendSuccess ? 'Confirmation email resent' : 'Resend confirmation email'}
+            </button>
+            {resendSuccess && <p className="text-xs text-emerald-600 font-medium text-center">Check your inbox (and spam) for the new link.</p>}
+          </div>
+        )}
 
         <button
           type="submit"
