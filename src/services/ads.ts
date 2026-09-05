@@ -425,10 +425,13 @@ export async function getMyAds(): Promise<MyAdRow[]> {
       views: d.views, enquiries: d.enquiries, createdAt: d.createdAt,
     }));
   }
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return [];
   const { data, error } = await sb
     .from('ads')
     .select(`id, slug, title, price, status, views_count, rejection_reason, created_at,
              ad_images(image_url, is_primary, sort_order)`)
+    .eq('user_id', auth.user.id)
     .neq('status', 'deleted')
     .order('created_at', { ascending: false });
 
@@ -463,18 +466,18 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       pending: demoAds.filter((d) => d.status === 'Pending').length,
       views: demoAds.reduce((s, d) => s + d.views, 0), favorites: 12, messages: 3 };
   }
+  const { data: authData } = await sb.auth.getUser();
+  if (!authData.user) {
+    return { total: 0, active: 0, pending: 0, views: 0, favorites: 0, messages: 0 };
+  }
+  const uid = authData.user.id;
   const { data, error } = await sb
     .from('ads')
     .select('status, views_count, favorites_count')
+    .eq('user_id', uid)
     .neq('status', 'deleted');
   if (error) throw new Error(error.message);
   const rows = data || [];
-
-  const { data: authData } = await sb.auth.getUser();
-  if (!authData.user) {
-    return { total: rows.length, active: 0, pending: 0, views: 0, favorites: 0, messages: 0 };
-  }
-  const uid = authData.user.id;
 
   // Real unread message count across my conversations
   let messages = 0;
