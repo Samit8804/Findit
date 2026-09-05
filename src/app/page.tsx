@@ -12,13 +12,26 @@ import { LocationCard } from '@/components/locations/LocationCard';
 import { Button } from '@/components/ui/Button';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { SITE_URL, breadcrumbJsonLd, generateHomeMetadata } from '@/lib/seo';
-import { categories, locations, mockListings, promotedBusinesses } from '@/data/mockData';
+import { detailedCategories as categories } from '@/data/taxonomy';
+import { locations } from '@/data/mockData';
+import { listPublicAds } from '@/services/ads';
+import { promotedBusinesses } from '@/data/mockData';
 
 export const metadata = generateHomeMetadata();
+export const revalidate = 60;
 
-export default function Home() {
-  const featuredListings = mockListings.filter((l) => l.featured).slice(0, 8);
-  const latestListings = mockListings.slice(0, 8);
+export default async function Home() {
+  let featuredListings: any[] = [];
+  let latestListings: any[] = [];
+  try {
+    const { ads } = await listPublicAds({ page: 1 });
+    featuredListings = ads.filter((a: any) => a.isFeatured).slice(0, 8);
+    if (featuredListings.length === 0) featuredListings = ads.slice(0, 8);
+    latestListings = ads.slice(0, 8);
+  } catch {
+    featuredListings = [];
+    latestListings = [];
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
@@ -130,9 +143,16 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
+              {featuredListings.length === 0 ? (
+                <div className="col-span-full bg-white rounded-2xl border border-slate-100 p-12 text-center">
+                  <p className="text-sm font-semibold text-slate-600">No featured advertisements yet.</p>
+                  <p className="text-xs text-slate-500 mt-1">Be the first to post a featured ad.</p>
+                </div>
+              ) : (
+                featuredListings.map((listing) => (
+                  <ListingCard key={listing.id} listing={listing} />
+                ))
+              )}
             </div>
           </div>
         </section>
@@ -178,9 +198,17 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {latestListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
+              {latestListings.length === 0 ? (
+                <div className="col-span-full bg-white rounded-2xl border border-slate-100 p-12 text-center">
+                  <p className="text-sm font-semibold text-slate-600">No advertisements yet.</p>
+                  <p className="text-xs text-slate-500 mt-1">Be the first to post an advertisement.</p>
+                  <a href="/post-ad" className="inline-block mt-4 px-5 py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-bold">Post an Ad</a>
+                </div>
+              ) : (
+                latestListings.map((listing) => (
+                  <ListingCard key={listing.id} listing={listing} />
+                ))
+              )}
             </div>
           </div>
         </section>

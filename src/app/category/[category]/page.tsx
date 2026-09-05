@@ -38,7 +38,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const categoryData = detailedCategories.find((c) => c.slug === categorySlug);
   if (!categoryData) notFound();
 
-  // Subcategory mode: filter further when ?subcategory=slug is present
   const isSubcategoryView = !!subSlug;
   const subcategoryData = isSubcategoryView
     ? categoryData.subcategories.find((s) => s.slug === subSlug)
@@ -46,13 +45,27 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   if (isSubcategoryView && !subcategoryData) notFound();
 
-  const baseListings = mockListings.filter(
-    (l) => l.categorySlug.toLowerCase() === categorySlug.toLowerCase()
-  );
-
-  const categoryListings = isSubcategoryView
-    ? baseListings.filter((l) => l.subcategory?.toLowerCase().replace(/[^a-z0-9]+/g, '-') === subSlug)
-    : baseListings;
+  let categoryListings: any[] = [];
+  try {
+    const { listPublicAds } = await import('@/services/ads');
+    const { ads } = await listPublicAds({ categorySlug, subcategorySlug: subSlug || undefined });
+    categoryListings = ads.map((a: any) => ({
+      id: a.id, title: a.title, price: a.price, images: a.images.map((i: any) => i.url),
+      category: a.categoryName, categorySlug: a.categorySlug, location: a.locationLabel,
+      featured: a.isFeatured, views: a.viewsCount, favorites: a.favoritesCount,
+      seller: a.seller, postedAt: new Date(a.createdAt).toLocaleDateString(),
+    }));
+  } catch {
+    const baseListings = mockListings.filter((l) => l.categorySlug.toLowerCase() === categorySlug.toLowerCase());
+    categoryListings = isSubcategoryView ? baseListings.filter((l) => l.subcategory?.toLowerCase().replace(/[^a-z0-9]+/g, '-') === subSlug) : baseListings;
+  }
+  // Fallback to empty if no real data and Supabase configured (no mock in prod)
+  try {
+    const { isSupabaseConfigured } = await import('@/lib/supabase/client');
+    if (isSupabaseConfigured && categoryListings.length === 0) {
+      // keep empty, will show empty state, not mock
+    }
+  } catch {}
 
   const displayName = subcategoryData ? subcategoryData.name : categoryData.name;
   const h1Text = subcategoryData
