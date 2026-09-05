@@ -127,6 +127,7 @@ export const Footer: React.FC = () => {
           <p>© 2026 FindIt Marketplace Inc. All rights reserved.</p>
           <p className="mt-2 md:mt-0">Crafted with precision for modern local commerce.</p>
         </div>
+        <p className="text-center text-[11px] text-slate-500 mt-6">Designed by samit fartyal</p>
       </div>
     </footer>
   );
