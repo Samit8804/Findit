@@ -22,11 +22,15 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
     .slice(0, 50);
   const adHref = `/ad/${listing.id}-${slug}`;
   const imgAlt = `${listing.title} for sale in ${listing.location} - ${listing.category}`;
+  // PublicAd.images is {url,isPrimary,sortOrder}[]; Listing.images is string[] — support both without mock data
+  const imageUrls: string[] = ((listing as any).images ?? [])
+    .map((img: any) => (typeof img === 'string' ? img : img?.url))
+    .filter((u: any): u is string => typeof u === 'string' && u.trim().length > 0);
 
   return (
     <div className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
-        <ImageCarousel images={listing.images} alt={imgAlt} />
+        <ImageCarousel images={imageUrls} alt={imgAlt} />
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {listing.featured && (
             <Badge variant="featured">Featured</Badge>
