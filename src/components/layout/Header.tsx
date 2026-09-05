@@ -220,7 +220,7 @@ export const Header: React.FC = () => {
                               {cat.name}
                             </p>
                             <p className="text-[11px] text-slate-400 font-medium">
-                              {cat.listingCount.toLocaleString()} ads Â· {cat.subcategories.length} subcategories
+                              {cat.listingCount.toLocaleString()} ads · {cat.subcategories.length} subcategories
                             </p>
                           </div>
                         </Link>
@@ -232,7 +232,7 @@ export const Header: React.FC = () => {
                               onClick={() => setShowCategories(false)}
                               className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-semibold text-slate-500 hover:text-[#E53935] hover:border-red-100 hover:bg-red-50 transition-colors"
                             >
-                              {sub.name.length > 22 ? sub.name.slice(0, 20) + 'â€¦' : sub.name}
+                              {sub.name.length > 22 ? sub.name.slice(0, 20) + '…' : sub.name}
                             </Link>
                           ))}
                         </div>

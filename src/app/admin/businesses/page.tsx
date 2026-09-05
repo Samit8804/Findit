@@ -27,7 +27,7 @@ export default function AdminBusinessesPage() {
           : b
       )
     );
-    toast(`${action} â€” ${name}`);
+    toast(`${action} — ${name}`);
   };
 
   const subCls: Record<string, string> = {
@@ -60,7 +60,7 @@ export default function AdminBusinessesPage() {
               {b.verified ? (
                 <ShieldCheck className="w-4 h-4 text-emerald-500" aria-label="Verified" />
               ) : (
-                <span className="text-xs text-black">â€”</span>
+                <span className="text-xs text-black">—</span>
               )}
             </td>
             <td className="px-3 py-3.5 text-black">{b.listings}</td>

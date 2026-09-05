@@ -101,8 +101,8 @@ export async function getMyPaymentHistory(): Promise<PaymentHistoryRow[]> {
   return (data || []).map((o: any) => ({
     id: o.id,
     orderId: o.id.slice(0, 8).toUpperCase(),
-    adTitle: o.ads?.title ?? 'â€”',
-    productName: o.promotions?.name ?? 'â€”',
+    adTitle: o.ads?.title ?? '—',
+    productName: o.promotions?.name ?? '—',
     amount: Number(o.amount ?? 0),
     status: o.status,
     date: new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),

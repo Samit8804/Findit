@@ -1,19 +1,12 @@
 import React, { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import PromoteView from '@/components/promote/PromoteView';
-import { mockListings } from '@/data/mockData';
-import { demoAds } from '@/data/accountData';
-
 interface PromoteByIdPageProps {
   params: Promise<{ id: string }>;
 }
 
 export function generateStaticParams() {
-  const ids = new Set<string>([
-    ...mockListings.map((l) => l.id),
-    ...demoAds.map((d) => d.id),
-  ]);
-  return Array.from(ids).map((id) => ({ id }));
+  return [];
 }
 
 export default async function PromoteByIdPage({ params }: PromoteByIdPageProps) {

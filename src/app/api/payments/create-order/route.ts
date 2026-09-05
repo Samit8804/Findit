@@ -100,7 +100,7 @@ export async function POST(req: Request) {
         internalOrderId: order.id,
         amount: Number(order.amount),
         currency: order.currency,
-        description: `FindIt â€” ${promo.name}${ad ? ` (${ad.title})` : ''}`,
+        description: `FindIt — ${promo.name}${ad ? ` (${ad.title})` : ''}`,
         customerEmail: user.email ?? undefined,
         customerName:
           (user.user_metadata?.name as string) ?? undefined,

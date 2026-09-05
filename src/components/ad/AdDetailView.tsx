@@ -152,7 +152,7 @@ export default function AdDetailView() {
             </div>
             <h1 className="text-2xl font-black tracking-tight mb-3">Listing not found</h1>
             <p className="text-sm text-slate-500 leading-relaxed mb-8">
-              This advertisement is no longer available â€” it may have been removed, expired or is awaiting review.
+              This advertisement is no longer available — it may have been removed, expired or is awaiting review.
             </p>
             <Link href="/browse" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold transition-colors shadow-lg shadow-red-200">
               Browse Ads
@@ -169,7 +169,7 @@ export default function AdDetailView() {
   const related = similar.filter((a) => a.slug !== ad.slug);
 
   const toCardListing = (l: PublicAd) => ({
-    id: l.id, title: l.title, description: l.description, price: l.price, currency: 'â‚¹',
+    id: l.id, title: l.title, description: l.description, price: l.price, currency: '₹',
     images: l.images.map((i) => i.url), category: l.categoryName, categorySlug: l.categorySlug,
     location: l.locationLabel, locationSlug: '', postedAt: new Date(l.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
     condition: (l.condition as any) || 'used_good', featured: l.isFeatured, promoted: false,
@@ -225,7 +225,7 @@ export default function AdDetailView() {
                 <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
                     <span className="text-slate-500 font-medium">Category</span>
-                    <Link href={`/category/${ad.categorySlug}`} className="font-semibold text-[#E53935] hover:underline">{ad.categoryName || 'â€”'}</Link>
+                    <Link href={`/category/${ad.categorySlug}`} className="font-semibold text-[#E53935] hover:underline">{ad.categoryName || '—'}</Link>
                   </div>
                   <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
                     <span className="text-slate-500 font-medium flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Condition</span>
@@ -273,12 +273,12 @@ export default function AdDetailView() {
 
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight mb-4">{ad.title}</h1>
 
-                <p className="text-3xl font-black text-[#E53935] mb-4">â‚¹{ad.price.toLocaleString('en-IN')}</p>
+                <p className="text-3xl font-black text-[#E53935] mb-4">₹{ad.price.toLocaleString('en-IN')}</p>
 
                 <div className="space-y-1.5 text-sm text-slate-500 pb-5 mb-5 border-b border-slate-100">
                   <p className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-[#E53935]" /> {ad.locationLabel || 'Location unavailable'}</p>
                   <p className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-slate-400" /> Listed {postedDate}</p>
-                  <p className="flex items-center gap-1.5"><Eye className="w-4 h-4 text-slate-400" /> {ad.viewsCount} views Â· {ad.favoritesCount} favourites</p>
+                  <p className="flex items-center gap-1.5"><Eye className="w-4 h-4 text-slate-400" /> {ad.viewsCount} views · {ad.favoritesCount} favourites</p>
                 </div>
 
                 {ad.seller.allowMessages ? (
@@ -328,7 +328,7 @@ export default function AdDetailView() {
                 <h2 className="text-base font-bold mb-4 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#E53935]" /> Location Details
                 </h2>
-                <p className="text-sm text-slate-600 leading-relaxed">{ad.locationLabel || 'â€”'}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{ad.locationLabel || '—'}</p>
               </div>
 
               <SafetyTipsCard />

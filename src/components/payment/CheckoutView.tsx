@@ -58,7 +58,7 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
   const startCheckout = async () => {
     setError('');
     if (!isSupabaseConfigured || !order?.providerOrderId || !order.keyId) {
-      // Demo mode â€” no keys configured
+      // Demo mode — no keys configured
       flashDemo();
       return;
     }
@@ -81,7 +81,7 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
             });
             window.location.href = `/payment/success?order=${orderId}`;
           } catch {
-            // Webhook may still land â€” show processing page
+            // Webhook may still land — show processing page
             window.location.href = `/payment/pending?order=${orderId}`;
           }
         },
@@ -134,7 +134,7 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
               {/* Already resolved states */}
               {(order.status === 'paid') && (
                 <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center" role="status">
-                  <p className="text-sm font-semibold text-emerald-800">âœ“ This order has already been paid.</p>
+                  <p className="text-sm font-semibold text-emerald-800">✓ This order has already been paid.</p>
                   <button onClick={() => (window.location.href = `/payment/success?order=${orderId}`)} className="mt-2 text-xs font-bold text-emerald-700 underline">View receipt</button>
                 </div>
               )}
@@ -144,13 +144,13 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
               <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8 mb-6 ${order.status === 'paid' ? 'opacity-60' : ''}`}>
                 <h2 className="font-bold mb-5 flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#E53935]" /> Order Summary</h2>
                 <dl className="space-y-3 text-sm">
-                  <div className="flex justify-between gap-4"><dt className="text-slate-500">Advertisement</dt><dd className="font-semibold text-right max-w-[240px] truncate">{order.adTitle ?? 'â€”'}</dd></div>
-                  <div className="flex justify-between"><dt className="text-slate-500">Promotion</dt><dd className="font-semibold">{order.promotionName ?? 'â€”'}{order.promotionDays ? ` Â· ${order.promotionDays} days` : ''}</dd></div>
-                  <div className="flex justify-between"><dt className="text-slate-500">Amount</dt><dd className="font-semibold">â‚¹{order.amount.toLocaleString('en-IN')}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="text-slate-500">Advertisement</dt><dd className="font-semibold text-right max-w-[240px] truncate">{order.adTitle ?? '—'}</dd></div>
+                  <div className="flex justify-between"><dt className="text-slate-500">Promotion</dt><dd className="font-semibold">{order.promotionName ?? '—'}{order.promotionDays ? ` · ${order.promotionDays} days` : ''}</dd></div>
+                  <div className="flex justify-between"><dt className="text-slate-500">Amount</dt><dd className="font-semibold">₹{order.amount.toLocaleString('en-IN')}</dd></div>
                   <div className="flex justify-between"><dt className="text-slate-500">GST</dt><dd className="font-semibold text-slate-400">Included where applicable</dd></div>
                   <div className="flex justify-between pt-4 border-t border-slate-100 text-lg">
                     <dt className="font-black">Total Payable</dt>
-                    <dd className="font-black text-[#E53935]">â‚¹{order.amount.toLocaleString('en-IN')}</dd>
+                    <dd className="font-black text-[#E53935]">₹{order.amount.toLocaleString('en-IN')}</dd>
                   </div>
                 </dl>
 
@@ -179,10 +179,10 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
                   >
                     {paying ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" /> Opening secure checkoutâ€¦
+                        <Loader2 className="w-5 h-5 animate-spin" /> Opening secure checkout…
                       </>
                     ) : (
-                      `Pay â‚¹${order.amount.toLocaleString('en-IN')} Securely`
+                      `Pay ₹${order.amount.toLocaleString('en-IN')} Securely`
                     )}
                   </button>
 

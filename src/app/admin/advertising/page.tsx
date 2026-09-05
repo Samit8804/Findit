@@ -66,8 +66,8 @@ export default function AdminAdvertisingPage() {
     { label: 'Active Campaigns', value: String(active.length), icon: Megaphone, cls: 'bg-red-50 text-[#E53935]' },
     { label: 'Impressions', value: impressions.toLocaleString('en-IN'), icon: Eye, cls: 'bg-sky-50 text-sky-600' },
     { label: 'Clicks', value: clicks.toLocaleString('en-IN'), icon: MousePointerClick, cls: 'bg-emerald-50 text-emerald-600' },
-    { label: 'CTR', value: impressions ? `${((clicks / impressions) * 100).toFixed(2)}%` : 'â€”', icon: null, cls: 'bg-violet-50 text-violet-600' },
-    { label: 'Ad Revenue', value: `â‚¹${revenue.toLocaleString('en-IN')}`, icon: Wallet, cls: 'bg-amber-50 text-amber-600' },
+    { label: 'CTR', value: impressions ? `${((clicks / impressions) * 100).toFixed(2)}%` : '—', icon: null, cls: 'bg-violet-50 text-violet-600' },
+    { label: 'Ad Revenue', value: `₹${revenue.toLocaleString('en-IN')}`, icon: Wallet, cls: 'bg-amber-50 text-amber-600' },
   ];
 
   return (
@@ -112,8 +112,8 @@ export default function AdminAdvertisingPage() {
             </td>
             <td className="px-3 py-3.5 text-black">{c.impressions.toLocaleString('en-IN')}</td>
             <td className="px-3 py-3.5 text-black">{c.clicks.toLocaleString('en-IN')}</td>
-            <td className="px-3 py-3.5 text-black">{c.impressions ? `${((c.clicks / c.impressions) * 100).toFixed(1)}%` : 'â€”'}</td>
-            <td className="px-3 py-3.5 font-bold whitespace-nowrap">â‚¹{c.price.toLocaleString('en-IN')}</td>
+            <td className="px-3 py-3.5 text-black">{c.impressions ? `${((c.clicks / c.impressions) * 100).toFixed(1)}%` : '—'}</td>
+            <td className="px-3 py-3.5 font-bold whitespace-nowrap">₹{c.price.toLocaleString('en-IN')}</td>
             <td className="pr-5 pl-3 py-3.5">
               <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${
                 c.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : c.status === 'Scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-black'
@@ -137,7 +137,7 @@ export default function AdminAdvertisingPage() {
               onChange={(e) => setForm((f) => ({ ...f, placement: e.target.value }))}
               options={PLACEMENTS.map((p) => ({ value: p, label: p }))}
             />
-            <Input label="Price (â‚¹)" name="price" type="number" min={0} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} error={errors.price} />
+            <Input label="Price (₹)" name="price" type="number" min={0} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} error={errors.price} />
             <Input label="Start Date" name="start" type="date" value={form.start} onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))} />
             <Input label="End Date" name="end" type="date" value={form.end} onChange={(e) => setForm((f) => ({ ...f, end: e.target.value }))} />
           </div>
