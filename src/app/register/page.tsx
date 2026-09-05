@@ -77,7 +77,7 @@ export default function RegisterPage() {
     // Session exists immediately when email confirmation is disabled
     setSuccess(true);
     setTimeout(() => {
-      window.location.href = data.session ? '/dashboard' : '/auth/verify-email';
+      window.location.href = data.session ? '/' : '/auth/verify-email';
     }, 900);
   };
 

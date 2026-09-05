@@ -33,7 +33,7 @@ export default function LoginPage() {
       setTimeout(() => {
         setLoading(false);
         setSuccess(true);
-        setTimeout(() => (window.location.href = '/dashboard'), 1000);
+        setTimeout(() => (window.location.href = '/'), 1000);
       }, 900);
       return;
     }
@@ -51,7 +51,7 @@ export default function LoginPage() {
     }
 
     setSuccess(true);
-    setTimeout(() => (window.location.href = remember ? '/dashboard' : '/dashboard'), 800);
+    setTimeout(() => (window.location.href = '/'), 800);
   };
 
   return (
