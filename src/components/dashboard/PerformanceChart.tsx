@@ -20,18 +20,21 @@ export const PerformanceChart: React.FC<{ stats?: { views: number; enquiries: nu
   });
   const performanceDataToUse = (() => {
     if (!realStats) return performanceData;
-    // Distribute real totals across 7 days with slight variance for visual
     const totalViews = realStats.views || 0;
     const totalEnq = (realStats as any).enquiries ?? (realStats as any).messages ?? 0;
     const totalFav = realStats.favorites || 0;
+    // If all zero, show zeroed chart, not mock
+    if (totalViews === 0 && totalEnq === 0 && totalFav === 0) {
+      return { labels: performanceData.labels, series: { views: [0,0,0,0,0,0,0], enquiries: [0,0,0,0,0,0,0], favorites: [0,0,0,0,0,0,0] } } as typeof performanceData;
+    }
     const variance = [0.7, 0.85, 0.9, 1.1, 1.25, 1.4, 1.0];
     const mk = (total: number) => variance.map(v => Math.max(0, Math.round((total / 7) * v)));
     return {
       labels: performanceData.labels,
       series: {
-        views: totalViews ? mk(totalViews) : performanceData.series.views,
-        enquiries: totalEnq ? mk(totalEnq) : performanceData.series.enquiries,
-        favorites: totalFav ? mk(totalFav) : performanceData.series.favorites,
+        views: mk(totalViews),
+        enquiries: mk(totalEnq),
+        favorites: mk(totalFav),
       },
     } as typeof performanceData;
   })();

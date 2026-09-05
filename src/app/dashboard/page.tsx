@@ -49,10 +49,21 @@ const mockConversations = [
   { id: 'conv-2', name: 'Priya Sen', avatarText: 'PS', online: true, adRef: 'Apple iPhone 15 Pro Max 256GB', unread: 0, lastTime: 'Yesterday' },
   { id: 'conv-3', name: 'Karan Verma', avatarText: 'KV', online: false, adRef: 'Royal Enfield Interceptor 650', unread: 1, lastTime: 'Mon' },
 ];
+const useRealConversations = () => {
+  const [convs, setConvs] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    import('@/services/messaging').then(m => m.listConversations().then(list => {
+      setConvs(list.slice(0,3).map(c => ({ id: c.id, name: c.otherName, avatarText: c.otherName.slice(0,2).toUpperCase(), online: false, adRef: c.adTitle, unread: c.unread, lastTime: c.lastTime })));
+    }).catch(()=>{}));
+  }, []);
+  return convs;
+};
 
 export default function DashboardOverview() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentAds, setRecentAds] = useState<any[] | null>(null);
+  const realConvs = useRealConversations();
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -169,7 +180,12 @@ export default function DashboardOverview() {
             </Link>
           </div>
           <ul className="space-y-4">
-            {mockConversations.map((c) => (
+            {(isSupabaseConfigured ? (realConvs === null ? [] : realConvs) : mockConversations).length === 0 ? (
+              <li className="py-6 text-center text-sm text-slate-500">
+                {isSupabaseConfigured ? (realConvs === null ? 'Loading messages…' : 'No messages yet — start a conversation from an ad.') : 'No messages'}
+              </li>
+            ) : (
+              (isSupabaseConfigured ? realConvs! : mockConversations).map((c) => (
               <li key={c.id}>
                 <Link href="/dashboard/messages" className="flex items-start gap-3 group">
                   <div className="relative shrink-0">
@@ -188,7 +204,7 @@ export default function DashboardOverview() {
                   </div>
                 </Link>
               </li>
-            ))}
+            )))}
           </ul>
         </div>
       </div>
