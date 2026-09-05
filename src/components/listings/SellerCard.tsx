@@ -48,12 +48,12 @@ export const SellerCard: React.FC<SellerCardProps> = ({
         {responseTime}
       </p>
 
-      <Link
-        href="#"
-        className="block w-full text-center py-2.5 rounded-xl border border-slate-200 hover:border-[#E53935] hover:text-[#E53935] transition-colors text-sm font-semibold"
+      <span
+        title="Seller profiles coming soon"
+        className="block w-full text-center py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed text-sm font-semibold"
       >
         View Profile
-      </Link>
+      </span>
     </div>
   );
 };

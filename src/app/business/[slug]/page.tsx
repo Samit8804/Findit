@@ -125,7 +125,7 @@ export default async function BusinessProfilePage({ params }: BusinessProfilePro
                 >
                   <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                 </a>
-                <a href="#" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-xs font-bold transition-colors">
+                <a href={`https://${business.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-xs font-bold transition-colors">
                   <Globe className="w-3.5 h-3.5" /> Website
                 </a>
               </div>

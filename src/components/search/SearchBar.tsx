@@ -21,7 +21,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }
     e.preventDefault();
     if (onSearch) {
       onSearch({ keyword, location: selectedLocation, category: selectedCategory });
+      return;
     }
+    const params = new URLSearchParams();
+    if (keyword.trim()) params.set('q', keyword.trim());
+    if (selectedLocation !== 'All Locations') params.set('location', selectedLocation);
+    if (selectedCategory !== 'All Categories') params.set('category', selectedCategory);
+    window.location.href = `/browse${params.toString() ? `?${params.toString()}` : ''}`;
   };
 
   return (

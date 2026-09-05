@@ -74,18 +74,18 @@ export const Footer: React.FC = () => {
               FindIt is your ultimate modern classified advertisement marketplace. Buy, sell or discover properties, vehicles, electronics, jobs and services in your local area.
             </p>
             <div className="flex items-center gap-3">
-              <a href="#" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-[#E53935] hover:text-white transition-colors">
+              <span title="Social links coming soon" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 cursor-not-allowed">
                 <Globe className="w-4 h-4" />
-              </a>
-              <a href="#" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-[#E53935] hover:text-white transition-colors">
+              </span>
+              <span title="Social links coming soon" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 cursor-not-allowed">
                 <Share2 className="w-4 h-4" />
-              </a>
-              <a href="#" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-[#E53935] hover:text-white transition-colors">
+              </span>
+              <span title="Social links coming soon" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 cursor-not-allowed">
                 <Compass className="w-4 h-4" />
-              </a>
-              <a href="#" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-[#E53935] hover:text-white transition-colors">
+              </span>
+              <span title="Social links coming soon" className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 cursor-not-allowed">
                 <Video className="w-4 h-4" />
-              </a>
+              </span>
             </div>
           </div>
 

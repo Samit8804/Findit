@@ -13,7 +13,7 @@ export default function NotFound() {
           <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-7">
             <SearchX className="w-12 h-12 text-[#E53935]" />
           </div>
-          <p className="text-6xl font-black text-slate-200 mb-3">404</p>
+          <p className="text-6xl font-black text-slate-400 mb-3">404</p>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Listing not found</h1>
           <p className="text-sm text-slate-500 leading-relaxed mb-8 max-w-md mx-auto">
             The page or listing you&apos;re looking for doesn&apos;t exist, was removed by its owner,
