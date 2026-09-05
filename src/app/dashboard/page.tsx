@@ -122,8 +122,8 @@ export default function DashboardOverview() {
         ))}
       </div>
 
-      {/* Chart */}
-      <PerformanceChart />
+      {/* Chart — now uses real stats when Supabase configured, fallback to mock */}
+      <PerformanceChart stats={stats ? { views: stats.views, enquiries: (stats as any).messages ?? 0, favorites: stats.favorites } : null} />
 
       {/* Recent ads + messages */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
