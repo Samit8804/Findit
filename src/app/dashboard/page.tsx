@@ -37,18 +37,8 @@ function ActivityIcon({ name }: { name?: string | null }) {
   return <Icon className="w-4 h-4" />;
 }
 
-const mockRecent = [
-  { id: 'demo-1', title: 'Luxury 3 BHK Apartment with Modern Interior', image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=200', price: 14500000, views: 3420, enquiries: 47, status: 'Active' },
-  { id: 'demo-2', title: 'Apple iPhone 15 Pro Max 256GB', image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&q=80&w=200', price: 119999, views: 1890, enquiries: 23, status: 'Active' },
-  { id: 'demo-3', title: 'Royal Enfield Interceptor 650 Chrome', image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&q=80&w=200', price: 275000, views: 310, enquiries: 12, status: 'Pending Review' },
-  { id: 'demo-4', title: 'Velvet L-Shaped Sofa Set', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&q=80&w=200', price: 32000, views: 940, enquiries: 18, status: 'Sold' },
-];
-
-const mockConversations = [
-  { id: 'conv-1', name: 'Rohit Sharma', avatarText: 'RS', online: true, adRef: 'Luxury 3 BHK Apartment, Sector 150', unread: 2, lastTime: '10:42 AM' },
-  { id: 'conv-2', name: 'Priya Sen', avatarText: 'PS', online: true, adRef: 'Apple iPhone 15 Pro Max 256GB', unread: 0, lastTime: 'Yesterday' },
-  { id: 'conv-3', name: 'Karan Verma', avatarText: 'KV', online: false, adRef: 'Royal Enfield Interceptor 650', unread: 1, lastTime: 'Mon' },
-];
+const mockRecent: any[] = [];
+const mockConversations: any[] = [];
 const useRealConversations = () => {
   const [convs, setConvs] = useState<any[] | null>(null);
   useEffect(() => {
