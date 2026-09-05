@@ -46,6 +46,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   );
 
   const isPublic =
+    pathname === '/' ||
     pathname.startsWith('/admin') ||
     PUBLIC_ROUTES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
@@ -80,10 +81,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured && !isPublic) {
       if (status === 'guest') {
         router.replace('/login');
-        return;
-      }
-      if (status === 'authed' && pathname === '/') {
-        router.replace('/dashboard');
         return;
       }
     }
