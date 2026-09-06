@@ -1,17 +1,48 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Megaphone, MousePointerClick, Eye, Wallet, PlusCircle } from 'lucide-react';
-import { campaigns as seed, Campaign } from '@/data/adminData2';
+import type { Campaign } from '@/data/adminData2';
 import { DataTable, Tabs as FilterTabs, Input, Select } from '@/components/ui/Form';
 import { Modal, useToast } from '@/components/ui/Feedback';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 
 const PLACEMENTS = ['Homepage', 'Category', 'Location', 'Listing', 'Business'];
 
 export default function AdminAdvertisingPage() {
   const toast = useToast();
-  const [list, setList] = useState<Campaign[]>(seed);
+  const [list, setList] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [filter, setFilter] = useState('All');
+
+  const load = React.useCallback(async () => {
+    if (!isSupabaseConfigured) { setLoading(false); setLoadError('Supabase not configured'); return; }
+    setLoading(true); setLoadError('');
+    try {
+      const sb = getSupabaseBrowser()!;
+      const { data, error } = await sb.from('advertising_campaigns').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      const mapped = (data as any[] || []).map((r: any) => ({
+        id: r.id,
+        advertiser: r.advertiser,
+        bannerText: r.banner_text,
+        destination: r.destination,
+        placement: r.placement,
+        start: r.start_date,
+        end: r.end_date,
+        price: Number(r.price),
+        status: r.status,
+        impressions: r.impressions ?? 0,
+        clicks: r.clicks ?? 0,
+      }));
+      setList(mapped);
+    } catch (e: any) {
+      setLoadError(e.message || 'Unable to load campaigns');
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({
     advertiser: '',
@@ -32,7 +63,7 @@ export default function AdminAdvertisingPage() {
 
   const visible = filter === 'All' ? list : list.filter((c) => c.placement === filter);
 
-  const submitCampaign = () => {
+  const submitCampaign = async () => {
     const errs: Record<string, string> = {};
     if (!form.advertiser.trim()) errs.advertiser = 'Advertiser name required.';
     if (!form.bannerText.trim()) errs.bannerText = 'Banner text required.';
@@ -41,25 +72,27 @@ export default function AdminAdvertisingPage() {
     if (!form.price || Number(form.price) <= 0) errs.price = 'Enter a valid price.';
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    setList((prev) => [
-      {
-        id: `cmp-${Date.now()}`,
+    if (!isSupabaseConfigured) { toast('Supabase not configured'); return; }
+    try {
+      const sb = getSupabaseBrowser()!;
+      const { data, error } = await sb.from('advertising_campaigns').insert({
         advertiser: form.advertiser,
-        bannerText: form.bannerText,
+        banner_text: form.bannerText,
         destination: form.destination,
-        placement: form.placement as Campaign['placement'],
-        start: form.start,
-        end: form.end,
+        placement: form.placement,
+        start_date: form.start,
+        end_date: form.end,
         price: Number(form.price),
-        status: form.status as Campaign['status'],
-        impressions: 0,
-        clicks: 0,
-      },
-      ...prev,
-    ]);
-    setFormOpen(false);
-    setForm({ advertiser: '', bannerText: '', destination: '', placement: 'Homepage', start: '', end: '', price: '', status: 'Scheduled' });
-    toast('Campaign created');
+        status: form.status,
+      }).select('id').single();
+      if (error) throw error;
+      await load();
+      setFormOpen(false);
+      setForm({ advertiser: '', bannerText: '', destination: '', placement: 'Homepage', start: '', end: '', price: '', status: 'Scheduled' });
+      toast('Campaign created');
+    } catch (e: any) {
+      toast(e.message || 'Failed to create campaign');
+    }
   };
 
   const stats = [
@@ -102,7 +135,20 @@ export default function AdminAdvertisingPage() {
 
       <FilterTabs tabs={['All', ...PLACEMENTS]} active={filter} onChange={setFilter} />
 
-      <DataTable headers={['Advertiser', 'Banner', 'Placement', 'Impressions', 'Clicks', 'CTR', 'Price', 'Status']}>
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center text-sm text-slate-500">Loading campaigns...</div>
+      ) : loadError ? (
+        <div className="bg-white rounded-2xl border border-red-100 p-10 text-center">
+          <p className="text-sm font-semibold text-[#D32F2F]">{loadError}</p>
+          <button onClick={() => void load()} className="mt-3 px-4 py-2 rounded-xl bg-[#E53935] text-white text-xs font-bold">Retry</button>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
+          <p className="text-sm font-semibold text-slate-600">No campaigns yet</p>
+          <p className="text-xs text-slate-500 mt-1">Create your first advertising campaign.</p>
+        </div>
+      ) : (
+        <DataTable headers={['Advertiser', 'Banner', 'Placement', 'Impressions', 'Clicks', 'CTR', 'Price', 'Status']}>
         {visible.map((c) => (
           <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
             <td className="pl-5 pr-3 py-3.5 font-bold whitespace-nowrap">{c.advertiser}</td>
@@ -122,6 +168,7 @@ export default function AdminAdvertisingPage() {
           </tr>
         ))}
       </DataTable>
+      )}
 
       {/* Create campaign modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Create Advertising Campaign" size="lg">
