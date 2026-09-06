@@ -2,6 +2,7 @@ export type AdStatus = 'Active' | 'Pending' | 'Pending Review' | 'Rejected' | 'E
 
 export interface StoredAd {
   id: string;
+  slug: string;
   userId: string;
   title: string;
   description: string;
@@ -51,9 +52,11 @@ function writeAll(ads: StoredAd[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ads));
 }
 
-export function addAd(ad: Omit<StoredAd, 'id' | 'createdAt' | 'status'> & { status?: AdStatus }): StoredAd {
+export function addAd(ad: Omit<StoredAd, 'id' | 'slug' | 'createdAt' | 'status'> & { status?: AdStatus; slug?: string }): StoredAd {
+  const baseSlug = (ad as any).slug || ad.title.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 50);
   const full: StoredAd = {
     ...ad,
+    slug: baseSlug,
     status: ad.status ?? 'Active',
     id: `usr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     createdAt: new Date().toISOString(),

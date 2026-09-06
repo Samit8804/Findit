@@ -101,7 +101,7 @@ export const AdCard: React.FC<AdCardProps> = ({ ad, onEdit, onDelete, onShare, o
         {/* Quick actions */}
         <div className="grid grid-cols-6 gap-1.5 pt-4">
           <a
-            href={`/ad/${ad.id}`}
+            href={`/ad/${(ad as any).slug || ad.id}`}
             title="View ad"
             className="flex flex-col items-center gap-1 px-1 py-2 rounded-xl bg-slate-50 hover:bg-red-50 hover:text-[#E53935] text-slate-600 transition-colors"
           >

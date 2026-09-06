@@ -47,6 +47,7 @@ export interface Location {
 
 export interface Listing {
   id: string;
+  slug: string;
   title: string;
   description: string;
   price: number;
