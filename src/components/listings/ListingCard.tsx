@@ -14,7 +14,7 @@ interface ListingCardProps {
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
   const [isFavorite, setIsFavorite] = React.useState(false);
 
-  const adHref = `/ad/${(listing as any).slug || listing.id}`;
+  const adHref = `/ad/${listing.slug}`;
   const imgAlt = `${listing.title} for sale in ${listing.location} - ${listing.category}`;
   // PublicAd.images is {url,isPrimary,sortOrder}[]; Listing.images is string[] — support both without mock data
   const imageUrls: string[] = ((listing as any).images ?? [])

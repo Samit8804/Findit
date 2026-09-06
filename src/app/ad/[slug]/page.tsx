@@ -19,35 +19,97 @@ async function fetchSupabaseAd(slug: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return null;
-  try {
-    const sb = createClient(url, key);
-    let { data } = await sb
-      .from('ads')
-      .select('id, slug, title, description, price, currency, status, created_at, published_at, expires_at, deleted_at, user_id, city:location_id(name), category:category_id(name, slug), ad_images(image_url, is_primary, sort_order)')
-      .eq('slug', slug)
-      .maybeSingle();
-    // Backward compat: old URLs like /ad/{uuid}-{slug} or /ad/{uuid}
-    if (!data && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(slug)) {
-      const uuid = slug.slice(0, 36);
-      const { data: byId } = await sb
-        .from('ads')
-        .select('id, slug, title, description, price, currency, status, created_at, published_at, expires_at, deleted_at, user_id, city:location_id(name), category:category_id(name, slug), ad_images(image_url, is_primary, sort_order)')
-        .eq('id', uuid)
-        .maybeSingle();
-      if (byId) return { ...byId, redirectTo: byId.slug } as any;
-    }
-    if (!data) return null;
-    // Fetch seller profile separately (ads.user_id -> profiles.id via auth)
-    const profId = (data as any).user_id;
-    let enriched: any = data;
-    if (profId) {
-      const { data: prof } = await sb.from('profiles').select('name').eq('id', profId).maybeSingle();
-      if (prof) enriched = { ...data, profiles: prof };
-    }
-    return enriched as any;
-  } catch {
-    return null;
+  const sb = createClient(url, key);
+  // Use same relationship query that already works on homepage (services/ads.ts)
+  let { data, error } = await sb
+    .from('ads')
+    .select(`
+      id,
+      slug,
+      title,
+      description,
+      price,
+      condition,
+      attributes,
+      created_at,
+      published_at,
+      expires_at,
+      deleted_at,
+      status,
+      user_id,
+      views_count,
+      favorites_count,
+      is_featured,
+      categories!ads_category_id_fkey(name, slug),
+      locations(name),
+      ad_images(image_url, is_primary, sort_order)
+    `)
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[Ad Detail] Query error', {
+      slug,
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(`Failed to load advertisement "${slug}": ${error.message}`);
   }
+
+  // Backward compat: old URLs like /ad/{uuid}-{slug} or /ad/{uuid}
+  if (!data && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(slug)) {
+    const uuid = slug.slice(0, 36);
+    const { data: byId, error: byIdError } = await sb
+      .from('ads')
+      .select(`
+        id,
+        slug,
+        title,
+        description,
+        price,
+        condition,
+        attributes,
+        created_at,
+        published_at,
+        expires_at,
+        deleted_at,
+        status,
+        user_id,
+        views_count,
+        favorites_count,
+        is_featured,
+        categories!ads_category_id_fkey(name, slug),
+        locations(name),
+        ad_images(image_url, is_primary, sort_order)
+      `)
+      .eq('id', uuid)
+      .maybeSingle();
+    if (byIdError) {
+      console.error('[Ad Detail] Query error (by id)', {
+        slug,
+        uuid,
+        message: byIdError.message,
+        code: byIdError.code,
+        details: byIdError.details,
+        hint: byIdError.hint,
+      });
+      throw new Error(`Failed to load advertisement "${slug}": ${byIdError.message}`);
+    }
+    if (byId) return { ...byId, redirectTo: (byId as any).slug } as any;
+  }
+
+  if (!data) return null;
+
+  // Fetch seller profile separately (ads.user_id -> profiles.id via auth)
+  const profId = (data as any).user_id;
+  let enriched: any = data;
+  if (profId) {
+    const { data: prof } = await sb.from('profiles').select('name').eq('id', profId).maybeSingle();
+    if (prof) enriched = { ...data, profiles: prof };
+  }
+  return enriched as any;
 }
 
 interface AdPageProps {
