@@ -83,12 +83,12 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black tracking-tight">Admin Dashboard</h1>
-          <p className="text-xs text-black mt-1">Platform health — {isSupabaseConfigured ? 'live Supabase data' : 'demo data'}.</p>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">Admin Dashboard</h1>
+          <p className="text-xs text-slate-500 mt-1">Platform health — {isSupabaseConfigured ? 'live Supabase data' : 'demo data'}.</p>
         </div>
         <div className="flex gap-1.5">
           {(['7', '30', '90', '365'] as const).map((r) => (
-            <button key={r} onClick={() => setRange(r)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${range === r ? 'bg-[#E53935] text-white border-[#E53935]' : 'bg-white border-slate-200 text-black'}`}>
+            <button key={r} onClick={() => setRange(r)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${range === r ? 'bg-[#E53935] text-white border-[#E53935]' : 'bg-white border-slate-200 text-slate-700'}`}>
               {r === '365' ? 'This year' : `${r} days`}
             </button>
           ))}
@@ -102,9 +102,9 @@ export default function AdminDashboard() {
             <span className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: `${s.color}14`, color: s.color }}>
               <MiniIcon name={s.icon} />
             </span>
-            <p className="text-xl font-black">{s.value}</p>
-            <p className="text-[11px] font-semibold text-black mt-0.5">{s.label}</p>
-            <p className="text-[10px] text-black mt-1.5 flex items-center gap-1 truncate">
+            <p className="text-3xl font-bold text-slate-900">{s.value}</p>
+            <p className="text-sm font-semibold text-slate-700 mt-1">{s.label}</p>
+            <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1 truncate">
               <ArrowUpRight className="w-3 h-3 shrink-0" style={{ color: s.color }} /> {s.trend}
             </p>
           </div>
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
           const max = Math.max(...chart.data);
           return (
             <div key={chart.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 className="text-xs font-bold text-black mb-4">{chart.title}</h3>
+              <h3 className="text-xs font-bold text-slate-900 mb-4">{chart.title}</h3>
               <div className="flex items-end justify-between gap-1.5 h-28" role="img" aria-label={chart.title}>
                 {chart.data.map((v, i) => (
                   <div key={i} className="flex-1 flex flex-col justify-end items-center gap-1 h-full" title={`${v}`}>
@@ -125,11 +125,11 @@ export default function AdminDashboard() {
                       className="w-full max-w-[16px] rounded-t-md transition-all hover:opacity-75"
                       style={{ height: `${(v / max) * 100}%`, background: chart.color, minHeight: 4 }}
                     />
-                    <span className="text-[8px] font-semibold text-black">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
+                    <span className="text-[8px] font-semibold text-slate-500">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-black mt-3">Last {range} days</p>
+              <p className="text-[10px] text-slate-500 mt-3">Last {range} days</p>
             </div>
           );
         })}
@@ -137,15 +137,15 @@ export default function AdminDashboard() {
 
       {/* Recent activity */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-        <h2 className="text-base font-bold mb-5">Recent Activity</h2>
+        <h2 className="text-base font-bold text-slate-900 mb-5">Recent Activity</h2>
         <ul className="space-y-4">
           {mockActivity.filter(Boolean).map((a, i) => (
             <li key={i} className="flex items-center gap-3.5">
               <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${a?.color || 'bg-slate-100 text-slate-600'}`}>
                 <ActivityIcon name={a?.icon} />
               </span>
-              <p className="text-sm text-black flex-grow min-w-0">{a?.text || 'Activity'}</p>
-              <span className="text-[11px] text-black shrink-0">{a?.time || ''}</span>
+              <p className="text-sm text-slate-700 flex-grow min-w-0">{a?.text || 'Activity'}</p>
+              <span className="text-[11px] text-slate-500 shrink-0">{a?.time || ''}</span>
             </li>
           ))}
         </ul>
