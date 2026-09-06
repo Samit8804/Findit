@@ -16,6 +16,7 @@ import { detailedCategories as categories } from '@/data/taxonomy';
 import { locations } from '@/data/mockData';
 import { listPublicAds } from '@/services/ads';
 import { promotedBusinesses } from '@/data/mockData';
+import { formatINR } from '@/lib/format';
 
 export const metadata = generateHomeMetadata();
 export const revalidate = 60;
@@ -76,25 +77,29 @@ export default async function Home() {
               </div>
 
               <div className="lg:col-span-5 relative">
-                <div className="relative aspect-[4/3] w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
-                  <Image
-                    src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800"
-                    alt="Modern apartment interior - featured property listing on FindIt classifieds"
-                    fill
-                    className="object-cover"
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 40vw"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-6">
-                    <div className="text-white">
-                      <span className="px-2.5 py-1 rounded-lg bg-[#E53935] text-xs font-bold uppercase tracking-wider mb-2 inline-block">
-                        Featured Deal
-                      </span>
-                      <h2 className="text-lg font-bold">Verified Luxury Apartments in Noida</h2>
-                      <p className="text-xs text-slate-200">Starting from ₹1.45 Cr onwards</p>
+                {featuredListings[0] ? (
+                  <Link href={`/ad/${featuredListings[0].slug}`} className="block relative aspect-[4/3] w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white group">
+                    <Image
+                      src={featuredListings[0].images[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800'}
+                      alt={featuredListings[0].title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      priority
+                      sizes="(max-width: 1024px) 100vw, 40vw"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-6">
+                      <div className="text-white">
+                        <span className="px-2.5 py-1 rounded-lg bg-[#E53935] text-xs font-bold uppercase tracking-wider mb-2 inline-block">
+                          Featured Deal
+                        </span>
+                        <h2 className="text-lg font-bold line-clamp-2">{featuredListings[0].title}</h2>
+                        <p className="text-xs text-slate-200">{formatINR(featuredListings[0].price)}</p>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </Link>
+                ) : (
+                  <div className="hidden lg:block" aria-hidden />
+                )}
               </div>
             </div>
           </div>
@@ -213,30 +218,32 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Promoted Businesses Section - internal linking: homepage → businesses */}
-        <section className="py-20" aria-labelledby="businesses-heading">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
-              <div>
-                <span className="text-xs font-bold text-[#E53935] tracking-widest uppercase mb-1 block">
-                  TRUSTED PARTNERS
-                </span>
-                <h2 id="businesses-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">
-                  Promoted Businesses
-                </h2>
+        {/* Promoted Businesses Section - hidden when no real promoted businesses */}
+        {promotedBusinesses.length > 0 && (
+          <section className="py-20" aria-labelledby="businesses-heading">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
+                <div>
+                  <span className="text-xs font-bold text-[#E53935] tracking-widest uppercase mb-1 block">
+                    Trusted partners
+                  </span>
+                  <h2 id="businesses-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">
+                    Promoted businesses
+                  </h2>
+                </div>
+                <Link href="/business" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
+                  View All Businesses <ArrowRight className="w-4 h-4" aria-hidden />
+                </Link>
               </div>
-              <Link href="/business" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
-                View All Businesses <ArrowRight className="w-4 h-4" aria-hidden />
-              </Link>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {promotedBusinesses.map((business) => (
-                <BusinessCard key={business.id} business={business} />
-              ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {promotedBusinesses.map((business) => (
+                  <BusinessCard key={business.id} business={business} />
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Advertising Banner Section */}
         <section className="py-12 bg-white" aria-label="Advertise with FindIt">

@@ -26,7 +26,9 @@ export const LocationCard: React.FC<LocationCardProps> = ({ location }) => {
           {location.name}
         </h3>
         <p className="text-xs text-slate-300 font-medium">
-          {location.listingCount.toLocaleString()} ads available
+          {location.listingCount === 0
+            ? 'Be the first to post an ad'
+            : `${location.listingCount.toLocaleString()} ${location.listingCount === 1 ? 'ad' : 'ads'} available`}
         </p>
       </div>
     </Link>

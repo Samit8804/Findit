@@ -6,6 +6,7 @@ import { MapPin, Heart, ShieldCheck } from 'lucide-react';
 import { Listing } from '@/types';
 import { Badge } from '../ui/Badge';
 import { ImageCarousel } from './ImageCarousel';
+import { formatINR } from '@/lib/format';
 
 interface ListingCardProps {
   listing: Listing;
@@ -57,7 +58,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
       <div className="p-5 flex flex-col flex-grow">
         <div className="flex items-center justify-between mb-2">
           <span className="text-2xl font-bold text-[#0F172A]">
-            {listing.currency}{listing.price.toLocaleString()}
+            {formatINR(listing.price)}
           </span>
           {listing.verified && (
             <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
