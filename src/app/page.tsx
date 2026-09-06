@@ -80,7 +80,10 @@ export default async function Home() {
                 {featuredListings[0] ? (
                   <Link href={`/ad/${featuredListings[0].slug}`} className="block relative aspect-[4/3] w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white group">
                     <Image
-                      src={featuredListings[0].images[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800'}
+                      src={(() => {
+                        const img = featuredListings[0].images?.[0] as any;
+                        return (typeof img === 'string' ? img : img?.url) || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800';
+                      })()}
                       alt={featuredListings[0].title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
