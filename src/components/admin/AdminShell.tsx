@@ -81,7 +81,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-[#0F172A] p-4 sticky top-0 h-screen overflow-y-auto">
         <Link href="/" className="flex items-center gap-2 px-2 py-3 mb-4">

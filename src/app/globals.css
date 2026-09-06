@@ -12,12 +12,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Dark color-scheme override removed — app uses explicit light theme.
+   Admin must stay #F8FAFC bg / #0F172A text even if OS prefers dark. */
 
 body {
   background: var(--background);
