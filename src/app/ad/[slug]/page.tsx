@@ -37,6 +37,7 @@ async function fetchSupabaseAd(slug: string) {
       deleted_at,
       status,
       user_id,
+      category_id,
       views_count,
       favorites_count,
       is_featured,
@@ -61,9 +62,9 @@ async function fetchSupabaseAd(slug: string) {
   // Backward compat: old URLs like /ad/{uuid}-{slug} or /ad/{uuid}
   if (!data && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(slug)) {
     const uuid = slug.slice(0, 36);
-    const { data: byId, error: byIdError } = await sb
-      .from('ads')
-      .select(`
+      const { data: byId, error: byIdError } = await sb
+        .from('ads')
+        .select(`
         id,
         slug,
         title,
@@ -77,6 +78,7 @@ async function fetchSupabaseAd(slug: string) {
         deleted_at,
         status,
         user_id,
+        category_id,
         views_count,
         favorites_count,
         is_featured,
@@ -84,8 +86,8 @@ async function fetchSupabaseAd(slug: string) {
         locations(name),
         ad_images(image_url, is_primary, sort_order)
       `)
-      .eq('id', uuid)
-      .maybeSingle();
+        .eq('id', uuid)
+        .maybeSingle();
     if (byIdError) {
       console.error('[Ad Detail] Query error (by id)', {
         slug,
@@ -216,6 +218,16 @@ export default async function AdDetailPage({ params }: AdPageProps) {
     // Approved & active - full page
     const images = (sbAd.ad_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((i: any) => i.image_url);
     const category = sbAd.category;
+    // Fetch real related ads (same category, approved, not deleted)
+    let related: any[] = [];
+    try {
+      const sb2 = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!);
+      const catId = (sbAd as any).category_id || (sbAd as any).category?.id;
+      if (catId) {
+        const { data: rel } = await sb2.from('ads').select('id, slug, title, price, ad_images(image_url, is_primary)').eq('category_id', catId).eq('status', 'approved').is('deleted_at', null).neq('id', sbAd.id).limit(4);
+        related = rel || [];
+      }
+    } catch {}
     return (
       <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
         <Header />
@@ -262,6 +274,22 @@ export default async function AdDetailPage({ params }: AdPageProps) {
               </div>
             </div>
           </div>
+          {related.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12" aria-labelledby="related-heading">
+              <h2 id="related-heading" className="text-xl font-bold mb-6">Related Ads</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {related.map((r: any) => (
+                  <Link key={r.id} href={`/ad/${r.slug}`} className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all overflow-hidden p-4">
+                    <div className="aspect-[4/3] bg-slate-100 rounded-xl overflow-hidden mb-3">
+                      {r.ad_images?.[0]?.image_url ? <img src={r.ad_images[0].image_url} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">No image</div>}
+                    </div>
+                    <p className="font-semibold text-sm line-clamp-2">{r.title}</p>
+                    <p className="text-sm font-bold text-[#E53935] mt-1">₹{Number(r.price).toLocaleString('en-IN')}</p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </main>
         <Footer />
       </div>

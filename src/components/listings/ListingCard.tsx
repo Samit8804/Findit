@@ -7,6 +7,7 @@ import { Listing } from '@/types';
 import { Badge } from '../ui/Badge';
 import { ImageCarousel } from './ImageCarousel';
 import { formatINR } from '@/lib/format';
+import { getAdUrl } from '@/lib/adUrl';
 
 interface ListingCardProps {
   listing: Listing;
@@ -15,7 +16,7 @@ interface ListingCardProps {
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
   const [isFavorite, setIsFavorite] = React.useState(false);
 
-  const adHref = `/ad/${listing.slug}`;
+  const adHref = getAdUrl(listing.slug);
   const imgAlt = `${listing.title} for sale in ${listing.location} - ${listing.category}`;
   // PublicAd.images is {url,isPrimary,sortOrder}[]; Listing.images is string[] — support both without mock data
   const imageUrls: string[] = ((listing as any).images ?? [])

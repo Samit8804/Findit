@@ -73,6 +73,7 @@ function BrowseContent() {
   /** Adapter: PublicAd -> ListingCard props shape */
   const toCard = useCallback((ad: PublicAd) => ({
     id: ad.id,
+    slug: ad.slug,
     title: ad.title,
     description: ad.description,
     price: ad.price,

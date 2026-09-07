@@ -79,14 +79,7 @@ export default async function SellerProfilePage({ params }: Props) {
     listings = data || [];
   }
 
-  // Mock fallback listings for demo if no real ads
-  if (listings.length === 0) {
-    const { mockListings } = await import('@/data/mockData');
-    listings = mockListings.filter((l) => l.seller.name.toLowerCase().replace(/[^a-z0-9]+/g,'-') === username).slice(0, 8).map((l) => ({
-      slug: l.id, title: l.title, price: l.price, currency: l.currency,
-      description: l.description, images: l.images, location: l.location,
-    }));
-  }
+  // Real-data only: no mock fallback
 
   const memberSince = new Date(profile.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
 
