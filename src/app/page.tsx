@@ -113,11 +113,11 @@ export default async function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
               <div>
-                <span className="text-xs font-bold text-[#E53935] tracking-widest uppercase mb-1 block">
-                  EXPLORE CATEGORIES
+                <span className="text-xs font-bold text-[#E53935] tracking-wide mb-1 block">
+                  Explore categories
                 </span>
                 <h2 id="categories-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">
-                  Browse Popular Categories
+                  Browse popular categories
                 </h2>
               </div>
               <Link href="/browse" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
@@ -138,8 +138,8 @@ export default async function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
               <div>
-                <span className="text-xs font-bold text-[#E53935] tracking-widest uppercase mb-1 block">
-                  HANDPICKED ADS
+                <span className="text-xs font-bold text-[#E53935] tracking-wide mb-1 block">
+                  Handpicked ads
                 </span>
                 <h2 id="featured-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">
                   Featured Listings
@@ -170,8 +170,8 @@ export default async function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
               <div>
-                <span className="text-xs font-bold text-[#E53935] tracking-widest uppercase mb-1 block">
-                  LOCAL DISCOVERY
+                <span className="text-xs font-bold text-[#E53935] tracking-wide mb-1 block">
+                  Local discovery
                 </span>
                 <h2 id="locations-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">
                   Browse By Location
@@ -193,8 +193,8 @@ export default async function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
               <div>
-                <span className="text-xs font-bold text-[#E53935] tracking-widest uppercase mb-1 block">
-                  FRESH FINDS
+                <span className="text-xs font-bold text-[#E53935] tracking-wide mb-1 block">
+                  Fresh finds
                 </span>
                 <h2 id="latest-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">
                   Latest Listings
@@ -227,7 +227,7 @@ export default async function Home() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
                 <div>
-                  <span className="text-xs font-bold text-[#E53935] tracking-widest uppercase mb-1 block">
+                  <span className="text-xs font-bold text-[#E53935] tracking-wide mb-1 block">
                     Trusted partners
                   </span>
                   <h2 id="businesses-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">

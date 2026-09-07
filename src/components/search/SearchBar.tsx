@@ -127,15 +127,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, className = '' }
         )}
       </div>
 
-      {/* Keyword Search Input */}
-      <div className="flex-1 w-full px-3 py-2 flex items-center gap-2">
+      {/* Keyword Search Input - gets largest flex width */}
+      <div className="flex-[1.7] min-w-0 w-full px-3 py-2 flex items-center gap-2">
         <Search className="w-4 h-4 text-slate-400 shrink-0" />
         <input
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="Find cars, mobiles, properties and more..."
-          className="w-full text-sm font-medium text-[#0F172A] placeholder-slate-400 focus:outline-none bg-transparent"
+          className="w-full min-w-0 text-sm font-medium text-[#0F172A] placeholder-slate-400 focus:outline-none bg-transparent"
         />
       </div>
 

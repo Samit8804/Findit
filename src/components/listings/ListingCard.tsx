@@ -68,8 +68,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
         </div>
 
         <Link href={adHref} className="block mb-2" aria-label={`View details for ${listing.title}`}>
-          <h3 className="font-semibold text-[#0F172A] hover:text-[#E53935] transition-colors line-clamp-2 text-sm leading-snug">
-            {listing.title}
+          <h3 className="font-semibold text-[#0F172A] hover:text-[#E53935] transition-colors line-clamp-2 text-sm leading-snug break-words [overflow-wrap:anywhere]">
+            {listing.title.length > 80 ? `${listing.title.slice(0, 77)}...` : listing.title}
           </h3>
         </Link>
 
