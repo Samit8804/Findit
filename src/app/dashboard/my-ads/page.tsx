@@ -124,6 +124,11 @@ function MyAdsContent() {
   };
 
   const handleRenew = async (ad: RowAd) => {
+    // Expired free ads: renewal is paid via promotion flow
+    if (ad.display === 'Expired') {
+      window.location.href = `/promote?id=${ad.id}`;
+      return;
+    }
     if (!isSupabaseConfigured) {
       setRows((prev) => prev.map((r) => (r.id === ad.id ? { ...r, display: 'Pending' } : r)));
       flash('Listing renewed — awaiting review.');

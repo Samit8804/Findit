@@ -214,6 +214,13 @@ function WizardContent() {
         setError('Please verify your phone number to post an ad.');
         return;
       }
+      if (e.message && e.message.includes('FREE_LIMIT_REACHED')) {
+        setPublishing(false);
+        const parts = e.message.split(':');
+        const msg = parts[1] || 'You have reached your free limit of 3 ads for this month.';
+        setError(msg.trim());
+        return;
+      }
       setPublishing(false);
       setError(e.message || 'Unable to save your advertisement. Please try again.');
     }

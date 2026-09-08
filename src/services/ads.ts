@@ -253,8 +253,31 @@ export async function saveAd(input: SubmitInput, existingAdId?: string): Promise
   const slugBase = generateSlug(payload.title);
   let adId = existingAdId;
 
+  // Free plan: 3 ads per calendar month (Asia/Kolkata) — check before insert
+  if (!existingAdId && input.submitForReview) {
+    const { data: cntData, error: cntErr } = await sb.rpc('free_ads_this_month', { p_user: auth.user.id });
+    // Fallback to manual count if RPC not yet deployed
+    let count = 0;
+    if (!cntErr && typeof cntData === 'number') count = cntData;
+    else {
+      // Manual count using start_of_month_kolkata
+      const { data: startData } = await sb.rpc('start_of_month_kolkata');
+      const startIso = (startData as any) || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const { count: c } = await sb.from('ads').select('id', { count: 'exact', head: true }).eq('user_id', auth.user.id).gte('created_at', startIso as any).is('deleted_at', null);
+      count = c ?? 0;
+    }
+    if (count >= 3) {
+      const nowKolkata = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      const nextMonth = new Date(nowKolkata.getFullYear(), nowKolkata.getMonth() + 1, 1);
+      const resetDate = nextMonth.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
+      throw new Error(`FREE_LIMIT_REACHED:You have reached your free limit of 3 ads for this month. Limit resets on ${resetDate}.`);
+    }
+  }
+
   if (!adId) {
     const { ensureUnique } = await resolveUniqueSlug(slugBase);
+    // Free ads get 7-day expiry; paid will be extended via promotion
+    const expiresAt = input.submitForReview ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : null;
     const { data, error } = await sb
       .from('ads')
       .insert({
@@ -272,16 +295,20 @@ export async function saveAd(input: SubmitInput, existingAdId?: string): Promise
         contact_show_whatsapp: payload.contactShowWhatsapp,
         contact_allow_messages: payload.contactAllowMessages,
         status: input.submitForReview ? 'pending' : 'draft',
+        expires_at: expiresAt,
+        published_at: input.submitForReview ? null : null,
       })
       .select('id')
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.message.includes('FREE_LIMIT_REACHED')) throw new Error(error.message);
+      throw new Error(error.message);
+    }
     adId = data.id;
   } else {
     // Owner edits always re-enter moderation (Option A)
-    const { error } = await sb
-      .from('ads')
-      .update({
+    // For draft -> pending, set 7-day expiry; for draft -> draft, keep expires_at null
+    const updatePayload: any = {
         title: payload.title.trim(),
         slug: slugBase,
         description: payload.description.trim(),
@@ -295,10 +322,15 @@ export async function saveAd(input: SubmitInput, existingAdId?: string): Promise
         contact_show_whatsapp: payload.contactShowWhatsapp,
         contact_allow_messages: payload.contactAllowMessages,
         status: input.submitForReview ? 'pending' : 'draft',
-      })
-      .eq('id', adId)
-      .eq('user_id', auth.user.id);
-    if (error) throw new Error(error.message);
+      };
+    if (input.submitForReview) {
+      updatePayload.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    const { error } = await sb.from('ads').update(updatePayload).eq('id', adId).eq('user_id', auth.user.id);
+    if (error) {
+      if (error.message.includes('FREE_LIMIT_REACHED')) throw new Error(error.message);
+      throw new Error(error.message);
+    }
   }
 
   await uploadImages(adId!, auth.user.id, input.images);
