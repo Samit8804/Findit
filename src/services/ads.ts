@@ -225,6 +225,17 @@ export async function saveAd(input: SubmitInput, existingAdId?: string): Promise
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) throw new Error('NOT_AUTHENTICATED');
 
+  // Phone verification gate — only for publish, not draft
+  if (input.submitForReview) {
+    const { data: profile, error: profErr } = await sb
+      .from('profiles')
+      .select('phone_verified')
+      .eq('id', auth.user.id)
+      .single();
+    if (profErr) throw new Error(profErr.message);
+    if (!(profile as any)?.phone_verified) throw new Error('PHONE_NOT_VERIFIED');
+  }
+
   const payload = adSubmissionSchema.parse({
     title: input.title,
     description: input.description,
