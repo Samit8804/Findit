@@ -5,10 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
-import { Rocket, Star, Crown, Building2, Check, ShieldCheck, Loader2 } from 'lucide-react';
+import { Rocket, Star, Crown, Clock, Check, ShieldCheck, Loader2, AlertCircle, Info } from 'lucide-react';
 import {
   getActivePromotions,
   Promotion,
+  checkBoostEligibility,
+  checkExtensionEligibility,
+  BoostEligibility,
+  ExtensionEligibility,
 } from '@/services/payments';
 import { createOrderApi, openRazorpayCheckout } from '@/lib/payments/checkout';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
@@ -20,12 +24,28 @@ const formatINR = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const promoIcon = (type: string) => {
-  if (type === 'boost') return Rocket;
+const promoIcon = (type: string, planType?: string) => {
+  if (planType === 'boost_3d' || type === 'boost') return Rocket;
+  if (planType === 'extend_10d' || type === 'extension') return Clock;
   if (type === 'top') return Crown;
-  if (type === 'business_subscription') return Building2;
+  if (type === 'business_subscription') return Star;
   return Star;
 };
+
+const promoColor = (planType?: string) => {
+  if (planType === 'boost_3d') return 'bg-blue-50 text-blue-600';
+  if (planType === 'extend_10d') return 'bg-amber-50 text-amber-600';
+  if (planType === 'featured_7d') return 'bg-purple-50 text-purple-600';
+  if (planType === 'top_30d') return 'bg-yellow-50 text-yellow-600';
+  return 'bg-red-50 text-[#E53935]';
+};
+
+interface PlanEligibility {
+  eligible: boolean;
+  reason: string;
+  remainingDays?: number;
+  newExpiry?: string;
+}
 
 export default function PromoteView({ initialId }: { initialId?: string }) {
   const searchParams = useSearchParams();
@@ -38,13 +58,59 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
   const [error, setError] = useState('');
   const [listing, setListing] = useState<{ title: string; image: string; price: number } | null>(null);
   const [listingError, setListingError] = useState('');
+  const [eligibility, setEligibility] = useState<Record<string, PlanEligibility>>({});
 
   useEffect(() => {
     getActivePromotions().then((list) => {
       setPromos(list);
-      setSelectedSlug(list.find((p) => p.slug === 'featured-ad')?.slug || list[0]?.slug || '');
+      // Default to 10-day extension if available, else featured-ad, else first
+      const defaultSlug = list.find((p) => p.slug === 'extend_10d')?.slug ||
+        list.find((p) => p.slug === 'featured-ad')?.slug ||
+        list[0]?.slug || '';
+      setSelectedSlug(defaultSlug);
     });
   }, []);
+
+  // Check eligibility for boost and extension plans when adId is available
+  useEffect(() => {
+    if (!adId || !isSupabaseConfigured) return;
+
+    const checkAll = async () => {
+      try {
+        const results: Record<string, PlanEligibility> = {};
+
+        // Check boost eligibility
+        try {
+          const boostResult = await checkBoostEligibility(adId);
+          results['boost_3d'] = {
+            eligible: boostResult.eligible,
+            reason: boostResult.reason,
+            remainingDays: boostResult.remainingDays,
+          };
+        } catch {
+          results['boost_3d'] = { eligible: false, reason: 'Unable to check eligibility' };
+        }
+
+        // Check extension eligibility
+        try {
+          const extResult = await checkExtensionEligibility(adId);
+          results['extend_10d'] = {
+            eligible: extResult.eligible,
+            reason: extResult.reason,
+            newExpiry: extResult.newExpiry,
+          };
+        } catch {
+          results['extend_10d'] = { eligible: false, reason: 'Unable to check eligibility' };
+        }
+
+        setEligibility(results);
+      } catch {
+        // Silently fail - eligibility is checked again server-side
+      }
+    };
+
+    checkAll();
+  }, [adId]);
 
   useEffect(() => {
     if (!adId) {
@@ -60,7 +126,7 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
       try {
         const { data, error } = await sb
           .from('ads')
-          .select('id, title, price, ad_images(image_url, is_primary, sort_order)')
+          .select('id, title, price, expires_at, created_at, ad_images(image_url, is_primary, sort_order)')
           .eq('id', adId)
           .maybeSingle();
         if (error) throw new Error(error.message);
@@ -81,11 +147,23 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
     [promos, selectedSlug]
   );
 
+  const selectedEligibility = eligibility[selected?.planType || ''];
+
   const continueToPayment = async () => {
     setError('');
     if (!selected) return;
     if (!adId) {
       setError('No advertisement selected.');
+      return;
+    }
+
+    // Check eligibility client-side for better UX (server will re-verify)
+    if (selected.planType === 'boost_3d' && selectedEligibility && !selectedEligibility.eligible) {
+      setError(selectedEligibility.reason);
+      return;
+    }
+    if (selected.planType === 'extend_10d' && selectedEligibility && !selectedEligibility.eligible) {
+      setError(selectedEligibility.reason);
       return;
     }
 
@@ -106,7 +184,12 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
           router.push(`/payment?order=FND-${Date.now().toString(36).toUpperCase()}&promo=${selected.slug}`);
           return;
         }
-        setError(e.detail || e.message || 'Unable to create order.');
+        // Handle specific eligibility errors from server
+        if (e.message === 'BOOST_NOT_ELIGIBLE' || e.message === 'EXTENSION_NOT_ELIGIBLE') {
+          setError(e.detail || e.message);
+        } else {
+          setError(e.detail || e.message || 'Unable to create order.');
+        }
         return;
       }
     }
@@ -126,7 +209,7 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
 
           <div className="mb-8 mt-2">
             <h1 className="text-3xl font-black tracking-tight">Promote Your Ad</h1>
-            <p className="text-sm text-slate-500 mt-1">Get up to 10x more views with a visibility boost.</p>
+            <p className="text-sm text-slate-500 mt-1">Choose a plan to increase visibility or extend your listing duration.</p>
           </div>
 
           {/* Current advertisement */}
@@ -162,15 +245,25 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
             )}
             {promos.map((p) => {
               const active = selectedSlug === p.slug;
-              const Icon = promoIcon(p.type);
+              const Icon = promoIcon(p.type, p.planType);
+              const colorClass = promoColor(p.planType);
+              const planEligibility = eligibility[p.planType || ''];
+              const isEligible = !planEligibility || planEligibility.eligible;
+              const isBoostOrExtension = p.planType === 'boost_3d' || p.planType === 'extend_10d';
+
               return (
                 <button
                   key={p.id}
                   role="radio"
                   aria-checked={active}
-                  onClick={() => setSelectedSlug(p.slug)}
+                  onClick={() => isEligible && setSelectedSlug(p.slug)}
+                  disabled={!isEligible && isBoostOrExtension}
                   className={`relative text-left p-6 rounded-2xl border-2 transition-all ${
-                    active ? 'border-[#E53935] bg-red-50/60 shadow-md shadow-red-100' : 'border-slate-100 bg-white hover:border-red-200'
+                    active
+                      ? 'border-[#E53935] bg-red-50/60 shadow-md shadow-red-100'
+                      : !isEligible && isBoostOrExtension
+                      ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                      : 'border-slate-100 bg-white hover:border-red-200'
                   }`}
                 >
                   {active && (
@@ -178,7 +271,12 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
                       <Check className="w-4 h-4 text-white" />
                     </span>
                   )}
-                  <span className="inline-flex w-10 h-10 rounded-xl bg-red-50 text-[#E53935] items-center justify-center">
+                  {!isEligible && isBoostOrExtension && (
+                    <span className="absolute top-4 right-4 w-6 h-6 bg-slate-300 rounded-full flex items-center justify-center">
+                      <AlertCircle className="w-4 h-4 text-slate-500" />
+                    </span>
+                  )}
+                  <span className={`inline-flex w-10 h-10 rounded-xl items-center justify-center ${colorClass}`}>
                     <Icon className="w-5 h-5" />
                   </span>
                   <h3 className="font-black text-sm tracking-wide mt-3">{p.name}</h3>
@@ -187,6 +285,45 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
                     {p.durationDays && <span className="text-xs text-slate-400">/ {p.durationDays} days</span>}
                   </div>
                   <p className="text-xs text-slate-500 leading-relaxed mt-2">{p.description}</p>
+
+                  {/* Eligibility message for Boost and Extension */}
+                  {isBoostOrExtension && planEligibility && (
+                    <div className="mt-3 pt-2 border-t border-slate-100">
+                      {planEligibility.eligible ? (
+                        <p className="text-xs text-emerald-600 flex items-center gap-1">
+                          <Info className="w-3 h-3" /> Available
+                        </p>
+                      ) : (
+                        <p className="text-xs text-[#D32F2F] flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {planEligibility.reason}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Plan type badge */}
+                  <div className="mt-3 flex items-center gap-2">
+                    {p.planType === 'boost_3d' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
+                        <Rocket className="w-3 h-3" /> 3-Day Visibility Boost
+                      </span>
+                    )}
+                    {p.planType === 'extend_10d' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold">
+                        <Clock className="w-3 h-3" /> 10-Day Total Listing
+                      </span>
+                    )}
+                    {p.planType === 'featured_7d' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[10px] font-bold">
+                        <Star className="w-3 h-3" /> 7-Day Featured
+                      </span>
+                    )}
+                    {p.planType === 'top_30d' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 text-[10px] font-bold">
+                        <Crown className="w-3 h-3" /> 30-Day Top Listing
+                      </span>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -209,7 +346,7 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
 
             <button
               onClick={continueToPayment}
-              disabled={!selected || creating || !!listingError}
+              disabled={!selected || creating || !!listingError || (selectedEligibility && !selectedEligibility.eligible && (selected?.planType === 'boost_3d' || selected?.planType === 'extend_10d'))}
               className="mt-7 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-50 text-white text-sm font-bold transition-colors shadow-lg shadow-red-200"
             >
               {creating && <Loader2 className="w-4 h-4 animate-spin" />}

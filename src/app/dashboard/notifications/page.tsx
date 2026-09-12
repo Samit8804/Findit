@@ -12,6 +12,8 @@ import {
   CalendarClock,
   Rocket,
   CheckCheck,
+  CalendarX,
+  Clock,
 } from 'lucide-react';
 import {
   getMyNotifications,
@@ -32,8 +34,12 @@ const META: Record<string, { icon: React.ElementType; classes: string }> = {
   payment_failed: { icon: Wallet, classes: 'bg-red-50 text-[#D32F2F]' },
   ad_expiring: { icon: CalendarClock, classes: 'bg-amber-50 text-amber-600' },
   expiring: { icon: CalendarClock, classes: 'bg-amber-50 text-amber-600' },
+  expiring_soon: { icon: CalendarClock, classes: 'bg-amber-50 text-amber-600' },
+  expired: { icon: CalendarX, classes: 'bg-slate-50 text-slate-600' },
   promotion_activated: { icon: Rocket, classes: 'bg-red-50 text-[#E53935]' },
   promotion: { icon: Rocket, classes: 'bg-red-50 text-[#E53935]' },
+  boost_activated: { icon: Rocket, classes: 'bg-blue-50 text-blue-600' },
+  extension_activated: { icon: Clock, classes: 'bg-amber-50 text-amber-600' },
   pending: { icon: Bell, classes: 'bg-amber-50 text-amber-600' },
 };
 

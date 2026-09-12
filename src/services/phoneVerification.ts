@@ -137,20 +137,9 @@ export async function verifyPhoneOtp(rawPhone: string, token: string): Promise<v
   });
   if (verifyErr) throw new Error(verifyErr.message);
 
-  // If verify succeeded, mark phone_verified in profiles (source of truth)
-  // Even if session was replaced, we still update the original email user's profile via id
-  // Use the original auth.user.id if still available, otherwise use verify response user id
-  const verifiedUserId = auth.user.id || (data as any)?.user?.id;
-  if (!verifiedUserId) throw new Error('Verification succeeded but user not found');
-
-  const { error: updErr } = await sb
-    .from('profiles')
-    .update({ phone: normalized, phone_verified: true, phone_verified_at: new Date().toISOString() } as any)
-    .eq('id', verifiedUserId);
-  if (updErr) {
-    // If RLS or partial index violation (duplicate verified), surface
-    throw new Error(updErr.message);
-  }
+  // If verify succeeded, mark phone_verified via secure RPC (bypasses guard, enforces uniqueness)
+  const { error: updErr } = await sb.rpc('verify_own_phone', { p_phone: normalized });
+  if (updErr) throw new Error(updErr.message);
 
   // Note: If signInWithOtp replaced the email session with a phone session, the caller should re-authenticate
   // the email user or use a server-side check (is_phone_verified) that does not rely on current session type.

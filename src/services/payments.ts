@@ -5,17 +5,30 @@ export interface Promotion {
   name: string;
   slug: string;
   description: string | null;
-  type: 'featured' | 'top' | 'boost' | 'business_subscription';
+  type: 'featured' | 'top' | 'boost' | 'extension' | 'business_subscription';
   price: number;
   currency: string;
   durationDays: number | null;
+  planType?: string;
 }
 
 const FALLBACK_PROMOTIONS: Promotion[] = [
-  { id: 'boost', name: 'Boost', slug: 'boost', description: 'Small visibility bump at the top of your category.', type: 'boost', price: 49, currency: 'INR', durationDays: 3 },
-  { id: 'featured-ad', name: 'Featured Ad', slug: 'featured-ad', description: 'Featured badge + priority search placement.', type: 'featured', price: 99, currency: 'INR', durationDays: 7 },
-  { id: 'top-listing', name: 'Top Listing', slug: 'top-listing', description: 'Homepage spotlight, TOP badge, highest ranking.', type: 'top', price: 199, currency: 'INR', durationDays: 30 },
+  { id: 'boost', name: 'Boost', slug: 'boost', description: 'Small visibility bump at the top of your category.', type: 'boost', price: 49, currency: 'INR', durationDays: 3, planType: 'boost_3d' },
+  { id: 'featured-ad', name: 'Featured Ad', slug: 'featured-ad', description: 'Featured badge + priority search placement.', type: 'featured', price: 99, currency: 'INR', durationDays: 7, planType: 'featured_7d' },
+  { id: 'top-listing', name: 'Top Listing', slug: 'top-listing', description: 'Homepage spotlight, TOP badge, highest ranking.', type: 'top', price: 199, currency: 'INR', durationDays: 30, planType: 'top_30d' },
 ];
+
+export interface BoostEligibility {
+  eligible: boolean;
+  reason: string;
+  remainingDays: number;
+}
+
+export interface ExtensionEligibility {
+  eligible: boolean;
+  reason: string;
+  newExpiry?: string;
+}
 
 export async function getActivePromotions(): Promise<Promotion[]> {
   const sb = getSupabaseBrowser();
@@ -23,7 +36,7 @@ export async function getActivePromotions(): Promise<Promotion[]> {
   try {
     const { data, error } = await sb
       .from('promotions')
-      .select('id, name, slug, description, type, price, currency, duration_days')
+      .select('id, name, slug, description, type, price, currency, duration_days, plan_type')
       .eq('is_active', true)
       .order('price');
     if (error || !data || data.length === 0) return FALLBACK_PROMOTIONS;
@@ -36,10 +49,73 @@ export async function getActivePromotions(): Promise<Promotion[]> {
       price: Number(p.price),
       currency: p.currency,
       durationDays: p.duration_days,
+      planType: p.plan_type,
     }));
   } catch {
     return FALLBACK_PROMOTIONS;
   }
+}
+
+/* ---------------- Boost & Extension Eligibility ---------------- */
+
+export async function checkBoostEligibility(adId: string): Promise<BoostEligibility> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { data, error } = await sb.rpc('check_boost_eligibility', { p_ad_id: adId });
+  if (error) throw new Error(error.message);
+  return data as BoostEligibility;
+}
+
+export async function checkExtensionEligibility(adId: string): Promise<ExtensionEligibility> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { data, error } = await sb.rpc('check_extension_eligibility', { p_ad_id: adId });
+  if (error) throw new Error(error.message);
+  return data as ExtensionEligibility;
+}
+
+/* ---------------- Create Orders ---------------- */
+
+export interface CreateOrderResult {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  providerOrderId: string;
+}
+
+export async function createBoostOrder(adId: string, promotionSlug: string): Promise<CreateOrderResult> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { data, error } = await sb.rpc('create_boost_order', {
+    ad_id: adId,
+    promotion_slug: promotionSlug,
+  });
+  if (error) throw new Error(error.message || error.hint || 'Failed to create boost order');
+  return {
+    orderId: data.order_id,
+    amount: data.amount,
+    currency: data.currency,
+    keyId: data.key_id,
+    providerOrderId: data.provider_order_id,
+  };
+}
+
+export async function createExtensionOrder(adId: string, promotionSlug: string): Promise<CreateOrderResult> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { data, error } = await sb.rpc('create_extension_order', {
+    ad_id: adId,
+    promotion_slug: promotionSlug,
+  });
+  if (error) throw new Error(error.message || error.hint || 'Failed to create extension order');
+  return {
+    orderId: data.order_id,
+    amount: data.amount,
+    currency: data.currency,
+    keyId: data.key_id,
+    providerOrderId: data.provider_order_id,
+  };
 }
 
 /* ---------------- Orders ---------------- */

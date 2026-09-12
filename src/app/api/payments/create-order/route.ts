@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     /* 2. Verify promotion exists + active; price comes from DB */
     const { data: promo, error: promoErr } = await admin
       .from('promotions')
-      .select('id, name, slug, type, price, currency, duration_days, is_active')
+      .select('id, name, slug, type, plan_type, price, currency, duration_days, is_active')
       .eq('slug', promotionSlug ?? '')
       .single();
 
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
       const { data: adRow, error: adErr } = await admin
         .from('ads')
-        .select('id, user_id, title, slug, status')
+        .select('id, user_id, title, slug, status, expires_at, created_at')
         .eq('id', adId)
         .single();
       if (adErr || !adRow) return NextResponse.json({ error: 'AD_NOT_FOUND' }, { status: 404 });
@@ -67,6 +67,37 @@ export async function POST(req: Request) {
         );
       }
       ad = adRow;
+
+      /* 3a. Server-side eligibility checks for Boost and Extension */
+      if (promo.plan_type === 'boost_3d') {
+        // Check Boost eligibility: at least 3 full days remaining
+        if (!ad.expires_at) {
+          return NextResponse.json({ error: 'BOOST_NOT_ELIGIBLE', detail: 'Advertisement has no expiry date.' }, { status: 409 });
+        }
+        const remainingMs = new Date(ad.expires_at).getTime() - Date.now();
+        const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
+        if (remainingDays < 3) {
+          return NextResponse.json(
+            { error: 'BOOST_NOT_ELIGIBLE', detail: `Boost requires at least 3 full days remaining. This ad has ${remainingDays} day(s) left.` },
+            { status: 409 }
+          );
+        }
+      } else if (promo.plan_type === 'extend_10d') {
+        // Check Extension eligibility: ad not expired, and extension provides additional time
+        if (!ad.expires_at) {
+          return NextResponse.json({ error: 'EXTENSION_NOT_ELIGIBLE', detail: 'Advertisement has no expiry date.' }, { status: 409 });
+        }
+        const now = new Date();
+        const expiresAt = new Date(ad.expires_at);
+        if (expiresAt < now) {
+          return NextResponse.json({ error: 'EXTENSION_NOT_ELIGIBLE', detail: 'Advertisement already expired. Use renewal flow.' }, { status: 409 });
+        }
+        const originalCreated = new Date(ad.created_at);
+        const newExpiry = new Date(originalCreated.getTime() + 10 * 24 * 60 * 60 * 1000);
+        if (newExpiry <= expiresAt) {
+          return NextResponse.json({ error: 'EXTENSION_NOT_ELIGIBLE', detail: 'Extension would not provide additional time.' }, { status: 409 });
+        }
+      }
     }
 
     /* 4. Create internal order (price/currency from DB only) */
@@ -82,7 +113,7 @@ export async function POST(req: Request) {
         total_amount: promo.price,
         provider: 'razorpay',
         status: 'created',
-        metadata: { promotion_name: promo.name, duration_days: promo.duration_days },
+        metadata: { promotion_name: promo.name, duration_days: promo.duration_days, plan_type: promo.plan_type },
       })
       .select('id, amount, currency')
       .single();
@@ -134,7 +165,7 @@ export async function POST(req: Request) {
       keyId: gatewayOrder.publicKeyId,
       providerOrderId: gatewayOrder.providerOrderId,
       providerName: provider.name,
-      promotion: { name: promo.name, duration_days: promo.duration_days },
+      promotion: { name: promo.name, duration_days: promo.duration_days, plan_type: promo.plan_type },
       ad: ad ? { title: ad.title, slug: ad.slug } : null,
     });
   } catch (e: any) {

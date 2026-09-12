@@ -53,12 +53,25 @@ async function fetchProfile(username: string) {
     } as any;
   }
   const sb = createClient(url, key);
-  const { data } = await sb.from('profiles').select('*').eq('username', username.toLowerCase()).single();
-  if (!data) return null;
-  if (data.account_status === 'banned' || data.account_status === 'suspended') return null;
-  // eligible if has active listings or is business verified? We'll check counts after
-  const { count } = await sb.from('ads').select('id', { count: 'exact', head: true }).eq('user_id', data.id).eq('status','approved').is('deleted_at', null).gt('expires_at', new Date().toISOString());
-  return { ...data, activeCount: count || 0 };
+  // Public seller data via safe view (only id, name, avatar_url, created_at, is_verified)
+  const { data } = await sb.from('public_profiles').select('id, name, avatar_url, created_at, is_verified').eq('id', (await sb.from('profiles').select('id').eq('username', username.toLowerCase()).maybeSingle()).data?.id || '').maybeSingle();
+  // Fallback: try direct username lookup via public view if above fails
+  let profile: any = data;
+  if (!profile) {
+    const { data: byUsername } = await sb.from('profiles').select('id, name, avatar_url, created_at, is_verified, account_status').eq('username', username.toLowerCase()).maybeSingle();
+    // This will fail for anon due to RLS (only owner), so use public_profiles via id
+    if (byUsername) {
+      const { data: pub } = await sb.from('public_profiles').select('id, name, avatar_url, created_at, is_verified').eq('id', byUsername.id).maybeSingle();
+      profile = pub;
+      if (!profile) return null;
+      // Attach needed fields
+      (profile as any).username = username.toLowerCase();
+      (profile as any).account_status = (byUsername as any).account_status;
+    } else return null;
+  }
+  if ((profile as any).account_status === 'banned' || (profile as any).account_status === 'suspended') return null;
+  const { count } = await sb.from('ads').select('id', { count: 'exact', head: true }).eq('user_id', profile.id).eq('status','approved').is('deleted_at', null).gt('expires_at', new Date().toISOString());
+  return { ...profile, username: username.toLowerCase(), display_name: (profile as any).name, activeCount: count || 0, email_verified: (profile as any).is_verified };
 }
 
 export default async function SellerProfilePage({ params }: Props) {

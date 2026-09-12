@@ -87,7 +87,7 @@ export async function listPublicAds(params: PublicListParams = {}): Promise<{ ad
   const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
   let profileMap = new Map<string, any>();
   if (userIds.length > 0) {
-    const { data: profs } = await sb.from('profiles').select('id, name, is_verified, phone, whatsapp').in('id', userIds);
+    const { data: profs } = await sb.from('public_profiles').select('id, name, is_verified').in('id', userIds);
     if (profs) profs.forEach((p: any) => profileMap.set(p.id, p));
   }
   return {
@@ -164,12 +164,13 @@ export async function getPublicAdBySlug(slug: string): Promise<PublicAd | null> 
     if (!me.user || me.user.id !== (data as any).user_id) return null;
   }
 
-  // Enrich with seller profile separately (ads.user_id -> profiles.id via auth.users)
+  // Enrich with seller public profile (only name, is_verified, avatar - not phone)
   const profId = (data as any).user_id;
   let enriched: any = data;
   if (profId) {
-    const { data: prof } = await sb.from('profiles').select('id, name, is_verified, phone, whatsapp').eq('id', profId).maybeSingle();
+    const { data: prof } = await sb.from('public_profiles').select('id, name, is_verified').eq('id', profId).maybeSingle();
     if (prof) enriched = { ...data, profiles: prof };
+    // Phone/whatsapp are fetched only via get_ad_contact_phone RPC if contact_show_phone is true and ad is public
   }
 
   void incrementAdViews((data as any).id);
@@ -451,6 +452,7 @@ export interface MyAdRow {
   enquiries: number;
   createdAt: string;
   rejectionReason?: string | null;
+  expiresAt?: string | null;
 }
 
 export async function getMyAds(): Promise<MyAdRow[]> {
@@ -460,7 +462,7 @@ export async function getMyAds(): Promise<MyAdRow[]> {
   if (!auth.user) return [];
   const { data, error } = await sb
     .from('ads')
-    .select(`id, slug, title, price, status, views_count, rejection_reason, created_at,
+    .select(`id, slug, title, price, status, views_count, rejection_reason, created_at, expires_at,
              ad_images(image_url, is_primary, sort_order)`)
     .eq('user_id', auth.user.id)
     .neq('status', 'deleted')
@@ -478,6 +480,7 @@ export async function getMyAds(): Promise<MyAdRow[]> {
     enquiries: 0,
     createdAt: new Date(row.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
     rejectionReason: row.rejection_reason,
+    expiresAt: row.expires_at,
   }));
 }
 

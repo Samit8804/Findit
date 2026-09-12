@@ -64,6 +64,11 @@ export function notificationLink(n: AppNotification): string {
     case 'payment_success':
     case 'payment_failed':
       return '/dashboard/payments';
+    case 'expiring_soon':
+    case 'expired':
+    case 'boost_activated':
+    case 'extension_activated':
+      return n.data?.ad_id ? `/promote?id=${n.data.ad_id}` : '/dashboard/my-ads';
     default:
       return '/dashboard/notifications';
   }
