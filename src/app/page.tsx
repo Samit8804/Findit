@@ -114,7 +114,7 @@ export default async function Home() {
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-4">
               <div>
                 <span className="text-xs font-bold text-[#E53935] tracking-wide mb-1 block">
-                  Explore categories
+                  Explore categories 
                 </span>
                 <h2 id="categories-heading" className="text-3xl font-black text-[#0F172A] tracking-tight">
                   Browse popular categories
@@ -274,7 +274,7 @@ export default async function Home() {
                 <div className="pt-2">
                   <Link href="/business">
                     <Button variant="primary" size="lg" className="shadow-lg">
-                      Advertise Now
+                      Advertise Now 
                     </Button>
                   </Link>
                 </div>

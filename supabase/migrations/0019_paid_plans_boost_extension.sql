@@ -3,50 +3,132 @@
 -- Run AFTER 0007_payments, 0014_free_plan. Idempotent.
 -- ============================================================
 
--- 1. Add plan_type and duration_days to promotions table
-alter table public.promotions add column if not exists plan_type text
-  check (plan_type in ('boost_3d','extend_10d','featured_7d','top_30d','business_basic','business_pro'));
-alter table public.promotions add column if not exists duration_days int;
+-- 1. Add plan_type and duration_days to promotions table.
+-- Preserve every type currently in the table and add the new extension plan type.
+alter table public.promotions
+add column if not exists plan_type text check (
+    plan_type in (
+        'boost_3d',
+        'extend_10d',
+        'featured_7d',
+        'top_30d',
+        'business_basic',
+        'business_pro'
+    )
+);
+
+alter table public.promotions
+add column if not exists duration_days int;
+
+-- Ensure the promotion type constraint allows all existing valid values and the new extension type.
+-- This is intentionally based on the live table data so we do not break existing promotions.
+do $$
+declare
+  v_allowed text;
+begin
+  if exists (
+    select 1
+    from pg_constraint c
+    join pg_class t on c.conrelid = t.oid
+    where t.relname = 'promotions'
+      and c.conname = 'promotions_type_check'
+  ) then
+    alter table public.promotions drop constraint promotions_type_check;
+  end if;
+
+  select string_agg(quote_literal(type_value), ', ' order by type_value)
+    into v_allowed
+  from (
+    select distinct type as type_value
+    from public.promotions
+    where type is not null
+    union
+    select 'extension'::text
+  ) s;
+
+  execute format(
+    'alter table public.promotions add constraint promotions_type_check check (type in (%s))',
+    v_allowed
+  );
+end $$;
 
 -- 2. Insert/Update promotion plans
-insert into public.promotions (name, slug, description, type, plan_type, price, currency, duration_days, is_active)
-values
-  ('3-Day Boost', 'boost_3d', '3-day visibility boost at top of category', 'boost', 'boost_3d', 49, 'INR', 3, true),
-  ('10-Day Listing Extension', 'extend_10d', 'Extend listing to 10 days total from creation', 'extension', 'extend_10d', 59, 'INR', 10, true)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = excluded.description,
-  type = excluded.type,
-  plan_type = excluded.plan_type,
-  price = excluded.price,
-  currency = excluded.currency,
-  duration_days = excluded.duration_days,
-  is_active = excluded.is_active;
+insert into
+    public.promotions (
+        name,
+        slug,
+        description,
+        type,
+        plan_type,
+        price,
+        currency,
+        duration_days,
+        is_active
+    )
+values (
+        '3-Day Boost',
+        'boost_3d',
+        '3-day visibility boost at top of category',
+        'boost',
+        'boost_3d',
+        49,
+        'INR',
+        3,
+        true
+    ),
+    (
+        '10-Day Listing Extension',
+        'extend_10d',
+        'Extend listing to 10 days total from creation',
+        'extension',
+        'extend_10d',
+        59,
+        'INR',
+        10,
+        true
+    ) on conflict (slug) do
+update
+set
+    name = excluded.name,
+    description = excluded.description,
+    type = excluded.type,
+    plan_type = excluded.plan_type,
+    price = excluded.price,
+    currency = excluded.currency,
+    duration_days = excluded.duration_days,
+    is_active = excluded.is_active;
 
 -- Also update existing promotions with plan_type
-update public.promotions set
-  plan_type = case slug
-    when 'boost' then 'boost_3d'
-    when 'featured-ad' then 'featured_7d'
-    when 'top-listing' then 'top_30d'
-    when 'business-basic' then 'business_basic'
-    when 'business-pro' then 'business_pro'
-    else plan_type
-  end,
-  duration_days = case slug
-    when 'boost' then 3
-    when 'featured-ad' then 7
-    when 'top-listing' then 30
-    when 'business-basic' then 30
-    when 'business-pro' then 30
-    else duration_days
-  end
-where plan_type is null;
+update public.promotions
+set
+    plan_type = case slug
+        when 'boost' then 'boost_3d'
+        when 'featured-ad' then 'featured_7d'
+        when 'top-listing' then 'top_30d'
+        when 'business-basic' then 'business_basic'
+        when 'business-pro' then 'business_pro'
+        else plan_type
+    end,
+    duration_days = case slug
+        when 'boost' then 3
+        when 'featured-ad' then 7
+        when 'top-listing' then 30
+        when 'business-basic' then 30
+        when 'business-pro' then 30
+        else duration_days
+    end
+where
+    plan_type is null;
 
 -- 3. Add tracking columns to ad_promotions
-alter table public.ad_promotions add column if not exists plan_type text;
-alter table public.ad_promotions add column if not exists original_expiry timestamptz;
-alter table public.ad_promotions add column if not exists extended_expiry timestamptz;
+alter table public.ad_promotions
+add column if not exists plan_type text;
+
+alter table public.ad_promotions
+add column if not exists original_expiry timestamptz;
+
+alter table public.ad_promotions
+add column if not exists extended_expiry timestamptz;
 
 -- 4. Server-side function to check Boost eligibility
 create or replace function public.check_boost_eligibility(p_ad_id uuid, p_user_id uuid)
@@ -166,7 +248,8 @@ begin
   -- Check eligibility
   v_eligibility := public.check_boost_eligibility(p_ad_id, auth.uid());
   if not (v_eligibility->>'eligible')::boolean then
-    raise exception 'Boost not eligible: %' using errcode = '45000' using hint = (v_eligibility->>'reason');
+    raise exception 'Boost not eligible: %', v_eligibility->>'reason'
+      using errcode = '45000', hint = v_eligibility->>'reason';
   end if;
 
   -- Get promotion
@@ -263,30 +346,63 @@ $$;
 -- since the existing function checks promo.type, not plan_type
 
 -- 9. Indexes for performance
-create index if not exists idx_ad_promotions_ad_id on public.ad_promotions(ad_id);
-create index if not exists idx_ad_promotions_status on public.ad_promotions(status);
-create index if not exists idx_ad_promotions_plan_type on public.ad_promotions(plan_type);
-create index if not exists idx_ad_promotions_ends_at on public.ad_promotions(ends_at);
-create index if not exists idx_orders_user_created on public.orders(user_id, created_at desc);
-create index if not exists idx_orders_status on public.orders(status);
+create index if not exists idx_ad_promotions_ad_id on public.ad_promotions (ad_id);
+
+create index if not exists idx_ad_promotions_status on public.ad_promotions (status);
+
+create index if not exists idx_ad_promotions_plan_type on public.ad_promotions (plan_type);
+
+create index if not exists idx_ad_promotions_ends_at on public.ad_promotions (ends_at);
+
+create index if not exists idx_orders_user_created on public.orders (user_id, created_at desc);
+
+create index if not exists idx_orders_status on public.orders (status);
 
 -- 10. RLS for ad_promotions (public can read active promotions on approved ads)
 alter table public.ad_promotions enable row level security;
+
 drop policy if exists "ad_promotions_public_read" on public.ad_promotions;
-create policy "ad_promotions_public_read" on public.ad_promotions for select
-  using (
-    exists (select 1 from public.ads where ads.id = ad_promotions.ad_id and ads.status = 'approved' and ads.deleted_at is null)
-  );
+
+create policy "ad_promotions_public_read" on public.ad_promotions for
+select using (
+        exists (
+            select 1
+            from public.ads
+            where
+                ads.id = ad_promotions.ad_id
+                and ads.status = 'approved'
+                and ads.deleted_at is null
+        )
+    );
+
 drop policy if exists "ad_promotions_owner_read" on public.ad_promotions;
-create policy "ad_promotions_owner_read" on public.ad_promotions for select
-  using (exists (select 1 from public.ads where ads.id = ad_promotions.ad_id and ads.user_id = auth.uid()));
+
+create policy "ad_promotions_owner_read" on public.ad_promotions for
+select using (
+        exists (
+            select 1
+            from public.ads
+            where
+                ads.id = ad_promotions.ad_id
+                and ads.user_id = auth.uid ()
+        )
+    );
+
 drop policy if exists "ad_promotions_admin_write" on public.ad_promotions;
-create policy "ad_promotions_admin_write" on public.ad_promotions for all
-using (public.is_admin());
+
+create policy "ad_promotions_admin_write" on public.ad_promotions for all using (public.is_admin ());
 
 -- 11. RLS for orders (owner can read own orders, admin all)
 alter table public.orders enable row level security;
+
 drop policy if exists "orders_owner_read" on public.orders;
-create policy "orders_owner_read" on public.orders for select using (auth.uid() = user_id);
+
+create policy "orders_owner_read" on public.orders for
+select using (auth.uid () = user_id);
+
 drop policy if exists "orders_owner_write" on public.orders;
-create policy "orders_owner_write" on public.orders for insert with check (auth.uid() = user_id);
+
+create policy "orders_owner_write" on public.orders for
+insert
+with
+    check (auth.uid () = user_id);
