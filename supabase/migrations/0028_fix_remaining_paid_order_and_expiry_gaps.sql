@@ -17,6 +17,69 @@ create unique index if not exists uniq_notification_per_cycle
   on public.notifications (user_id, related_ad_id, type, expiry_cycle)
   where type in ('expiring_soon', 'expired');
 
+-- Normal listings expire seven days after their original creation, including
+-- drafts that are submitted later.
+create or replace function public.enforce_free_plan_on_insert()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_count int;
+begin
+  if new.status in ('pending', 'approved') then
+    select public.free_ads_this_month(new.user_id) into v_count;
+    if v_count >= 3 then
+      raise exception 'FREE_LIMIT_REACHED' using errcode = '45000', hint = 'You have reached your free limit of 3 ads for this month.';
+    end if;
+    new.expires_at := coalesce(new.created_at, now()) + interval '7 days';
+    if new.status = 'approved' and new.published_at is null then
+      new.published_at := now();
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.enforce_free_plan_on_update()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_count int;
+begin
+  if old.status = 'draft' and new.status in ('pending', 'approved') then
+    select public.free_ads_this_month(new.user_id) into v_count;
+    if v_count > 3 then
+      raise exception 'FREE_LIMIT_REACHED' using errcode = '45000';
+    end if;
+    new.expires_at := coalesce(new.created_at, now()) + interval '7 days';
+    if new.status = 'approved' and new.published_at is null then
+      new.published_at := now();
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.guard_ad_expiry_and_status()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_moderator() and new.expires_at is distinct from old.expires_at then
+    if TG_OP = 'UPDATE' and old.status = 'draft' and new.status = 'pending' then
+      if new.expires_at is distinct from (new.created_at + interval '7 days') then
+        raise exception 'Invalid expires_at';
+      end if;
+    elsif TG_OP = 'UPDATE' and old.status = 'expired' and new.status = 'pending' then
+      raise exception 'Renewal must go through paid promotion';
+    else
+      new.expires_at := old.expires_at;
+    end if;
+  end if;
+
+  if not public.is_moderator() and new.status = 'approved' and old.status <> 'approved' then
+    raise exception 'Only moderators can approve';
+  end if;
+
+  return new;
+end;
+$$;
+
 create or replace function public.check_boost_eligibility(p_ad_id uuid, p_user_id uuid)
 returns json
 language plpgsql
@@ -268,8 +331,64 @@ begin
     return false;
   end if;
 
+  if ord.provider is distinct from p_provider then
+    return false;
+  end if;
+
   if p_amount is not null and ord.amount is distinct from p_amount then
     return false;
+  end if;
+
+  -- The order's promotion, price, and currency are authoritative. Validate all
+  -- of them before transitioning the order so a rejected callback is retryable.
+  select * into promo
+  from public.promotions
+  where id = ord.promotion_id;
+
+  if promo.id is null
+     or ord.amount is distinct from promo.price
+     or ord.currency is distinct from promo.currency then
+    return false;
+  end if;
+
+  if promo.type = 'boost' or promo.plan_type = 'boost_3d' then
+    if promo.slug <> 'boost_3d'
+       or promo.type <> 'boost'
+       or promo.price <> 49
+       or promo.currency <> 'INR'
+       or promo.duration_days <> 3
+       or ord.ad_id is null then
+      return false;
+    end if;
+
+    select * into v_ad
+    from public.ads
+    where id = ord.ad_id
+    for update;
+
+    if v_ad.id is null
+       or not (public.check_boost_eligibility(v_ad.id, ord.user_id)->>'eligible')::boolean then
+      return false;
+    end if;
+  elsif promo.type = 'extension' or promo.plan_type = 'extend_10d' then
+    if promo.slug <> 'extend_10d'
+       or promo.type <> 'extension'
+       or promo.price <> 59
+       or promo.currency <> 'INR'
+       or promo.duration_days <> 10
+       or ord.ad_id is null then
+      return false;
+    end if;
+
+    select * into v_ad
+    from public.ads
+    where id = ord.ad_id
+    for update;
+
+    if v_ad.id is null
+       or not (public.check_extension_eligibility(v_ad.id, ord.user_id)->>'eligible')::boolean then
+      return false;
+    end if;
   end if;
 
   update public.orders
@@ -292,22 +411,6 @@ begin
     on conflict (provider, provider_transaction_id) do nothing;
   end if;
 
-  select * into promo
-  from public.promotions
-  where id = ord.promotion_id;
-
-  if promo.id is null then
-    return false;
-  end if;
-
-  if ord.amount is distinct from promo.price then
-    raise exception 'Order amount mismatch for plan %', promo.slug using errcode = '45000';
-  end if;
-
-  if ord.currency is distinct from promo.currency then
-    raise exception 'Order currency mismatch for plan %', promo.slug using errcode = '45000';
-  end if;
-
   if promo.type = 'boost' and promo.plan_type = 'boost_3d' and ord.ad_id is not null then
     select * into v_ad
     from public.ads
@@ -322,19 +425,11 @@ begin
       raise exception 'No expiry date set - cannot determine eligibility' using errcode = '45000';
     end if;
 
-    if not (public.check_boost_eligibility(v_ad.id, ord.user_id)->>'eligible')::boolean then
-      raise exception 'Boost not eligible for this advertisement' using errcode = '45000';
-    end if;
-
-    v_ends_at := now() + interval '3 days';
+    v_ends_at := now() + (promo.duration_days || ' days')::interval;
 
     insert into public.ad_promotions (ad_id, promotion_id, order_id, starts_at, ends_at, status, plan_type)
     values (ord.ad_id, ord.promotion_id, ord.id, now(), v_ends_at, 'active', promo.plan_type)
-    on conflict (order_id) do update
-      set status = 'active',
-          starts_at = now(),
-          ends_at = v_ends_at,
-          plan_type = promo.plan_type;
+    on conflict (order_id) do nothing;
 
     activated := true;
 
@@ -368,14 +463,9 @@ begin
       raise exception 'No expiry date set - cannot determine eligibility' using errcode = '45000';
     end if;
 
-    if v_ad.expires_at <= now() then
-      raise exception 'Advertisement already expired. Use renewal flow.' using errcode = '45000';
-    end if;
-
     v_target_expiry := v_ad.created_at + interval '10 days';
 
     if v_ad.expires_at >= v_target_expiry then
-      -- Must not shorten a newer valid expiry. The extension order should not be applied.
       return false;
     end if;
 
@@ -384,11 +474,7 @@ begin
 
     insert into public.ad_promotions (ad_id, promotion_id, order_id, starts_at, ends_at, status, plan_type)
     values (ord.ad_id, ord.promotion_id, ord.id, now(), v_ends_at, 'active', promo.plan_type)
-    on conflict (order_id) do update
-      set status = 'active',
-          starts_at = now(),
-          ends_at = v_ends_at,
-          plan_type = promo.plan_type;
+    on conflict (order_id) do nothing;
 
     update public.ads
        set expires_at = v_new_expires_at,
@@ -511,7 +597,7 @@ begin
     from public.ads a
     where a.deleted_at is null
       and a.expires_at is not null
-      and a.status in ('approved', 'expired')
+      and a.status = 'approved'
       and a.expires_at > now()
       and a.expires_at <= now() + interval '24 hours'
   loop
@@ -569,26 +655,42 @@ begin
   end if;
 end $$;
 
-do $$
+do $cron_setup$
+declare
+  v_job_id bigint;
 begin
-  if not exists (select 1 from cron.job where jobname = 'expire-due-ads-every-15min') then
+  select jobid into v_job_id
+  from cron.job
+  where jobname = 'expire-due-ads-every-15min';
+
+  if v_job_id is null then
     perform cron.schedule(
       'expire-due-ads-every-15min',
       '*/15 * * * *',
-      $$ select public.expire_due_ads();
+      $expire_job$select public.expire_due_ads();$expire_job$
+    );
+  else
+    update cron.job
+       set schedule = '*/15 * * * *',
+           command = 'select public.expire_due_ads();'
+     where jobid = v_job_id;
+  end if;
 
-$$ );
+  select jobid into v_job_id
+  from cron.job
+  where jobname = 'expiry-notifications-hourly';
 
-end if;
-
-if not exists (select 1 from cron.job where jobname = 'expiry-notifications-hourly') then
+  if v_job_id is null then
     perform cron.schedule(
       'expiry-notifications-hourly',
       '0 * * * *',
-      $$ select public.send_expiry_notifications();
-
-$$ );
-
-end if;
-
-end $$;
+      $notification_job$select public.send_expiry_notifications();$notification_job$
+    );
+  else
+    update cron.job
+       set schedule = '0 * * * *',
+           command = 'select public.send_expiry_notifications();'
+     where jobid = v_job_id;
+  end if;
+end
+$cron_setup$;
