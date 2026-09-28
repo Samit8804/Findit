@@ -4,21 +4,45 @@
 -- ============================================================
 
 -- 1. Ensure notifications table has all needed columns
-alter table public.notifications add column if not exists related_ad_id uuid references public.ads(id) on delete set null;
+alter table public.notifications
+add column if not exists related_ad_id uuid references public.ads (id) on delete set null;
+
 alter table public.notifications add column if not exists data jsonb default '{}'::jsonb;
 
 -- 2. RLS policies for notifications
 alter table public.notifications enable row level security;
+
 drop policy if exists "notifications_owner_read" on public.notifications;
-create policy "notifications_owner_read" on public.notifications for select using (auth.uid() = user_id);
+
+create policy "notifications_owner_read" on public.notifications for
+select using (auth.uid () = user_id);
+
 drop policy if exists "notifications_system_write" on public.notifications;
-create policy "notifications_system_write" on public.notifications for insert with check (public.is_admin() or current_user = 'postgres');
+
+create policy "notifications_system_write" on public.notifications for
+insert
+with
+    check (
+        public.is_admin ()
+        or current_user = 'postgres'
+    );
+
 drop policy if exists "notifications_owner_update" on public.notifications;
-create policy "notifications_owner_update" on public.notifications for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "notifications_owner_update" on public.notifications for
+update using (auth.uid () = user_id)
+with
+    check (auth.uid () = user_id);
 
 -- 3. Indexes for notifications
-create index if not exists idx_notifications_user_read on public.notifications(user_id, is_read, created_at desc);
-create index if not exists idx_notifications_ad on public.notifications(related_ad_id);
+create index if not exists idx_notifications_user_read on public.notifications (
+    user_id,
+    read,
+    created_at desc
+);
+
+create index if not exists idx_notifications_ad on public.notifications (related_ad_id);
+
 create index if not exists idx_notifications_type on public.notifications(type);
 
 -- 4. Function to send expiry notifications (called by cron)

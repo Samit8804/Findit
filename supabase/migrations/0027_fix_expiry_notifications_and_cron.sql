@@ -128,34 +128,34 @@ end;
 $$;
 
 -- Ensure pg_cron is available before scheduling jobs.
-do $$
+do $cron_setup$
 begin
   if not exists (select 1 from pg_extension where extname = 'pg_cron') then
     create extension if not exists pg_cron;
   end if;
-end $$;
+end
+$cron_setup$;
 
 -- Create cron jobs idempotently. They must not be duplicated.
-do $$
+do $cron_jobs$
 begin
   if not exists (select 1 from cron.job where jobname = 'expire-due-ads-every-15min') then
     perform cron.schedule(
       'expire-due-ads-every-15min',
       '*/15 * * * *',
-      $$ select public.expire_due_ads();
+      $expire_job$select public.expire_due_ads();$expire_job$
+    );
 
-$$ );
+  end if;
 
-end if;
-
-if not exists (select 1 from cron.job where jobname = 'expiry-notifications-hourly') then
+  if not exists (select 1 from cron.job where jobname = 'expiry-notifications-hourly') then
     perform cron.schedule(
       'expiry-notifications-hourly',
       '0 * * * *',
-      $$ select public.send_expiry_notifications();
+      $notification_job$select public.send_expiry_notifications();$notification_job$
+    );
 
-$$ );
+  end if;
 
-end if;
-
-end $$;
+end
+$cron_jobs$;
