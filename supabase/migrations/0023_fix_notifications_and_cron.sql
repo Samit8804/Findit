@@ -149,10 +149,6 @@ revoke
 execute on function public.check_extension_eligibility (uuid, uuid)
 from authenticated;
 
-revoke
-execute on function public.complete_payment_and_apply_benefit (uuid, text, text, numeric)
-from authenticated;
-
 grant
 execute on function public.create_boost_order (uuid, text) to postgres;
 
@@ -164,9 +160,6 @@ execute on function public.check_boost_eligibility (uuid, uuid) to postgres;
 
 grant
 execute on function public.check_extension_eligibility (uuid, uuid) to postgres;
-
-grant
-execute on function public.complete_payment_and_apply_benefit (uuid, text, text, numeric) to postgres;
 
 -- Note: The API routes use service-role key (via getSupabaseAdmin) so they can still call these functions.
 -- The frontend (browser) uses anon key and cannot call them directly.
