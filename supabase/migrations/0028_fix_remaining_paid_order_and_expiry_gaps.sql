@@ -601,7 +601,9 @@ begin
       and a.expires_at > now()
       and a.expires_at <= now() + interval '24 hours'
   loop
-    v_expiry_cycle := coalesce(v_ad.listing_started_at, v_ad.expires_at);
+    -- The expiry timestamp identifies the listing's current expiry cycle.
+    -- It changes when a listing is genuinely renewed or extended.
+    v_expiry_cycle := v_ad.expires_at;
     v_hours_remaining := extract(epoch from (v_ad.expires_at - now())) / 3600;
 
     if v_hours_remaining <= 1 then
@@ -632,7 +634,7 @@ begin
       and a.status in ('approved', 'expired')
       and a.expires_at <= now()
   loop
-    v_expiry_cycle := coalesce(v_ad.listing_started_at, v_ad.expires_at);
+    v_expiry_cycle := v_ad.expires_at;
 
     insert into public.notifications (user_id, type, title, body, related_ad_id, expiry_cycle)
     values (
@@ -648,12 +650,15 @@ begin
 end;
 $$;
 
-do $$
+do $cron_extension$
 begin
-  if not exists (select 1 from pg_extension where extname = 'pg_cron') then
+  begin
     create extension if not exists pg_cron;
-  end if;
-end $$;
+  exception when others then
+    raise exception 'pg_cron is required for automatic expiry jobs. Enable the pg_cron extension or schedule expire_due_ads() every 15 minutes and send_expiry_notifications() hourly manually. Original error: %', sqlerrm;
+  end;
+end
+$cron_extension$;
 
 do $cron_setup$
 declare
