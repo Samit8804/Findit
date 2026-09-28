@@ -7,7 +7,8 @@
 -- We use a composite key that includes the expiry timestamp to allow new notifications after renewal
 
 -- First, add a column to track the expiry cycle for deduplication
-alter table public.notifications add column if not exists expiry_cycle timestamptz;
+alter table public.notifications
+add column if not exists expiry_cycle timestamptz;
 
 -- Create unique index for idempotency per expiry cycle
 -- This allows: one notification per type per ad per expiry cycle
@@ -123,29 +124,49 @@ $$;
 
 -- 4. Fix complete_paid_order permissions - REVOKE from authenticated
 -- Only service-role (webhook/server) should call this
-revoke execute on function public.complete_paid_order(uuid, text, text, numeric) from authenticated;
-revoke execute on function public.complete_paid_order(uuid, text, text) from authenticated;
-revoke execute on function public.complete_paid_order(uuid, text) from authenticated;
-revoke execute on function public.complete_paid_order(uuid) from authenticated;
+revoke
+execute on function public.complete_paid_order (uuid, text, text, numeric)
+from authenticated;
 
 -- Grant only to postgres (service role) and admin
-grant execute on function public.complete_paid_order(uuid, text, text, numeric) to postgres;
-grant execute on function public.complete_paid_order(uuid, text, text) to postgres;
-grant execute on function public.complete_paid_order(uuid, text) to postgres;
-grant execute on function public.complete_paid_order(uuid) to postgres;
+grant
+execute on function public.complete_paid_order (uuid, text, text, numeric) to postgres;
 
 -- 5. Also secure other payment-related functions
-revoke execute on function public.create_boost_order(uuid, text) from authenticated;
-revoke execute on function public.create_extension_order(uuid, text) from authenticated;
-revoke execute on function public.check_boost_eligibility(uuid, uuid) from authenticated;
-revoke execute on function public.check_extension_eligibility(uuid, uuid) from authenticated;
-revoke execute on function public.complete_payment_and_apply_benefit(uuid, text, text, numeric) from authenticated;
+revoke
+execute on function public.create_boost_order (uuid, text)
+from authenticated;
 
-grant execute on function public.create_boost_order(uuid, text) to postgres;
-grant execute on function public.create_extension_order(uuid, text) to postgres;
-grant execute on function public.check_boost_eligibility(uuid, uuid) to postgres;
-grant execute on function public.check_extension_eligibility(uuid, uuid) to postgres;
-grant execute on function public.complete_payment_and_apply_benefit(uuid, text, text, numeric) to postgres;
+revoke
+execute on function public.create_extension_order (uuid, text)
+from authenticated;
+
+revoke
+execute on function public.check_boost_eligibility (uuid, uuid)
+from authenticated;
+
+revoke
+execute on function public.check_extension_eligibility (uuid, uuid)
+from authenticated;
+
+revoke
+execute on function public.complete_payment_and_apply_benefit (uuid, text, text, numeric)
+from authenticated;
+
+grant
+execute on function public.create_boost_order (uuid, text) to postgres;
+
+grant
+execute on function public.create_extension_order (uuid, text) to postgres;
+
+grant
+execute on function public.check_boost_eligibility (uuid, uuid) to postgres;
+
+grant
+execute on function public.check_extension_eligibility (uuid, uuid) to postgres;
+
+grant
+execute on function public.complete_payment_and_apply_benefit (uuid, text, text, numeric) to postgres;
 
 -- Note: The API routes use service-role key (via getSupabaseAdmin) so they can still call these functions.
 -- The frontend (browser) uses anon key and cannot call them directly.

@@ -3,7 +3,8 @@
 
 -- Drop the old guard that blocked all phone_verified changes for non-moderators
 drop trigger if exists trg_guard_profile_verified on public.profiles;
-drop function if exists public.guard_profile_verified();
+
+drop function if exists public.guard_profile_verified ();
 
 -- New guard: allow phone/phone_verified to be set only via secure path, block direct role/status escalation
 create or replace function public.guard_profile_verified_v2()
@@ -46,6 +47,8 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_guard_profile_verified_v2 on public.profiles;
+
 create trigger trg_guard_profile_verified_v2 before update on public.profiles
 for each row execute function public.guard_profile_verified_v2();
 
@@ -86,11 +89,21 @@ $$;
 -- Tighten profiles RLS: ensure users can only update safe fields via USING/WITH CHECK
 -- Keep existing public read, but make update more restrictive
 drop policy if exists "profiles_own_update" on public.profiles;
-create policy "profiles_own_update" on public.profiles for update
-using (auth.uid() = id)
-with check (
-  auth.uid() = id
-  -- Only allow safe fields to be changed via direct update; verified fields are blocked by trigger anyway
-  -- This check ensures role/status cannot be changed
-  and (role = (select role from public.profiles p where p.id = auth.uid()) or public.is_super_admin())
-);
+
+create policy "profiles_own_update" on public.profiles for
+update using (auth.uid () = id)
+with
+    check (
+        auth.uid () = id
+        -- Only allow safe fields to be changed via direct update; verified fields are blocked by trigger anyway
+        -- This check ensures role/status cannot be changed
+        and (
+            role = (
+                select role
+                from public.profiles p
+                where
+                    p.id = auth.uid ()
+            )
+            or public.is_super_admin ()
+        )
+    );
