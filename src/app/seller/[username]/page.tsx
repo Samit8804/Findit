@@ -88,7 +88,9 @@ export default async function SellerProfilePage({ params }: Props) {
     const sb = createClient(url, key);
     const { data } = await sb.from('ads')
       .select('id, slug, title, description, price, condition, created_at, views_count, favorites_count, is_featured, currency, ad_images(image_url,is_primary), locations!inner(name)')
-      .eq('user_id', profile.id).eq('status','approved').is('deleted_at', null).order('created_at', { ascending: false }).limit(12);
+      .eq('user_id', profile.id).eq('status','approved').is('deleted_at', null)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .order('created_at', { ascending: false }).limit(12);
     listings = data || [];
   }
 

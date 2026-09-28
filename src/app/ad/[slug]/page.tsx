@@ -224,7 +224,7 @@ export default async function AdDetailPage({ params }: AdPageProps) {
       const sb2 = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!);
       const catId = (sbAd as any).category_id || (sbAd as any).category?.id;
       if (catId) {
-        const { data: rel } = await sb2.from('ads').select('id, slug, title, price, ad_images(image_url, is_primary)').eq('category_id', catId).eq('status', 'approved').is('deleted_at', null).neq('id', sbAd.id).limit(4);
+        const { data: rel } = await sb2.from('ads').select('id, slug, title, price, expires_at, ad_images(image_url, is_primary)').eq('category_id', catId).eq('status', 'approved').is('deleted_at', null).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`).neq('id', sbAd.id).limit(4);
         related = rel || [];
       }
     } catch {}
