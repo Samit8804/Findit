@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Phone, ArrowLeft, Loader2 } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { ShieldCheck, Phone, ArrowLeft, Loader2, MessageSquare, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import {
   normalizeIndianPhoneNumber,
   validateIndianPhoneNumber,
-  sendPhoneOtp,
-  verifyPhoneOtp,
+  createPhoneVerificationSession,
+  getVerificationSessionStatus,
+  openVerificationDeepLink,
   getPhoneVerificationStatus,
+  VerificationMethod,
 } from '@/services/phoneVerification';
 
 interface PhoneVerificationProps {
@@ -16,15 +18,19 @@ interface PhoneVerificationProps {
 }
 
 export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProps) {
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [step, setStep] = useState<'phone' | 'method' | 'waiting'>('phone');
   const [phone, setPhone] = useState('');
   const [normalized, setNormalized] = useState<string | null>(null);
-  const [otp, setOtp] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState<VerificationMethod | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [polling, setPolling] = useState(false);
 
+  // Check initial verification status
   useEffect(() => {
     let cancelled = false;
     getPhoneVerificationStatus()
@@ -32,7 +38,6 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
         if (!cancelled && status.phoneVerified) {
           onVerified();
         } else if (!cancelled && status.phone) {
-          // Pre-fill phone if exists but not verified
           setPhone(status.phone.replace('+91', ''));
         }
       })
@@ -40,93 +45,117 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
       .finally(() => {
         if (!cancelled) setCheckingStatus(false);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [onVerified]);
 
+  // Countdown timer for session expiration
   useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendCooldown]);
+    if (!expiresAt) return;
+    const end = new Date(expiresAt).getTime();
+    const update = () => {
+      const remaining = Math.max(0, Math.floor((end - Date.now()) / 1000));
+      setTimeRemaining(remaining);
+      if (remaining <= 0) {
+        setStep('method');
+        setError('Verification session expired. Please try again.');
+        setSessionId(null);
+        setExpiresAt(null);
+      }
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
 
-  const handleSendOtp = async (e?: React.FormEvent) => {
-    e?.preventDefault();
+  // Polling for verification status
+  useEffect(() => {
+    if (!polling || !sessionId) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const status = await getVerificationSessionStatus(sessionId);
+        if (cancelled) return;
+        
+        if (status.status === 'verified') {
+          onVerified();
+        } else if (status.status === 'expired' || status.status === 'failed') {
+          setPolling(false);
+          setStep('method');
+          setError(status.status === 'expired' ? 'Verification session expired. Please try again.' : 'Verification failed. Please try again.');
+          setSessionId(null);
+          setExpiresAt(null);
+        }
+      } catch {
+        // Ignore polling errors, will retry
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [polling, sessionId, onVerified]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
     const { valid, normalized: norm, error: valErr } = validateIndianPhoneNumber(phone);
     if (!valid || !norm) {
       setError(valErr || 'Enter a valid 10-digit Indian mobile number.');
       return;
     }
+    setNormalized(norm);
+    setStep('method');
+  };
+
+  const handleMethodSelect = async (method: VerificationMethod) => {
+    if (!normalized) return;
+    setError('');
     setLoading(true);
+    setSelectedMethod(method);
     try {
-      const res = await sendPhoneOtp(norm);
-      setNormalized(res.normalized);
-      setStep('otp');
-      setResendCooldown(60);
-      setOtp('');
+      const session = await createPhoneVerificationSession(normalized, method);
+      setSessionId(session.sessionId);
+      setExpiresAt(session.expiresAt);
+      setPolling(true);
+      setStep('waiting');
+      // Open deep link after a brief moment
+      setTimeout(() => openVerificationDeepLink(session.deepLink), 500);
     } catch (err: any) {
-      const msg = err?.message || 'Failed to send OTP.';
+      const msg = err?.message || 'Failed to start verification.';
       if (msg.toLowerCase().includes('already verified') || msg.toLowerCase().includes('already associated')) {
-        setError('This phone number is already associated with another FindIt account.');
-      } else if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many')) {
-        setError('Too many OTP requests. Please wait a minute and try again.');
+        setError('This phone number is already verified with another account.');
       } else {
         setError(msg);
       }
+      setStep('method');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerify = async (e?: React.FormEvent) => {
-    e?.preventDefault();
+  const handleBackToPhone = () => {
+    setStep('phone');
     setError('');
-    if (!normalized) {
-      setError('Phone number not set. Please go back and enter phone again.');
-      return;
-    }
-    if (!otp || otp.trim().length < 4) {
-      setError('Enter a valid 6-digit OTP.');
-      return;
-    }
-    setLoading(true);
-    try {
-      await verifyPhoneOtp(normalized, otp.trim());
-      onVerified();
-    } catch (err: any) {
-      const msg = err?.message || 'Invalid OTP.';
-      const lower = msg.toLowerCase();
-      if (lower.includes('expired') || lower.includes('expired otp')) {
-        setError('OTP has expired. Please request a new code.');
-      } else if (lower.includes('invalid') || lower.includes('incorrect')) {
-        setError('Invalid OTP. Please check the code and try again.');
-      } else if (lower.includes('already verified') || lower.includes('already associated')) {
-        setError('This phone number is already associated with another FindIt account.');
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setLoading(false);
-    }
+    setSelectedMethod(null);
+    setNormalized(null);
+    setSessionId(null);
+    setExpiresAt(null);
+    setPolling(false);
   };
 
-  const handleResend = async () => {
-    if (resendCooldown > 0 || loading) return;
+  const handleBackToMethod = () => {
+    setStep('method');
     setError('');
-    setLoading(true);
-    try {
-      if (!normalized) throw new Error('Phone not set');
-      // Re-send via same service (will handle duplicate check again)
-      await sendPhoneOtp(normalized);
-      setResendCooldown(60);
-      setOtp('');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to resend OTP.');
-    } finally {
-      setLoading(false);
-    }
+    setSessionId(null);
+    setExpiresAt(null);
+    setPolling(false);
   };
 
   const maskedPhone = normalized ? `${normalized.slice(0, 3)}****${normalized.slice(-2)}` : phone ? `${phone.slice(0, 2)}****${phone.slice(-2)}` : '';
@@ -157,8 +186,15 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
         )}
       </div>
 
-      {step === 'phone' ? (
-        <form onSubmit={handleSendOtp} className="space-y-4">
+      {error && (
+        <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-[#D32F2F] flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {step === 'phone' && (
+        <form onSubmit={handlePhoneSubmit} className="space-y-4">
           <div>
             <label htmlFor="phone" className="block text-sm font-semibold text-slate-700 mb-1.5">
               Mobile number
@@ -183,40 +219,31 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
             <p className="text-[11px] text-slate-500 mt-1.5">Enter your 10-digit Indian mobile number.</p>
           </div>
 
-          {error && (
-            <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-[#D32F2F]">
-              {error}
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading || phone.replace(/\D/g, '').length !== 10}
             className="w-full py-3 bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? 'Sending OTP...' : 'Send OTP'}
+            {loading ? 'Validating...' : 'Continue'}
           </button>
 
           <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-            By continuing, you agree to receive an OTP via SMS for verification.
+            Your number will only be used for account verification. We never share it publicly.
           </p>
         </form>
-      ) : (
-        <form onSubmit={handleVerify} className="space-y-4">
+      )}
+
+      {step === 'method' && (
+        <div className="space-y-4">
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm">
               <Phone className="w-4 h-4 text-slate-500" />
               <span className="font-semibold text-slate-900">{maskedPhone}</span>
-              <span className="text-xs text-emerald-600 font-medium">OTP sent</span>
             </div>
             <button
               type="button"
-              onClick={() => {
-                setStep('phone');
-                setError('');
-                setOtp('');
-              }}
+              onClick={handleBackToPhone}
               className="text-xs font-semibold text-[#E53935] hover:underline flex items-center gap-1"
               disabled={loading}
             >
@@ -224,55 +251,99 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
             </button>
           </div>
 
-          <div>
-            <label htmlFor="otp" className="block text-sm font-semibold text-slate-700 mb-1.5">
-              Enter verification code
-            </label>
-            <input
-              id="otp"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="6-digit code"
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm tracking-widest text-center font-mono focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
-              aria-invalid={!!error}
+          <p className="text-sm text-slate-600 text-center">Choose a verification method:</p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handleMethodSelect('whatsapp')}
               disabled={loading}
-              autoFocus
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-[11px] text-slate-500">
-                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Didn’t receive code?'}
+              className="flex flex-col items-center gap-2 p-4 border-2 border-slate-200 rounded-xl hover:border-[#25D366] hover:bg-green-50 transition-colors disabled:opacity-50"
+            >
+              <MessageSquare className="w-7 h-7 text-[#25D366]" />
+              <span className="font-semibold text-slate-900">WhatsApp</span>
+              <span className="text-xs text-slate-500">Opens WhatsApp chat</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleMethodSelect('telegram')}
+              disabled={loading}
+              className="flex flex-col items-center gap-2 p-4 border-2 border-slate-200 rounded-xl hover:border-[#0088cc] hover:bg-sky-50 transition-colors disabled:opacity-50"
+            >
+              <Send className="w-7 h-7 text-[#0088cc]" />
+              <span className="font-semibold text-slate-900">Telegram</span>
+              <span className="text-xs text-slate-500">Opens Telegram bot</span>
+            </button>
+          </div>
+
+          <p className="text-[11px] text-slate-500 text-center leading-relaxed">
+            You will be redirected to the app to complete verification.
+          </p>
+        </div>
+      )}
+
+      {step === 'waiting' && (
+        <div className="space-y-4 text-center">
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="w-4 h-4 text-slate-500" />
+              <span className="font-semibold text-slate-900">{maskedPhone}</span>
+              <span className="text-xs text-emerald-600 font-medium">
+                {selectedMethod === 'whatsapp' ? (
+                  <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> WhatsApp</span>
+                ) : (
+                  <span className="flex items-center gap-1"><Send className="w-3 h-3" /> Telegram</span>
+                )}
               </span>
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resendCooldown > 0 || loading}
-                className="text-xs font-semibold text-[#E53935] hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Resend OTP
-              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleBackToMethod}
+              className="text-xs font-semibold text-[#E53935] hover:underline flex items-center gap-1"
+              disabled={loading}
+            >
+              <ArrowLeft className="w-3 h-3" /> Change
+            </button>
+          </div>
+
+          <div className="py-4">
+            <Loader2 className="w-10 h-10 animate-spin text-[#E53935] mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">Waiting for verification...</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              {selectedMethod === 'whatsapp'
+                ? 'Open WhatsApp and send the verification code.'
+                : 'Open Telegram and share your phone number with the bot.'}
+            </p>
+
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+              <Clock className="w-4 h-4" />
+              <span>Session expires in {formatTime(timeRemaining)}</span>
             </div>
           </div>
 
-          {error && (
-            <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-[#D32F2F]">
-              {error}
-            </div>
-          )}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-[11px] text-slate-500">
+            <p className="font-medium text-slate-700 mb-1">How it works:</p>
+            <ul className="space-y-1 text-left">
+              <li className="flex items-center gap-2">{selectedMethod === 'whatsapp' ? '1.' : '1.'} Open the app via the link that opened automatically</li>
+              <li className="flex items-center gap-2">
+                {selectedMethod === 'whatsapp' 
+                  ? '2. Send the verification code in the chat'
+                  : '2. Press "Share Phone Number" when prompted'}
+              </li>
+              <li className="flex items-center gap-2">3. Verification completes automatically</li>
+            </ul>
+          </div>
 
           <button
-            type="submit"
-            disabled={loading || otp.trim().length < 4}
-            className="w-full py-3 bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+            type="button"
+            onClick={handleBackToMethod}
+            disabled={loading}
+            className="w-full py-2 text-sm font-semibold text-[#E53935] hover:underline disabled:opacity-50"
           >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? 'Verifying...' : 'Verify & Continue'}
+            Cancel & Choose Another Method
           </button>
-
-          <p className="text-[11px] text-slate-500 text-center">Code valid for a few minutes. Check SMS and spam.</p>
-        </form>
+        </div>
       )}
     </div>
   );
