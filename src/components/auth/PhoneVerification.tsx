@@ -1,7 +1,7 @@
    'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ShieldCheck, Phone, ArrowLeft, Loader2, MessageSquare, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Phone, ArrowLeft, Loader2, MessageSquare, Send, CheckCircle, Clock, AlertCircle, Copy } from 'lucide-react';
 import {
   normalizeIndianPhoneNumber,
   validateIndianPhoneNumber,
@@ -29,6 +29,9 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [polling, setPolling] = useState(false);
+  const [telegramWebUrl, setTelegramWebUrl] = useState<string | null>(null);
+  const [telegramStartCommand, setTelegramStartCommand] = useState<string | null>(null);
+  const [commandCopied, setCommandCopied] = useState(false);
 
   // Check initial verification status
   useEffect(() => {
@@ -125,8 +128,14 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
       setExpiresAt(session.expiresAt);
       setPolling(true);
       setStep('waiting');
-      // Open deep link after a brief moment
-      setTimeout(() => openVerificationDeepLink(session.deepLink), 500);
+      if (method === 'telegram') {
+        const botUsername = new URL(session.deepLink).pathname.replace(/^\/+/, '').split('/')[0];
+        setTelegramWebUrl(`https://web.telegram.org/k/#@${botUsername}`);
+        setTelegramStartCommand(`/start VERIFY_${session.token}`);
+        setCommandCopied(false);
+      } else {
+        setTimeout(() => openVerificationDeepLink(session.deepLink), 500);
+      }
     } catch (err: any) {
       const msg = err?.message || 'Failed to start verification.';
       if (msg.toLowerCase().includes('already verified') || msg.toLowerCase().includes('already associated')) {
@@ -148,6 +157,9 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
     setSessionId(null);
     setExpiresAt(null);
     setPolling(false);
+    setTelegramWebUrl(null);
+    setTelegramStartCommand(null);
+    setCommandCopied(false);
   };
 
   const handleBackToMethod = () => {
@@ -156,6 +168,19 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
     setSessionId(null);
     setExpiresAt(null);
     setPolling(false);
+    setTelegramWebUrl(null);
+    setTelegramStartCommand(null);
+    setCommandCopied(false);
+  };
+
+  const copyTelegramStartCommand = async () => {
+    if (!telegramStartCommand) return;
+    try {
+      await navigator.clipboard.writeText(telegramStartCommand);
+      setCommandCopied(true);
+    } catch {
+      setError('Could not copy the command. Select and copy it manually.');
+    }
   };
 
   const maskedPhone = normalized ? `${normalized.slice(0, 3)}****${normalized.slice(-2)}` : phone ? `${phone.slice(0, 2)}****${phone.slice(-2)}` : '';
@@ -313,8 +338,34 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
             <p className="text-sm text-slate-600 mb-4">
               {selectedMethod === 'whatsapp'
                 ? 'Open WhatsApp and send the verification code.'
-                : 'Open Telegram and share your phone number with the bot.'}
+                : 'Open Telegram Web, send the command below, then share your phone number with the bot.'}
             </p>
+
+            {selectedMethod === 'telegram' && telegramWebUrl && telegramStartCommand && (
+              <div className="space-y-3 mb-4">
+                <a
+                  href={telegramWebUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-full gap-2 rounded-lg bg-[#0088cc] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0077b5]"
+                >
+                  <Send className="w-4 h-4" /> Open Telegram Web
+                </a>
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-left">
+                  <code className="min-w-0 flex-1 break-all text-xs text-slate-700">{telegramStartCommand}</code>
+                  <button
+                    type="button"
+                    onClick={copyTelegramStartCommand}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    aria-label="Copy Telegram start command"
+                    title="Copy Telegram start command"
+                  >
+                    {commandCopied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {commandCopied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
               <Clock className="w-4 h-4" />
@@ -325,11 +376,13 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-[11px] text-slate-500">
             <p className="font-medium text-slate-700 mb-1">How it works:</p>
             <ul className="space-y-1 text-left">
-              <li className="flex items-center gap-2">{selectedMethod === 'whatsapp' ? '1.' : '1.'} Open the app via the link that opened automatically</li>
+              <li className="flex items-center gap-2">
+                {selectedMethod === 'whatsapp' ? '1. Open WhatsApp using the link' : '1. Open Telegram Web and open the bot chat'}
+              </li>
               <li className="flex items-center gap-2">
                 {selectedMethod === 'whatsapp' 
                   ? '2. Send the verification code in the chat'
-                  : '2. Press "Share Phone Number" when prompted'}
+                  : '2. Send the copied /start command, then share your own phone number'}
               </li>
               <li className="flex items-center gap-2">3. Verification completes automatically</li>
             </ul>
