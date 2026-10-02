@@ -1,8 +1,11 @@
 -- Fix profiles RLS: protect phone/verification columns from public read
 -- Create a public view that excludes sensitive columns
 
--- 1. Create public_profiles view (safe columns only)
-create or replace view public.public_profiles as
+-- 1. Drop existing view if exists (to avoid column mismatch errors)
+drop view if exists public.public_profiles;
+
+-- 2. Create public_profiles view (safe columns only)
+create view public.public_profiles as
 select 
   id,
   name,
@@ -14,7 +17,7 @@ where account_status = 'active';
 
 grant select on public.public_profiles to anon, authenticated;
 
--- 2. Update profiles RLS - restrict public read to safe columns
+-- 3. Update profiles RLS - restrict public read to safe columns
 -- Drop the overly permissive policy
 drop policy if exists "profiles_public_read" on public.profiles;
 
@@ -29,7 +32,7 @@ create policy "profiles_own_full_read" on public.profiles
 create policy "profiles_admin_read" on public.profiles
   for select using (public.is_admin());
 
--- 3. Update profiles update policy - only safe columns updatable by users
+-- 4. Update profiles update policy - only safe columns updatable by users
 drop policy if exists "profiles_own_update" on public.profiles;
 
 create policy "profiles_own_update" on public.profiles
@@ -43,7 +46,7 @@ create policy "profiles_own_update" on public.profiles
     )
   );
 
--- 4. Create a secure function for admin/service-role to read full profiles
+-- 5. Create a secure function for admin/service-role to read full profiles
 create or replace function public.get_full_profile(p_user_id uuid)
 returns public.profiles language sql security definer set search_path = public as $$
   select * from public.profiles where id = p_user_id;
