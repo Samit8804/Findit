@@ -21,8 +21,7 @@ import { addAd } from '@/lib/adStore';
 import { saveAd, getCategoryTree, getLocationTree, LocationNode } from '@/services/ads';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
 import { Check, ChevronLeft, ChevronRight, Send, ShieldCheck, Tag, ImageIcon, MapPin, Eye, Rocket } from 'lucide-react';
-import { PhoneVerification } from '@/components/auth/PhoneVerification';
-import { getPhoneVerificationStatus } from '@/services/phoneVerification';
+import { PhoneVerificationGate } from '@/components/auth/PhoneVerificationGate';
 
 const STEPS = [
   { id: 1, label: 'Category', icon: Tag },
@@ -43,30 +42,6 @@ function WizardContent() {
   const [error, setError] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [contactEmail, setContactEmail] = useState(getCurrentSession().user.email);
-  const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
-  const [checkingPhone, setCheckingPhone] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!isSupabaseConfigured) {
-      setPhoneVerified(true);
-      setCheckingPhone(false);
-      return;
-    }
-    getPhoneVerificationStatus()
-      .then((s) => {
-        if (!cancelled) setPhoneVerified(s.phoneVerified);
-      })
-      .catch(() => {
-        if (!cancelled) setPhoneVerified(false);
-      })
-      .finally(() => {
-        if (!cancelled) setCheckingPhone(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const patch = (p: Partial<WizardData>) => setData((d) => ({ ...d, ...p }));
 
@@ -210,7 +185,6 @@ function WizardContent() {
       }
       if (e.message === 'PHONE_NOT_VERIFIED') {
         setPublishing(false);
-        setPhoneVerified(false);
         setError('Please verify your phone number to post an ad.');
         return;
       }
@@ -236,19 +210,8 @@ function WizardContent() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <Breadcrumbs items={[{ label: 'Post an Ad' }]} />
 
-          {checkingPhone ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="w-6 h-6 border-2 border-slate-200 border-t-[#E53935] rounded-full animate-spin" />
-              <p className="text-sm text-slate-600">Checking verification status...</p>
-            </div>
-          ) : phoneVerified === false ? (
-            <div className="py-8">
-              <PhoneVerification onVerified={() => setPhoneVerified(true)} />
-            </div>
-          ) : null}
+          <PhoneVerificationGate onVerified={() => {}} />
 
-          {!checkingPhone && phoneVerified !== false && (
-            <>
           <div className="mb-8 mt-2">
             <h1 className="text-3xl font-black tracking-tight">Post an Ad</h1>
             <p className="text-sm text-slate-500 mt-1">Create a free listing in minutes.</p>
@@ -421,12 +384,10 @@ function WizardContent() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 justify-center pb-4">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <p className="text-xs text-slate-400">Your personal details stay private on FindIt.</p>
-          </div>
-            </>
-          )}
+<div className="flex items-center gap-2 justify-center pb-4">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <p className="text-xs text-slate-400">Your personal details stay private on FindIt.</p>
+            </div>
         </div>
       </main>
 
