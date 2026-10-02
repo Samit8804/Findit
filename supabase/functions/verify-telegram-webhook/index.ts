@@ -20,7 +20,7 @@ serve(async (req) => {
   }
 
   try {
-    // Verify Telegram webhook secret (optional but recommended)
+    // Verify Telegram webhook secret
     const secretHeader = req.headers.get('X-Telegram-Bot-Api-Secret-Token');
     if (TELEGRAM_WEBHOOK_SECRET && secretHeader !== TELEGRAM_WEBHOOK_SECRET) {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders });
@@ -28,13 +28,13 @@ serve(async (req) => {
 
     const body = await req.json();
     
-    // Handle different update types
     const message = body.message;
     const callbackQuery = body.callback_query;
     
     let fromUser: any = null;
     let chatId: string | null = null;
     let contactPhone: string | null = null;
+    let contactUserId: string | null = null;
     let startParam: string | null = null;
 
     if (message) {
@@ -44,6 +44,7 @@ serve(async (req) => {
       // Check for contact sharing
       if (message.contact) {
         contactPhone = message.contact.phone_number;
+        contactUserId = message.contact.user_id ? String(message.contact.user_id) : null;
       }
       
       // Check for /start command with token
@@ -56,7 +57,6 @@ serve(async (req) => {
     } else if (callbackQuery) {
       fromUser = callbackQuery.from;
       chatId = String(callbackQuery.message?.chat?.id);
-      // callbackQuery.data could contain token
       startParam = callbackQuery.data;
     }
 
@@ -64,100 +64,106 @@ serve(async (req) => {
       return new Response('OK', { status: 200, headers: corsHeaders });
     }
 
-    // Check if this is a verification start or contact share
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
     let token: string | null = null;
     
     if (startParam?.startsWith('VERIFY_')) {
       token = startParam.substring(7).toLowerCase();
     }
 
-    // The /start payload and contact are separate Telegram updates, so bind
-    // the verification token to the chat until the contact is shared.
-    if (token || contactPhone) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, serviceRoleKey);
+    if (token) {
+      // Store token against this chat_id for later contact verification
+      const { data: session, error: sessionError } = await supabase
+        .from('phone_verification_sessions')
+        .update({ 
+          telegram_chat_id: chatId,
+          telegram_user_id: String(fromUser.id),
+          updated_at: new Date().toISOString()
+        })
+        .eq('token', token)
+        .eq('method', 'telegram')
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .select('token')
+        .maybeSingle();
 
-      if (token) {
-        const { data: session, error: sessionError } = await supabase
-          .from('phone_verification_sessions')
-          .update({ telegram_chat_id: chatId })
-          .eq('token', token)
-          .eq('method', 'telegram')
-          .eq('status', 'pending')
-          .gt('expires_at', new Date().toISOString())
-          .select('token')
-          .maybeSingle();
-
-        if (sessionError) throw sessionError;
-        if (!session) {
-          await sendTelegramMessage(chatId, 'This verification link has expired. Please start again from FindIt.');
-          return new Response('OK', { status: 200, headers: corsHeaders });
-        }
-
-        await sendTelegramMessage(chatId, 
-          'Please share your phone number to complete verification.\n\n' +
-          'Tap the button below 👇',
-          {
-            reply_markup: {
-              keyboard: [[
-                { text: '📱 Share Phone Number', request_contact: true }
-              ]],
-              one_time_keyboard: true,
-              resize_keyboard: true,
-            },
-          }
-        );
+      if (sessionError) throw sessionError;
+      if (!session) {
+        await sendTelegramMessage(chatId, 'This verification link has expired or is invalid. Please start again from FindIt.');
         return new Response('OK', { status: 200, headers: corsHeaders });
       }
 
-      if (contactPhone) {
-        if (String(message.contact.user_id) !== String(fromUser.id)) {
-          await sendTelegramMessage(chatId, 'Please use the Share Phone Number button to share your own number.');
-          return new Response('OK', { status: 200, headers: corsHeaders });
+      await sendTelegramMessage(chatId, 
+        'Please share your phone number to complete verification.\n\n' +
+        'Tap the button below 👇',
+        {
+          reply_markup: {
+            keyboard: [[
+              { text: '📱 Share Phone Number', request_contact: true }
+            ]],
+            one_time_keyboard: true,
+            resize_keyboard: true,
+          },
         }
+      );
+      return new Response('OK', { status: 200, headers: corsHeaders });
+    }
 
-        const { data: session, error: sessionError } = await supabase
-          .from('phone_verification_sessions')
-          .select('token')
-          .eq('telegram_chat_id', chatId)
-          .eq('method', 'telegram')
-          .eq('status', 'pending')
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+    if (contactPhone) {
+      // Verify the contact belongs to the sender
+      if (contactUserId && contactUserId !== String(fromUser.id)) {
+        await sendTelegramMessage(chatId, 'Please share your own phone number using the button above.');
+        return new Response('OK', { status: 200, headers: corsHeaders });
+      }
 
-        if (sessionError) throw sessionError;
-        if (!session) {
-          await sendTelegramMessage(chatId, 'No active verification was found. Please start again from FindIt.');
-          return new Response('OK', { status: 200, headers: corsHeaders });
-        }
+      // Find the pending session for this chat
+      const { data: session, error: sessionError } = await supabase
+        .from('phone_verification_sessions')
+        .select('token')
+        .eq('telegram_chat_id', chatId)
+        .eq('telegram_user_id', String(fromUser.id))
+        .eq('method', 'telegram')
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-        const normalizedPhone = contactPhone.startsWith('+') ? contactPhone : '+' + contactPhone;
-        const { error } = await supabase.rpc('verify_phone_session', {
-          p_token: session.token,
-          p_provider_phone: normalizedPhone,
-        });
+      if (sessionError) throw sessionError;
+      if (!session) {
+        await sendTelegramMessage(chatId, 'No active verification found for this chat. Please start again from FindIt.');
+        return new Response('OK', { status: 200, headers: corsHeaders });
+      }
 
-        if (error) {
-          await sendTelegramMessage(chatId, 
-            '❌ Verification failed: ' + error.message + '\n\n' +
-            'Please try again or contact support.'
-          );
-        } else {
-          await sendTelegramMessage(chatId, 
-            '✅ Phone number verified successfully!\n\n' +
-            'You can now post ads on FindIt.'
-          );
-        }
+      const normalizedPhone = contactPhone.startsWith('+') ? contactPhone : '+' + contactPhone;
+      const { error } = await supabase.rpc('verify_phone_session', {
+        p_token: session.token,
+        p_provider_phone: normalizedPhone,
+      });
+
+      if (error) {
+        await sendTelegramMessage(chatId, 
+          '❌ Verification failed: ' + error.message + '\n\n' +
+          'Please try again or contact support.'
+        );
+        // Return 500 so Telegram retries on transient failures
+        return new Response('Internal error', { status: 500, headers: corsHeaders });
+      } else {
+        await sendTelegramMessage(chatId, 
+          '✅ Phone number verified successfully!\n\n' +
+          'You can now post ads on FindIt.'
+        );
       }
     }
 
     return new Response('OK', { status: 200, headers: corsHeaders });
   } catch (err) {
     console.error('Telegram webhook error:', err);
-    return new Response('OK', { status: 200, headers: corsHeaders });
+    // Return 500 for unhandled errors so Telegram retries
+    return new Response('Internal server error', { status: 500, headers: corsHeaders });
   }
 });
 

@@ -1,0 +1,25 @@
+# Supabase configuration for FindIt
+# This file configures Edge Functions behavior
+
+[functions.verify-telegram-webhook]
+# Disable JWT verification for external webhook calls
+# Telegram doesn't send Supabase JWT, uses its own secret token
+verify_jwt = false
+
+[functions.verify-whatsapp-webhook]
+# Disable JWT verification for external webhook calls
+# WhatsApp doesn't send Supabase JWT, uses its own signature
+verify_jwt = false
+
+[functions.create-phone-verification-session]
+# Require JWT for user-facing session creation
+verify_jwt = true
+
+[functions.get-verification-status]
+# Require JWT for user-facing status polling
+verify_jwt = true
+
+# Optional: Rate limiting configuration
+# [functions.rate_limit]
+# requests_per_minute = 10
+# burst = 5
