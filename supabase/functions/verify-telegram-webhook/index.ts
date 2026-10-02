@@ -74,6 +74,14 @@ serve(async (req) => {
       token = startParam.substring(7).toLowerCase();
     }
 
+    if (!token && message?.text?.startsWith('/start')) {
+      await sendTelegramMessage(
+        chatId,
+        'To verify your phone, start Telegram verification from FindIt and open the personalized link. If you already started, send the /start command shown on the FindIt page.'
+      );
+      return new Response('OK', { status: 200, headers: corsHeaders });
+    }
+
     if (token) {
       // Store token against this chat_id for later contact verification
       const { data: session, error: sessionError } = await supabase

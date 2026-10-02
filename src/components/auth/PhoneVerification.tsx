@@ -129,8 +129,7 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
       setPolling(true);
       setStep('waiting');
       if (method === 'telegram') {
-        const botUsername = new URL(session.deepLink).pathname.replace(/^\/+/, '').split('/')[0];
-        setTelegramWebUrl(`https://web.telegram.org/k/#@${botUsername}`);
+        setTelegramWebUrl(session.deepLink);
         setTelegramStartCommand(`/start VERIFY_${session.token}`);
         setCommandCopied(false);
       } else {
@@ -349,7 +348,7 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center w-full gap-2 rounded-lg bg-[#0088cc] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0077b5]"
                 >
-                  <Send className="w-4 h-4" /> Open Telegram Web
+                  <Send className="w-4 h-4" /> Open Telegram
                 </a>
                 <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-left">
                   <code className="min-w-0 flex-1 break-all text-xs text-slate-700">{telegramStartCommand}</code>
