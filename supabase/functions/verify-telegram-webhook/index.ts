@@ -71,15 +71,30 @@ serve(async (req) => {
       token = startParam.substring(7).toLowerCase();
     }
 
-    // If we have a token, store it for this chat/user
-    // If we have a contact, verify it
+    // The /start payload and contact are separate Telegram updates, so bind
+    // the verification token to the chat until the contact is shared.
     if (token || contactPhone) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-      // If we have a token but no contact yet, send a message asking for contact
-      if (token && !contactPhone) {
+      if (token) {
+        const { data: session, error: sessionError } = await supabase
+          .from('phone_verification_sessions')
+          .update({ telegram_chat_id: chatId })
+          .eq('token', token)
+          .eq('method', 'telegram')
+          .eq('status', 'pending')
+          .gt('expires_at', new Date().toISOString())
+          .select('token')
+          .maybeSingle();
+
+        if (sessionError) throw sessionError;
+        if (!session) {
+          await sendTelegramMessage(chatId, 'This verification link has expired. Please start again from FindIt.');
+          return new Response('OK', { status: 200, headers: corsHeaders });
+        }
+
         await sendTelegramMessage(chatId, 
           'Please share your phone number to complete verification.\n\n' +
           'Tap the button below 👇',
@@ -96,12 +111,32 @@ serve(async (req) => {
         return new Response('OK', { status: 200, headers: corsHeaders });
       }
 
-      // If we have both token and contact, verify
-      if (token && contactPhone) {
+      if (contactPhone) {
+        if (String(message.contact.user_id) !== String(fromUser.id)) {
+          await sendTelegramMessage(chatId, 'Please use the Share Phone Number button to share your own number.');
+          return new Response('OK', { status: 200, headers: corsHeaders });
+        }
+
+        const { data: session, error: sessionError } = await supabase
+          .from('phone_verification_sessions')
+          .select('token')
+          .eq('telegram_chat_id', chatId)
+          .eq('method', 'telegram')
+          .eq('status', 'pending')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (sessionError) throw sessionError;
+        if (!session) {
+          await sendTelegramMessage(chatId, 'No active verification was found. Please start again from FindIt.');
+          return new Response('OK', { status: 200, headers: corsHeaders });
+        }
+
         const normalizedPhone = contactPhone.startsWith('+') ? contactPhone : '+' + contactPhone;
-        
         const { error } = await supabase.rpc('verify_phone_session', {
-          p_token: token,
+          p_token: session.token,
           p_provider_phone: normalizedPhone,
         });
 
