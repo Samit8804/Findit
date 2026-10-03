@@ -8,7 +8,12 @@ const corsHeaders = {
 };
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
+const TELEGRAM_BOT_USERNAME = Deno.env.get('TELEGRAM_BOT_USERNAME') ?? 'FindItVerificationBot';
 const TELEGRAM_WEBHOOK_SECRET = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
+
+if (!TELEGRAM_BOT_TOKEN) {
+  console.warn(`Telegram bot token missing. Set TELEGRAM_BOT_TOKEN and optionally TELEGRAM_BOT_USERNAME (current default: ${TELEGRAM_BOT_USERNAME}).`);
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

@@ -74,7 +74,7 @@ begin
   else
     select value into v_bot_username from public.app_config where key = 'telegram_bot_username';
     if v_bot_username is null then
-      v_bot_username := 'FindItVerifyBot';
+      v_bot_username := 'FindItVerificationBot';
     end if;
     v_deep_link := 'https://t.me/' || v_bot_username || '?start=VERIFY_' || v_token;
   end if;

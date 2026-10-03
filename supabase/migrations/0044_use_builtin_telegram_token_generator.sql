@@ -44,8 +44,11 @@ begin
     raise exception 'This phone number is already verified with another account';
   end if;
 
-  v_token := replace(pg_catalog.gen_random_uuid()::text, '-', '')
-    || replace(pg_catalog.gen_random_uuid()::text, '-', '');
+  v_token := left(
+    replace(pg_catalog.gen_random_uuid()::text, '-', '')
+    || replace(pg_catalog.gen_random_uuid()::text, '-', ''),
+    56
+  );
 
   delete from public.phone_verification_sessions
   where user_id = v_user_id
@@ -78,3 +81,4 @@ begin
   return query select v_session_id, v_token, v_expires_at, v_deep_link;
 end;
 $$;
+

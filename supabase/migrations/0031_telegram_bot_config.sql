@@ -2,23 +2,32 @@
 -- Replaces the need for ALTER DATABASE which isn't allowed in managed Supabase
 
 create table if not exists public.app_config (
-  key text primary key,
-  value text not null,
-  description text,
-  updated_at timestamptz not null default now()
+    key text primary key,
+    value text not null,
+    description text,
+    updated_at timestamptz not null default now()
 );
 
 -- Insert Telegram bot username (update this value if bot username changes)
-insert into public.app_config (key, value, description)
-values ('telegram_bot_username', 'FindItVerifyBot', 'Telegram bot username for verification deep links (without @)')
-on conflict (key) do update set value = excluded.value, updated_at = now();
+insert into
+    public.app_config (key, value, description)
+values (
+        'telegram_bot_username',
+        'FindItVerificationBot',
+        'Telegram bot username for verification deep links (without @)'
+    ) on conflict (key) do
+update
+set
+    value = excluded.value,
+    updated_at = now();
 
 -- RLS: Public read for bot username (non-sensitive)
 alter table public.app_config enable row level security;
 
 drop policy if exists "app_config_public_read" on public.app_config;
-create policy "app_config_public_read" on public.app_config
-  for select using (true);
+
+create policy "app_config_public_read" on public.app_config for
+select using (true);
 
 -- Only service role can modify (handled by RLS default - no insert/update/delete policies)
 
@@ -90,7 +99,7 @@ begin
     -- Get bot username from config table
     select value into v_bot_username from public.app_config where key = 'telegram_bot_username';
     if v_bot_username is null then
-      v_bot_username := 'FindItVerifyBot'; -- fallback default
+      v_bot_username := 'FindItVerificationBot'; -- fallback default
     end if;
     v_deep_link := 'https://t.me/' || v_bot_username || '?start=VERIFY_' || v_token;
   end if;

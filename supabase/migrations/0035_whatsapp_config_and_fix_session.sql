@@ -1,9 +1,20 @@
 -- Add WhatsApp configuration to app_config table
-insert into public.app_config (key, value, description)
-values 
-  ('telegram_bot_username', 'FindItVerifyBot', 'Telegram bot username for verification deep links (without @)'),
-  ('whatsapp_verification_number', '91XXXXXXXXXX', 'WhatsApp Business number for verification (with country code, no +)')
-on conflict (key) do update set value = excluded.value, updated_at = now();
+insert into
+    public.app_config (key, value, description)
+values (
+        'telegram_bot_username',
+        'FindItVerificationBot',
+        'Telegram bot username for verification deep links (without @)'
+    ),
+    (
+        'whatsapp_verification_number',
+        '91XXXXXXXXXX',
+        'WhatsApp Business number for verification (with country code, no +)'
+    ) on conflict (key) do
+update
+set
+    value = excluded.value,
+    updated_at = now();
 
 -- Update create_phone_verification_session to use app_config for both WhatsApp and Telegram
 create or replace function public.create_phone_verification_session(
@@ -78,7 +89,7 @@ begin
   else
     select value into v_bot_username from public.app_config where key = 'telegram_bot_username';
     if v_bot_username is null then
-      v_bot_username := 'FindItVerifyBot';
+      v_bot_username := 'FindItVerificationBot';
     end if;
     v_deep_link := 'https://t.me/' || v_bot_username || '?start=VERIFY_' || v_token;
   end if;
