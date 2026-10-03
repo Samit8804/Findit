@@ -1,7 +1,7 @@
    'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ShieldCheck, Phone, ArrowLeft, Loader2, MessageSquare, Send, CheckCircle, Clock, AlertCircle, Copy } from 'lucide-react';
+import { ShieldCheck, Phone, ArrowLeft, Loader2, MessageSquare, Send, CheckCircle, Clock, AlertCircle, Copy, ExternalLink } from 'lucide-react';
 import {
   normalizeIndianPhoneNumber,
   validateIndianPhoneNumber,
@@ -129,7 +129,9 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
       setPolling(true);
       setStep('waiting');
       if (method === 'telegram') {
-        setTelegramWebUrl(session.deepLink);
+        // Use Telegram Web URL with the bot username
+        const botUsername = 'FindItVerifyBot';
+        setTelegramWebUrl(`https://web.telegram.org/k/#@${botUsername}`);
         setTelegramStartCommand(`/start VERIFY_${session.token}`);
         setCommandCopied(false);
       } else {
@@ -180,6 +182,21 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
     } catch {
       setError('Could not copy the command. Select and copy it manually.');
     }
+  };
+
+  const openTelegramWeb = async () => {
+    if (!telegramWebUrl) return;
+
+    if (telegramStartCommand) {
+      try {
+        await navigator.clipboard.writeText(telegramStartCommand);
+        setCommandCopied(true);
+      } catch {
+        // Clipboard failure should not block opening Telegram
+      }
+    }
+
+    window.open(telegramWebUrl, '_blank', 'noopener,noreferrer');
   };
 
   const maskedPhone = normalized ? `${normalized.slice(0, 3)}****${normalized.slice(-2)}` : phone ? `${phone.slice(0, 2)}****${phone.slice(-2)}` : '';
@@ -297,12 +314,12 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
             >
               <Send className="w-7 h-7 text-[#0088cc]" />
               <span className="font-semibold text-slate-900">Telegram</span>
-              <span className="text-xs text-slate-500">Opens Telegram bot</span>
+              <span className="text-xs text-slate-500">Opens Telegram Web</span>
             </button>
           </div>
 
           <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-            You will be redirected to the app to complete verification.
+            Telegram Web will open in a new tab. Your /start command is copied automatically.
           </p>
         </div>
       )}
@@ -337,19 +354,18 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
             <p className="text-sm text-slate-600 mb-4">
               {selectedMethod === 'whatsapp'
                 ? 'Open WhatsApp and send the verification code.'
-                : 'Open Telegram Web, send the command below, then share your phone number with the bot.'}
+                : 'Open Telegram Web, then paste and send the copied command in the FindIt bot chat.'}
             </p>
 
             {selectedMethod === 'telegram' && telegramWebUrl && telegramStartCommand && (
               <div className="space-y-3 mb-4">
-                <a
-                  href={telegramWebUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={openTelegramWeb}
                   className="inline-flex items-center justify-center w-full gap-2 rounded-lg bg-[#0088cc] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0077b5]"
                 >
-                  <Send className="w-4 h-4" /> Open Telegram
-                </a>
+                  <Send className="w-4 h-4" /> Open Telegram Web
+                </button>
                 <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-left">
                   <code className="min-w-0 flex-1 break-all text-xs text-slate-700">{telegramStartCommand}</code>
                   <button
@@ -363,6 +379,11 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
                     {commandCopied ? 'Copied' : 'Copy'}
                   </button>
                 </div>
+                {commandCopied && (
+                  <p className="text-xs text-emerald-600 text-center">
+                    Command copied! Paste it in the bot chat and send.
+                  </p>
+                )}
               </div>
             )}
 
@@ -376,12 +397,12 @@ export function PhoneVerification({ onVerified, onClose }: PhoneVerificationProp
             <p className="font-medium text-slate-700 mb-1">How it works:</p>
             <ul className="space-y-1 text-left">
               <li className="flex items-center gap-2">
-                {selectedMethod === 'whatsapp' ? '1. Open WhatsApp using the link' : '1. Open Telegram Web and open the bot chat'}
+                {selectedMethod === 'whatsapp' ? '1. Open WhatsApp using the link' : '1. Open Telegram Web'}
               </li>
               <li className="flex items-center gap-2">
                 {selectedMethod === 'whatsapp' 
                   ? '2. Send the verification code in the chat'
-                  : '2. Send the copied /start command, then share your own phone number'}
+                  : '2. Paste and send the copied /start command, then share your own phone number'}
               </li>
               <li className="flex items-center gap-2">3. Verification completes automatically</li>
             </ul>
