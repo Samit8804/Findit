@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -22,6 +22,7 @@ import { saveAd, getCategoryTree, getLocationTree, LocationNode } from '@/servic
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
 import { Check, ChevronLeft, ChevronRight, Send, ShieldCheck, Tag, ImageIcon, MapPin, Eye, Rocket } from 'lucide-react';
 import { PhoneVerificationGate } from '@/components/auth/PhoneVerificationGate';
+import { getFreeAdUsage, FreeAdUsage, getPhoneVerificationStatus } from '@/services/phoneVerification';
 
 const STEPS = [
   { id: 1, label: 'Category', icon: Tag },
@@ -42,6 +43,50 @@ function WizardContent() {
   const [error, setError] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [contactEmail, setContactEmail] = useState(getCurrentSession().user.email);
+  const [freeAdUsage, setFreeAdUsage] = useState<FreeAdUsage | null>(null);
+  const [checkingPhone, setCheckingPhone] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isSupabaseConfigured) {
+      setCheckingPhone(false);
+      return;
+    }
+    // First check phone verification status
+    getPhoneVerificationStatus()
+      .then((status: { phoneVerified: boolean; phone: string | null; phoneVerifiedAt: string | null }) => {
+        if (!cancelled) {
+          if (status.phoneVerified) {
+            // Phone is verified, check free ad usage
+            return getFreeAdUsage().then((usage) => {
+              if (!cancelled) setFreeAdUsage(usage);
+            });
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCheckingPhone(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refreshFreeAdUsage = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const usage = await getFreeAdUsage();
+      setFreeAdUsage(usage);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handlePhoneVerified = useCallback(async () => {
+    // Refresh free ad usage after phone verification
+    await refreshFreeAdUsage();
+  }, [refreshFreeAdUsage]);
 
   const patch = (p: Partial<WizardData>) => setData((d) => ({ ...d, ...p }));
 
@@ -210,7 +255,46 @@ function WizardContent() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <Breadcrumbs items={[{ label: 'Post an Ad' }]} />
 
-          <PhoneVerificationGate onVerified={() => {}} />
+          <PhoneVerificationGate onVerified={handlePhoneVerified} />
+
+          {freeAdUsage && (
+            <div className="mb-6 p-4 rounded-xl border bg-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {freeAdUsage.isPaid ? 'Paid Plan Active' : 'Free Tier'}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {freeAdUsage.verifiedPhone 
+                        ? `Phone: ${freeAdUsage.verifiedPhone.replace('+91', '')}`
+                        : 'Phone not verified'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {freeAdUsage.isPaid ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold">
+                      <Rocket className="w-3 h-3" /> Paid Plan
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold
+                      {freeAdUsage.eligible ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}">
+                      {freeAdUsage.remaining} / {freeAdUsage.limit} free ads remaining
+                    </span>
+                  )}
+                </div>
+              </div>
+              {!freeAdUsage.isPaid && !freeAdUsage.eligible && (
+                <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-xs font-medium text-red-700">
+                    Your free tier is complete. <a href="/pricing" className="font-semibold text-red-700 underline hover:text-red-800">Buy a subscription</a> to post more ads.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mb-8 mt-2">
             <h1 className="text-3xl font-black tracking-tight">Post an Ad</h1>

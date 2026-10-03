@@ -55,6 +55,36 @@ export async function getPhoneVerificationStatus(): Promise<PhoneVerificationSta
   };
 }
 
+export interface FreeAdUsage {
+  verifiedPhone: string | null;
+  used: number;
+  remaining: number;
+  limit: number;
+  eligible: boolean;
+  isPaid: boolean;
+}
+
+export async function getFreeAdUsage(): Promise<FreeAdUsage> {
+  if (!isSupabaseConfigured) throw new Error('Supabase not configured');
+  const sb = getSupabaseBrowser()!;
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) throw new Error('Not authenticated');
+  const { data, error } = await sb.rpc('get_free_ad_usage_for_user', { p_user: auth.user.id });
+  if (error) throw new Error(error.message);
+  const usage = data?.[0];
+  if (!usage) {
+    return { verifiedPhone: null, used: 0, remaining: 0, limit: 3, eligible: false, isPaid: false };
+  }
+  return {
+    verifiedPhone: usage.verified_phone,
+    used: usage.used,
+    remaining: usage.remaining,
+    limit: usage.limit,
+    eligible: usage.eligible,
+    isPaid: usage.is_paid,
+  };
+}
+
 export interface VerificationSession {
   sessionId: string;
   token: string;
