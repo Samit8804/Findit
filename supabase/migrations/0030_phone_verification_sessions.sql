@@ -3,35 +3,47 @@
 
 -- 1. Verification sessions table
 create table if not exists public.phone_verification_sessions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  phone text not null,
-  method text not null check (method in ('whatsapp', 'telegram')),
-  token text not null unique,
-  status text not null default 'pending' check (status in ('pending', 'verified', 'expired', 'failed')),
-  expires_at timestamptz not null,
-  verified_at timestamptz,
-  created_at timestamptz not null default now()
+    id uuid primary key default gen_random_uuid (),
+    user_id uuid not null references auth.users (id) on delete cascade,
+    phone text not null,
+    method text not null check (
+        method in ('whatsapp', 'telegram')
+    ),
+    token text not null unique,
+    status text not null default 'pending' check (
+        status in (
+            'pending',
+            'verified',
+            'expired',
+            'failed'
+        )
+    ),
+    expires_at timestamptz not null,
+    verified_at timestamptz,
+    created_at timestamptz not null default now()
 );
 
 -- Index for fast lookups
-create index if not exists idx_phone_verification_sessions_user_phone
-  on public.phone_verification_sessions (user_id, phone);
-create index if not exists idx_phone_verification_sessions_token
-  on public.phone_verification_sessions (token);
-create index if not exists idx_phone_verification_sessions_expires
-  on public.phone_verification_sessions (expires_at);
+create index if not exists idx_phone_verification_sessions_user_phone on public.phone_verification_sessions (user_id, phone);
+
+create index if not exists idx_phone_verification_sessions_token on public.phone_verification_sessions (token);
+
+create index if not exists idx_phone_verification_sessions_expires on public.phone_verification_sessions (expires_at);
 
 -- RLS: Users can only see their own sessions
 alter table public.phone_verification_sessions enable row level security;
 
 drop policy if exists "phone_verification_sessions_own_select" on public.phone_verification_sessions;
-create policy "phone_verification_sessions_own_select" on public.phone_verification_sessions
-  for select using (auth.uid() = user_id);
+
+create policy "phone_verification_sessions_own_select" on public.phone_verification_sessions for
+select using (auth.uid () = user_id);
 
 drop policy if exists "phone_verification_sessions_own_insert" on public.phone_verification_sessions;
-create policy "phone_verification_sessions_own_insert" on public.phone_verification_sessions
-  for insert with check (auth.uid() = user_id);
+
+create policy "phone_verification_sessions_own_insert" on public.phone_verification_sessions for
+insert
+with
+    check (auth.uid () = user_id);
 
 -- Service role can do everything (for webhooks)
 -- No policy needed - service role bypasses RLS
@@ -114,7 +126,7 @@ begin
     -- WhatsApp: wa.me/FindItVerification?text=VERIFY_{token}
     v_deep_link := 'https://wa.me/' || current_setting('app.whatsapp_verification_number', true) || '?text=VERIFY_' || v_token;
   else
-    -- Telegram: t.me/FindItVerificationBot?start=VERIFY_{token}
+    -- Telegram: t.me/FindItVerifyBot?start=VERIFY_{token}
     v_deep_link := 'https://t.me/' || current_setting('app.telegram_bot_username', true) || '?start=VERIFY_' || v_token;
   end if;
 

@@ -3,7 +3,7 @@ insert into
     public.app_config (key, value, description)
 values (
         'telegram_bot_username',
-        'FindItVerificationBot',
+        'FindItVerifyBot',
         'Telegram bot username for verification deep links (without @)'
     ),
     (
@@ -89,7 +89,7 @@ begin
   else
     select value into v_bot_username from public.app_config where key = 'telegram_bot_username';
     if v_bot_username is null then
-      v_bot_username := 'FindItVerificationBot';
+      v_bot_username := 'FindItVerifyBot';
     end if;
     v_deep_link := 'https://t.me/' || v_bot_username || '?start=VERIFY_' || v_token;
   end if;
