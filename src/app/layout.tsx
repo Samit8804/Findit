@@ -9,6 +9,7 @@ import { SITE_URL, organizationJsonLd, webSiteJsonLd } from "@/lib/seo";
 import { AnalyticsPageView } from "@/components/analytics/PageViewTracker";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ConsentProvider, ConsentBanner } from "@/components/analytics/Consent";
+import { LogoIntro } from "@/components/layout/LogoIntro";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -64,6 +65,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ToastProvider>
           <ConsentProvider>
             <UnreadProvider>
+              <LogoIntro />
               <AuthGate>
                 <AnalyticsPageView />
                 <GoogleAnalytics />

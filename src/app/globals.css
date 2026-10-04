@@ -20,3 +20,38 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.logo-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.logo-intro--hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.logo-intro__video {
+  width: min(82vw, 820px);
+  max-height: 80vh;
+  object-fit: contain;
+  background: transparent;
+  display: block;
+  border-radius: 18px;
+}
+
+@media (max-width: 768px) {
+  .logo-intro__video {
+    width: min(92vw, 420px);
+    max-height: 72vh;
+  }
+}
