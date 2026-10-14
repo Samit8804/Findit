@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -24,6 +24,7 @@ import {
   ScrollText,
   BadgeCheck,
 } from 'lucide-react';
+import { getPendingReportsCount, subscribeToPendingReportsCount, formatPendingReportsCount } from '@/services/reports';
 
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -48,9 +49,34 @@ const NAV = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [pendingReportsCount, setPendingReportsCount] = useState<number>(0);
 
   const isActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
+
+  // Fetch initial count and subscribe to real-time updates
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    const fetchCount = async () => {
+      try {
+        const { count } = await getPendingReportsCount();
+        setPendingReportsCount(count);
+      } catch (err) {
+        console.error('Failed to fetch pending reports count:', err);
+        setPendingReportsCount(0);
+      }
+    };
+
+    fetchCount();
+    unsubscribe = subscribeToPendingReportsCount((count) => setPendingReportsCount(count.count));
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const pendingReportsBadge = formatPendingReportsCount(pendingReportsCount);
 
   const nav = (
     <nav className="flex flex-col gap-0.5" aria-label="Admin navigation">
@@ -69,9 +95,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <item.icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#E53935]' : ''}`} />
             {item.label}
-            {item.label === 'Reports' && (
+            {item.label === 'Reports' && pendingReportsBadge && (
               <span className="ml-auto px-1.5 min-w-[18px] h-4 rounded-full bg-[#E53935] text-white text-[10px] font-bold flex items-center justify-center">
-                5
+                {pendingReportsBadge}
               </span>
             )}
           </Link>
