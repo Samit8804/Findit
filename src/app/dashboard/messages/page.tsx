@@ -200,9 +200,9 @@ function MessagesContent() {
       )}
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] h-[600px]">
+        <div className="flex flex-col lg:grid lg:grid-cols-[320px_1fr] lg:h-[calc(100dvh-12rem)] min-h-[calc(100dvh-12rem)]">
           {/* -------- Conversation list -------- */}
-          <aside className={`border-r border-slate-100 flex flex-col ${mobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
+          <aside className={`border-r border-slate-100 flex flex-col lg:flex ${mobileChatOpen ? 'hidden lg:flex' : 'flex'}`}>
             <div className="p-4 border-b border-slate-100">
               <div className="relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -265,7 +265,7 @@ function MessagesContent() {
           </aside>
 
           {/* -------- Active conversation -------- */}
-          <section className={`flex flex-col ${mobileChatOpen ? 'flex' : 'hidden md:flex'}`} aria-label="Active conversation">
+          <section className="flex flex-col lg:flex lg:flex-1 min-w-0" aria-label="Active conversation">
             {!active ? (
               <div className="flex-grow flex items-center justify-center text-sm text-slate-400">
                 Select a conversation to start chatting.

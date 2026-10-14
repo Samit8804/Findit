@@ -14,9 +14,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Header />
       <main className="flex-grow py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-8">
-            <DashboardSidebar userName="Demo User" />
-            <div className="flex-grow min-w-0 pb-8">{children}</div>
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-8">
+            <div className="lg:w-64 lg:shrink-0">
+              <DashboardSidebar userName="Demo User" />
+            </div>
+            <div className="flex-grow min-w-0 w-full pb-8 lg:pb-0">{children}</div>
           </div>
         </div>
       </main>
