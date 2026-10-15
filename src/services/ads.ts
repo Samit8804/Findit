@@ -18,9 +18,11 @@ export interface PublicAd {
   city?: string;
   attributes: Record<string, string>;
   createdAt: string;
+  publishedAt: string;
   viewsCount: number;
   favoritesCount: number;
   isFeatured: boolean;
+  promotion: { planType: string; label: string; rank: number; price: number } | null;
   seller: {
     id: string;
     name: string;
@@ -36,6 +38,7 @@ export interface PublicAd {
 }
 
 const PAGE_SIZE = 24;
+const MAX_PAGE_SIZE = 1000;
 
 /* ------------------------------------------------------------------ */
 /* PUBLIC LISTINGS — approved, not deleted, not expired, paginated     */
@@ -43,61 +46,295 @@ const PAGE_SIZE = 24;
 
 export interface PublicListParams {
   page?: number;
+  pageSize?: number;
   categorySlug?: string;
   subcategorySlug?: string;
   citySlug?: string;
+  search?: string;
+  adIds?: string[];
   minPrice?: number;
   maxPrice?: number;
 }
 
 export async function listPublicAds(params: PublicListParams = {}): Promise<{ ads: PublicAd[]; hasMore: boolean }> {
   const page = params.page ?? 1;
+  const pageSize = Math.min(Math.max(params.pageSize ?? PAGE_SIZE, 1), MAX_PAGE_SIZE);
   if (!isSupabaseConfigured) throw new Error('Supabase not configured');
 
   const sb = getSupabaseBrowser()!;
-  const from = (page - 1) * PAGE_SIZE;
+  if (params.adIds && params.adIds.length === 0) return { ads: [], hasMore: false };
+  const from = (page - 1) * pageSize;
+  const categoryJoin = `categories!ads_category_id_fkey${params.categorySlug ? '!inner' : ''}(name, slug)`;
+  const subcategoryJoin = `subcategory:categories!ads_subcategory_id_fkey${params.subcategorySlug ? '!inner' : ''}(name, slug)`;
+  const locationJoin = `locations${params.citySlug ? '!inner' : ''}(name)`;
 
   let query = sb
     .from('ads')
     .select(
-      `id, slug, title, description, price, condition, attributes, created_at, user_id,
+      `id, slug, title, description, price, condition, attributes, created_at, published_at, user_id,
        views_count, favorites_count, is_featured,
        contact_show_phone, contact_show_whatsapp, contact_allow_messages,
-       categories!ads_category_id_fkey(name, slug),
-       locations(name),
+       ${categoryJoin}, ${subcategoryJoin}, ${locationJoin},
        ad_images(image_url, is_primary, sort_order)`,
       { count: 'exact' }
     )
     .eq('status', 'approved')
+    .not('published_at', 'is', null)
     .is('deleted_at', null)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-    .order('is_featured', { ascending: false })
     .order('published_at', { ascending: false })
-    .range(from, from + PAGE_SIZE - 1);
+    .order('id', { ascending: true })
+    .range(from, from + pageSize - 1);
 
   if (params.categorySlug) query = query.eq('categories.slug', params.categorySlug);
-  if (params.subcategorySlug) query = query.eq('categories.slug', params.subcategorySlug);
+  if (params.subcategorySlug) query = query.eq('subcategory.slug', params.subcategorySlug);
   if (params.citySlug) query = query.ilike('locations.name', `%${params.citySlug.replace(/-/g, ' ')}`);
+  if (params.adIds) query = query.in('id', params.adIds);
+  if (params.search?.trim()) {
+    const term = params.search.trim().replace(/[%_,()"]/g, ' ').replace(/\s+/g, ' ');
+    query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+  }
   if (params.minPrice != null) query = query.gte('price', params.minPrice);
   if (params.maxPrice != null) query = query.lte('price', params.maxPrice);
 
   const { data, error, count } = await query;
   if (error) throw new Error(error.message);
   const rows = (data || []) as any[];
+  const promotionMap = await getActiveAdPromotions(sb, rows.map((row: any) => row.id));
   const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
   let profileMap = new Map<string, any>();
   if (userIds.length > 0) {
-    const { data: profs } = await sb.from('public_profiles').select('id, name, is_verified').in('id', userIds);
-    if (profs) profs.forEach((p: any) => profileMap.set(p.id, p));
+    const idBatches = Array.from({ length: Math.ceil(userIds.length / 100) }, (_, index) =>
+      userIds.slice(index * 100, (index + 1) * 100)
+    );
+    const profileResults = await Promise.all(idBatches.map((ids) =>
+      sb.from('public_profiles').select('id, name, is_verified').in('id', ids)
+    ));
+    const profileError = profileResults.find((result) => result.error)?.error;
+    if (profileError) throw new Error(`Unable to load public seller summaries: ${profileError.message}`);
+    for (const result of profileResults) {
+      result.data?.forEach((profile) => profileMap.set(profile.id, profile));
+    }
   }
   return {
     ads: rows.map(row => {
       const prof = profileMap.get(row.user_id);
-      const enriched = { ...row, profiles: prof };
+      const enriched = { ...row, profiles: prof, promotion: promotionMap.get(row.id) ?? null };
       return mapRowToPublicAd(enriched);
     }),
-    hasMore: (count ?? 0) > from + PAGE_SIZE,
+    hasMore: (count ?? 0) > from + pageSize,
   };
+}
+
+interface ActiveAdPromotion {
+  id: string;
+  ad_id: string;
+  promotion_id: string;
+  starts_at: string;
+  ends_at: string | null;
+  status: string;
+  plan_type: string | null;
+}
+
+interface PromotionConfig {
+  id: string;
+  name: string;
+  slug: string;
+  type: string;
+  plan_type: string | null;
+  price: number | string;
+  duration_days: number | null;
+}
+
+interface RankedPromotion {
+  planType: string;
+  label: string;
+  typeRank: number;
+  price: number;
+  startsAt: number;
+  promotionId: string;
+}
+
+function getPromotionPlanType(record: ActiveAdPromotion, config: PromotionConfig): string | null {
+  if (config.plan_type || record.plan_type) return config.plan_type || record.plan_type;
+  if (config.slug === 'top-listing') return 'top_30d';
+  if (config.slug === 'featured-ad') return 'featured_7d';
+  if (config.slug === 'boost') return 'boost_3d';
+  return null;
+}
+
+function compareRankedPromotions(a: RankedPromotion, b: RankedPromotion): number {
+  return a.typeRank - b.typeRank ||
+    b.price - a.price ||
+    b.startsAt - a.startsAt ||
+    a.promotionId.localeCompare(b.promotionId);
+}
+
+async function getActiveAdPromotions(
+  sb: NonNullable<ReturnType<typeof getSupabaseBrowser>>,
+  adIds: string[]
+): Promise<Map<string, { planType: string; label: string; rank: number; price: number }>> {
+  if (adIds.length === 0) return new Map();
+
+  const { data: configs, error: configError } = await sb
+    .from('promotions')
+    .select('id, name, slug, type, plan_type, price, duration_days')
+    .eq('is_active', true);
+  if (configError) throw new Error(`Unable to load promotion configuration: ${configError.message}`);
+
+  const configById = new Map<string, PromotionConfig>(
+    ((configs || []) as PromotionConfig[]).map((config) => [config.id, config])
+  );
+  const idBatches = Array.from({ length: Math.ceil(adIds.length / 100) }, (_, index) =>
+    adIds.slice(index * 100, (index + 1) * 100)
+  );
+  const recordResults = await Promise.all(idBatches.map((ids) =>
+    sb
+      .from('ad_promotions')
+      .select('id, ad_id, promotion_id, starts_at, ends_at, status, plan_type')
+      .in('ad_id', ids)
+      .eq('status', 'active')
+      .lte('starts_at', new Date().toISOString())
+      .gt('ends_at', new Date().toISOString())
+  ));
+  const recordsError = recordResults.find((result) => result.error)?.error;
+  if (recordsError) throw new Error(`Unable to load active ad promotions: ${recordsError.message}`);
+  const records = recordResults.flatMap((result) => result.data || []);
+
+  const now = Date.now();
+  const candidates = new Map<string, RankedPromotion>();
+  for (const record of (records || []) as ActiveAdPromotion[]) {
+    const config = configById.get(record.promotion_id);
+    if (!config || config.type === 'extension' || config.type === 'business_subscription') continue;
+    const startsAt = Date.parse(record.starts_at);
+    const endsAt = record.ends_at ? Date.parse(record.ends_at) : Number.NaN;
+    if (!Number.isFinite(startsAt) || startsAt > now || !Number.isFinite(endsAt) || endsAt <= now) continue;
+
+    const planType = getPromotionPlanType(record, config);
+    if (!planType) continue;
+    const typeRank = planType === 'top_30d' ? 0 : planType === 'featured_7d' ? 1 : 2;
+    const candidate: RankedPromotion = {
+      planType,
+      label: typeRank === 0 ? 'TOP' : typeRank === 1 ? 'FEATURED' : config.name.toUpperCase(),
+      typeRank,
+      price: Number(config.price),
+      startsAt,
+      promotionId: record.promotion_id,
+    };
+    const current = candidates.get(record.ad_id);
+    if (!current || compareRankedPromotions(candidate, current) < 0) {
+      candidates.set(record.ad_id, candidate);
+    }
+  }
+
+  return new Map(
+    [...candidates].map(([adId, promotion]) => [
+      adId,
+      {
+        planType: promotion.planType,
+        label: promotion.label,
+        rank: promotion.typeRank,
+        price: promotion.price,
+      },
+    ])
+  );
+}
+
+/**
+ * Promotion-prioritized public gallery. Fetches every eligible row before
+ * sorting and slicing so page boundaries cannot hide higher-priority tiers.
+ */
+export async function listPromotionRankedAds(
+  params: Omit<PublicListParams, 'pageSize'> = {}
+): Promise<{ ads: PublicAd[]; hasMore: boolean }> {
+  const page = Math.max(params.page ?? 1, 1);
+  const allAds: PublicAd[] = [];
+  let currentPage = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const result = await listPublicAds({ ...params, page: currentPage, pageSize: MAX_PAGE_SIZE });
+    allAds.push(...result.ads);
+    hasMore = result.hasMore;
+    currentPage += 1;
+  }
+
+  allAds.sort(comparePublicAdsByPromotion);
+
+  const from = (page - 1) * PAGE_SIZE;
+  return { ads: allAds.slice(from, from + PAGE_SIZE), hasMore: allAds.length > from + PAGE_SIZE };
+}
+
+function comparePublicAdsByPromotion(a: PublicAd, b: PublicAd): number {
+  const aRank = a.promotion?.rank ?? 3;
+  const bRank = b.promotion?.rank ?? 3;
+  return aRank - bRank ||
+    (aRank === 2 && bRank === 2 ? (b.promotion?.price ?? 0) - (a.promotion?.price ?? 0) : 0) ||
+    Date.parse(b.publishedAt) - Date.parse(a.publishedAt) ||
+    a.id.localeCompare(b.id);
+}
+
+export async function listFeaturedPublicAds(limit = 8): Promise<PublicAd[]> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('Supabase not configured');
+  const now = new Date().toISOString();
+  const { data, error } = await sb
+    .from('ad_promotions')
+    .select('ad_id, starts_at, ends_at, promotions!inner(type, is_active)')
+    .eq('status', 'active')
+    .eq('promotions.is_active', true)
+    .in('promotions.type', ['top', 'featured'])
+    .lte('starts_at', now)
+    .gt('ends_at', now)
+    .order('starts_at', { ascending: false })
+    .limit(1000);
+  if (error) throw new Error(`Unable to load featured placements: ${error.message}`);
+
+  const adIds = [...new Set((data || []).map((record) => record.ad_id as string))];
+  if (adIds.length === 0) return [];
+  const idBatches = Array.from({ length: Math.ceil(adIds.length / 100) }, (_, index) =>
+    adIds.slice(index * 100, (index + 1) * 100)
+  );
+  const adPages = await Promise.all(idBatches.map((ids) =>
+    listPublicAds({ pageSize: ids.length, adIds: ids })
+  ));
+  return adPages.flatMap(({ ads }) => ads)
+    .filter((ad) => ad.promotion?.planType === 'top_30d' || ad.promotion?.planType === 'featured_7d')
+    .sort(comparePublicAdsByPromotion)
+    .slice(0, Math.max(limit, 0));
+}
+
+export interface PublicCategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export async function listPublicCategories(): Promise<PublicCategoryOption[]> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('Supabase not configured');
+  const { data, error } = await sb
+    .from('categories')
+    .select('id, name, slug')
+    .eq('is_active', true)
+    .is('parent_id', null)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) throw new Error(`Unable to load categories: ${error.message}`);
+  return data || [];
+}
+
+export async function listPublicCities(): Promise<string[]> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('Supabase not configured');
+  const { data, error } = await sb
+    .from('locations')
+    .select('name')
+    .eq('level', 'city')
+    .order('name', { ascending: true })
+    .limit(1000);
+  if (error) throw new Error(`Unable to load locations: ${error.message}`);
+  return [...new Set((data || []).map((location) => location.name))];
 }
 
 function mapRowToPublicAd(row: any): PublicAd {
@@ -121,7 +358,9 @@ function mapRowToPublicAd(row: any): PublicAd {
     createdAt: row.created_at,
     viewsCount: row.views_count,
     favoritesCount: row.favorites_count,
-    isFeatured: row.is_featured,
+    publishedAt: row.published_at,
+    isFeatured: row.promotion?.planType === 'top_30d' || row.promotion?.planType === 'featured_7d',
+    promotion: row.promotion,
     status: 'approved',
     seller: {
       id: row.user_id,

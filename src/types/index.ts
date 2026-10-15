@@ -71,6 +71,7 @@ export interface Listing {
   condition: 'new' | 'used_like_new' | 'used_good' | 'used_fair';
   featured: boolean;
   promoted: boolean;
+  promotionLabel?: string;
   verified: boolean;
   views: number;
   favorites: number;

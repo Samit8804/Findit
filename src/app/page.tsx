@@ -14,7 +14,8 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { SITE_URL, breadcrumbJsonLd, generateHomeMetadata } from '@/lib/seo';
 import { detailedCategories as categories } from '@/data/taxonomy';
 import { locations } from '@/data/mockData';
-import { listPublicAds } from '@/services/ads';
+import { listFeaturedPublicAds, listPublicAds, type PublicAd } from '@/services/ads';
+import { toListingCardData } from '@/lib/publicListing';
 import { promotedBusinesses } from '@/data/mockData';
 import { formatINR } from '@/lib/format';
 
@@ -22,13 +23,15 @@ export const metadata = generateHomeMetadata();
 export const revalidate = 60;
 
 export default async function Home() {
-  let featuredListings: any[] = [];
-  let latestListings: any[] = [];
+  let featuredListings: PublicAd[] = [];
+  let latestListings: PublicAd[] = [];
   try {
-    const { ads } = await listPublicAds({ page: 1 });
-    featuredListings = ads.filter((a: any) => a.isFeatured).slice(0, 8);
-    if (featuredListings.length === 0) featuredListings = ads.slice(0, 8);
-    latestListings = ads.slice(0, 8);
+    const [featured, latest] = await Promise.all([
+      listFeaturedPublicAds(8),
+      listPublicAds({ page: 1, pageSize: 8 }),
+    ]);
+    featuredListings = featured.length > 0 ? featured : latest.ads;
+    latestListings = latest.ads;
   } catch {
     featuredListings = [];
     latestListings = [];
@@ -80,10 +83,7 @@ export default async function Home() {
                 {featuredListings[0] ? (
                   <Link href={`/ad/${featuredListings[0].slug}`} className="block relative aspect-[4/3] w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white group">
                     <Image
-                      src={(() => {
-                        const img = featuredListings[0].images?.[0] as any;
-                        return (typeof img === 'string' ? img : img?.url) || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800';
-                      })()}
+                      src={featuredListings[0].images[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800'}
                       alt={featuredListings[0].title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -93,7 +93,7 @@ export default async function Home() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-6">
                       <div className="text-white">
                         <span className="px-2.5 py-1 rounded-lg bg-[#E53935] text-xs font-bold uppercase tracking-wider mb-2 inline-block">
-                          Featured Deal
+                          {featuredListings[0].promotion?.label || 'Featured Deal'}
                         </span>
                         <h2 className="text-lg font-bold line-clamp-2">{featuredListings[0].title}</h2>
                         <p className="text-xs text-slate-200">{formatINR(featuredListings[0].price)}</p>
@@ -120,7 +120,7 @@ export default async function Home() {
                   Browse popular categories
                 </h2>
               </div>
-              <Link href="/browse" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
+              <Link href="/listings" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
                 View All Categories <ArrowRight className="w-4 h-4" aria-hidden />
               </Link>
             </div>
@@ -145,7 +145,7 @@ export default async function Home() {
                   Featured Listings
                 </h2>
               </div>
-              <Link href="/browse" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
+              <Link href="/listings" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
                 View All Listings <ArrowRight className="w-4 h-4" aria-hidden />
               </Link>
             </div>
@@ -158,7 +158,7 @@ export default async function Home() {
                 </div>
               ) : (
                 featuredListings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
+                  <ListingCard key={listing.id} listing={toListingCardData(listing)} />
                 ))
               )}
             </div>
@@ -200,7 +200,7 @@ export default async function Home() {
                   Latest Listings
                 </h2>
               </div>
-              <Link href="/browse" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
+              <Link href="/marketplace" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
                 Explore Marketplace <ArrowRight className="w-4 h-4" aria-hidden />
               </Link>
             </div>
@@ -214,7 +214,7 @@ export default async function Home() {
                 </div>
               ) : (
                 latestListings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
+                  <ListingCard key={listing.id} listing={toListingCardData(listing)} />
                 ))
               )}
             </div>

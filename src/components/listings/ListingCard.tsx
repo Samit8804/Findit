@@ -28,10 +28,15 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
         <ImageCarousel images={imageUrls} alt={imgAlt} />
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {listing.featured && (
+          {listing.promotionLabel && (
+            <Badge variant={listing.promotionLabel === 'TOP' ? 'primary' : 'featured'}>
+              {listing.promotionLabel}
+            </Badge>
+          )}
+          {!listing.promotionLabel && listing.featured && (
             <Badge variant="featured">Featured</Badge>
           )}
-          {listing.promoted && (
+          {!listing.promotionLabel && listing.promoted && (
             <Badge variant="warning">Promoted</Badge>
           )}
         </div>
