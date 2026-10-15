@@ -145,8 +145,8 @@ export default async function Home() {
                   Featured Listings
                 </h2>
               </div>
-              <Link href="/listings" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
-                View All Listings <ArrowRight className="w-4 h-4" aria-hidden />
+              <Link href="/listings?featured=true" className="text-sm font-semibold text-[#E53935] hover:underline flex items-center gap-1">
+                View All Featured Listings <ArrowRight className="w-4 h-4" aria-hidden />
               </Link>
             </div>
 

@@ -22,6 +22,8 @@ import {
   PublicCategoryOption,
 } from '@/services/ads';
 
+const PAGE_SIZE = 24;
+
 type GalleryMode = 'listings' | 'marketplace';
 
 interface GalleryResult {
@@ -46,6 +48,7 @@ export function ListingGallery({ mode }: { mode: GalleryMode }) {
   const category = searchParams.get('category') || '';
   const city = searchParams.get('city') || '';
   const search = searchParams.get('q') || '';
+  const featured = searchParams.get('featured') === 'true';
   const [result, setResult] = useState<GalleryResult | null>(null);
   const [options, setOptions] = useState<FilterOptions | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -129,8 +132,17 @@ export function ListingGallery({ mode }: { mode: GalleryMode }) {
 
   const resetFilters = () => updateParams({ category: null, city: null, q: null, page: null });
 
-  const cards = useMemo(() => currentResult?.ads.map(toListingCardData) ?? [], [currentResult]);
-  const heading = isMarketplace ? 'Marketplace' : 'All Listings';
+  // Filter for featured ads when featured=true parameter is present
+  // Filter BEFORE mapping to cards to ensure we only show featured ads
+  const filteredAds = useMemo(() => {
+    if (!featured) return currentResult?.ads ?? [];
+    return (currentResult?.ads ?? []).filter(
+      (ad) => ad.promotion?.planType === 'top_30d' || ad.promotion?.planType === 'featured_7d'
+    );
+  }, [currentResult, featured]);
+
+  const cards = useMemo(() => filteredAds.map(toListingCardData).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) ?? [], [filteredAds, page]);
+  const heading = isMarketplace ? 'Marketplace' : (featured ? 'Featured Listings' : 'All Listings');
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
