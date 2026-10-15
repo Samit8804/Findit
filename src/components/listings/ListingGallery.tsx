@@ -254,7 +254,12 @@ export function ListingGallery({ mode }: { mode: GalleryMode }) {
                 : 'grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}>
                 {cards.map((listing) => (
                   <div key={listing.id} className={isMarketplace ? 'mb-5 break-inside-avoid' : ''}>
-                    <ListingCard listing={listing} />
+                    <ListingCard
+                      listing={listing}
+                      wholeCardLink={true}
+                      showFavorite={true}
+                      showCondition={true}
+                    />
                   </div>
                 ))}
               </div>
