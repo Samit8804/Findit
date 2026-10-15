@@ -75,6 +75,8 @@ export function ListingGallery({ mode }: { mode: GalleryMode }) {
     return () => { cancelled = true; };
   }, []);
 
+  /* getStates function removed - using existing city filter mechanism */
+
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let cancelled = false;

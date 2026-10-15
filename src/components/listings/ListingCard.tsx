@@ -52,6 +52,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           <button
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               setIsFavorite(!isFavorite);
             }}
             className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors ${
