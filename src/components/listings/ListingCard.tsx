@@ -11,9 +11,17 @@ import { getAdUrl } from '@/lib/adUrl';
 
 interface ListingCardProps {
   listing: Listing;
+  showFavorite?: boolean;
+  showCondition?: boolean;
+  wholeCardLink?: boolean;
 }
 
-export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
+export const ListingCard: React.FC<ListingCardProps> = ({
+  listing,
+  showFavorite = true,
+  showCondition = true,
+  wholeCardLink = false,
+}) => {
   const [isFavorite, setIsFavorite] = React.useState(false);
 
   const adHref = getAdUrl(listing.slug);
@@ -23,7 +31,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
     .map((img: any) => (typeof img === 'string' ? img : img?.url))
     .filter((u: any): u is string => typeof u === 'string' && u.trim().length > 0);
 
-  return (
+  const card = (
     <div className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
         <ImageCarousel images={imageUrls} alt={imgAlt} />
@@ -40,25 +48,29 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
             <Badge variant="warning">Promoted</Badge>
           )}
         </div>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            setIsFavorite(!isFavorite);
-          }}
-          className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors ${
-            isFavorite
-              ? 'bg-red-500 text-white'
-              : 'bg-white/80 text-slate-700 hover:bg-white'
-          }`}
-          aria-label="Save to favourites"
-        >
-          <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-        </button>
-        <div className="absolute bottom-3 left-3">
-          <span className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-xs font-semibold">
-            {listing.condition === 'new' ? 'Brand New' : 'Used'}
-          </span>
-        </div>
+        {showFavorite && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setIsFavorite(!isFavorite);
+            }}
+            className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors ${
+              isFavorite
+                ? 'bg-red-500 text-white'
+                : 'bg-white/80 text-slate-700 hover:bg-white'
+            }`}
+            aria-label="Save to favourites"
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        )}
+        {showCondition && (
+          <div className="absolute bottom-3 left-3">
+            <span className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-xs font-semibold">
+              {listing.condition === 'new' ? 'Brand New' : 'Used'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="p-5 flex flex-col flex-grow">
@@ -73,11 +85,17 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           )}
         </div>
 
-        <Link href={adHref} className="block mb-2" aria-label={`View details for ${listing.title}`}>
-          <h3 className="font-semibold text-[#0F172A] hover:text-[#E53935] transition-colors line-clamp-2 text-sm leading-snug break-words [overflow-wrap:anywhere]">
+        {wholeCardLink ? (
+          <h3 className="mb-2 line-clamp-2 break-words text-sm font-semibold leading-snug text-[#0F172A] [overflow-wrap:anywhere]">
             {listing.title.length > 80 ? `${listing.title.slice(0, 77)}...` : listing.title}
           </h3>
-        </Link>
+        ) : (
+          <Link href={adHref} className="mb-2 block" aria-label={`View details for ${listing.title}`}>
+            <h3 className="line-clamp-2 break-words text-sm font-semibold leading-snug text-[#0F172A] transition-colors hover:text-[#E53935] [overflow-wrap:anywhere]">
+              {listing.title.length > 80 ? `${listing.title.slice(0, 77)}...` : listing.title}
+            </h3>
+          </Link>
+        )}
 
         <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <span className="flex items-center gap-1 truncate max-w-[140px]">
@@ -89,4 +107,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
       </div>
     </div>
   );
+
+  return wholeCardLink ? (
+    <Link
+      href={adHref}
+      className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E53935]"
+      aria-label={`View details for ${listing.title}`}
+    >
+      {card}
+    </Link>
+  ) : card;
 };

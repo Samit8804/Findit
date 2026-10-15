@@ -21,6 +21,7 @@ export interface SellerAd {
   slug: string;
   title: string;
   price: number;
+  condition: 'new' | 'used_like_new' | 'used_good' | 'used_fair' | null;
   images: { url: string; is_primary: boolean }[];
   status: string;
   category_name: string;
@@ -34,6 +35,15 @@ export interface SellerAd {
 export interface SellerWithAds {
   profile: PublicSellerProfile;
   ads: SellerAd[];
+}
+
+export interface SellerBusiness {
+  id: string;
+  business_name: string;
+  business_slug: string;
+  business_category: string;
+  verification_status: string;
+  business_logo: string | null;
 }
 
 function reportLookupError(scope: string, code: string | undefined): Error {
@@ -91,7 +101,7 @@ export async function getSellerAds(userId: string): Promise<SellerAd[]> {
   const { data, error } = await sb
     .from('ads')
     .select(`
-      id, slug, title, price, status, created_at, views_count, favorites_count,
+      id, slug, title, price, condition, status, created_at, views_count, favorites_count,
       categories!ads_category_id_fkey(name, slug),
       locations(name),
       ad_images(image_url, is_primary, sort_order)
@@ -111,6 +121,7 @@ export async function getSellerAds(userId: string): Promise<SellerAd[]> {
     slug: ad.slug,
     title: ad.title,
     price: Number(ad.price || 0),
+    condition: ad.condition || null,
     images: (ad.ad_images || []).map((img: any) => ({
       url: img.image_url,
       is_primary: img.is_primary,
@@ -128,14 +139,7 @@ export async function getSellerAds(userId: string): Promise<SellerAd[]> {
 /**
  * Check if a business profile exists for this user
  */
-export async function getSellerBusiness(userId: string): Promise<{
-  id: string;
-  business_name: string;
-  business_slug: string;
-  business_category: string;
-  verification_status: string;
-  business_logo: string | null;
-} | null> {
+export async function getSellerBusiness(userId: string): Promise<SellerBusiness | null> {
   if (!isSupabaseConfigured) return null;
   
   const sb = getSupabaseBrowser()!;

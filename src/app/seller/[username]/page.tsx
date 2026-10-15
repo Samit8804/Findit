@@ -1,21 +1,33 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowRight, Calendar, Filter, Flag, MapPin, MessageSquare, Search, SearchX, Share2, ShieldCheck, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  Calendar,
+  Flag,
+  MapPin,
+  MessageSquare,
+  Search,
+  SearchX,
+  Share2,
+  ShieldCheck,
+} from 'lucide-react';
 
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { getUsernameValidationError } from '@/lib/username';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
-import { getAdUrl } from '@/lib/adUrl';
+import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import { getPublicSellerByUsername, getSellerAds, getSellerBusiness, SellerBusiness, SellerWithAds } from '@/services/seller';
 
 type SellerPageResult =
   | { username: string; status: 'not-found' | 'error' }
   | { username: string; status: 'loaded'; seller: SellerWithAds; business: SellerBusiness };
+
+const REPORT_REASONS = ['Spam', 'Scam or fraud', 'Harassment', 'Impersonation', 'Other'];
 
 function SellerProfileContent() {
   const params = useParams<{ username: string }>();
@@ -23,102 +35,32 @@ function SellerProfileContent() {
   const invalidUsername = !!getUsernameValidationError(username);
   const [result, setResult] = useState<SellerPageResult | null>(null);
   const currentResult = result?.username === username ? result : null;
+  const profile = currentResult?.status === 'loaded' ? currentResult.seller.profile : null;
+  const ads = currentResult?.status === 'loaded' ? currentResult.seller.ads : [];
+  const business = currentResult?.status === 'loaded' ? currentResult.business : null;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-
-  useEffect(() => {
-    if (invalidUsername || !isSupabaseConfigured) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchSeller = async () => {
-      try {
-        const profile = await getPublicSellerByUsername(username);
-        if (cancelled) return;
-
-        if (!profile) {
-          setResult({ username, status: 'not-found' });
-          return;
-        }
-
-        const [ads, business] = await Promise.all([
-          getSellerAds(profile.id),
-          getSellerBusiness(profile.id),
-        ]);
-
-        if (cancelled) return;
-
-        setResult({ username, status: 'loaded', seller: { profile, ads }, business });
-      } catch (error) {
-        if (!cancelled) {
-          console.error('Failed to load public seller page.', error);
-          setResult({ username, status: 'error' });
-        }
-      }
-    };
-
-    fetchSeller();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [invalidUsername, username]);
-
-  if (!invalidUsername && isSupabaseConfigured && !currentResult) {
-    return <SellerProfileSkeleton />;
-  }
-
-  const notFound = invalidUsername || currentResult?.status === 'not-found';
-  const unavailable = !invalidUsername && (!isSupabaseConfigured || currentResult?.status === 'error');
-
-  if (notFound || unavailable) {
-    return (
-      <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
-        <Header />
-        <main className="flex-grow flex items-center justify-center py-16 px-4 text-center">
-          <div className="max-w-md">
-            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
-              <SearchX className="w-10 h-10 text-[#E53935]" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight mb-3">{unavailable ? 'Profile temporarily unavailable' : 'Seller not found'}</h1>
-            <p className="text-sm text-slate-500 leading-relaxed mb-8">
-              {unavailable
-                ? 'We could not load this seller profile right now. Please try again later.'
-                : 'This seller profile doesn’t exist or isn’t publicly available.'}
-            </p>
-            <Link href="/browse" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold transition-colors shadow-lg shadow-red-200">
-              Browse Ads <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!currentResult || currentResult.status !== 'loaded') {
-    return null;
-  }
-
-  const { profile, ads } = currentResult.seller;
-  const business = currentResult.business;
-  const primaryImage = profile.avatar_url || null;
+  const [shareMessage, setShareMessage] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportError, setReportError] = useState('');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportSending, setReportSending] = useState(false);
+  const [reportRequiresLogin, setReportRequiresLogin] = useState(false);
 
   const filteredAds = useMemo(() => {
+    const searchValue = searchQuery.trim().toLowerCase();
+
     return [...ads]
       .filter((ad) => {
-        const searchValue = searchQuery.trim().toLowerCase();
         const matchesSearch =
           searchValue.length === 0 ||
           ad.title.toLowerCase().includes(searchValue) ||
           ad.category_name.toLowerCase().includes(searchValue) ||
           ad.location_name.toLowerCase().includes(searchValue);
-
         const matchesCategory = selectedCategory === 'All' || ad.category_name === selectedCategory;
 
         return matchesSearch && matchesCategory;
@@ -139,368 +81,565 @@ function SellerProfileContent() {
   }, [ads, searchQuery, selectedCategory, sortBy]);
 
   const uniqueCategories = useMemo(() => {
-    const cats = new Set<string>();
-    ads.forEach((ad) => {
-      if (ad.category_name) cats.add(ad.category_name);
-    });
-    return ['All', ...Array.from(cats).sort()];
+    return ['All', ...Array.from(new Set(ads.map((ad) => ad.category_name).filter(Boolean))).sort()];
   }, [ads]);
 
+  useEffect(() => {
+    if (invalidUsername || !isSupabaseConfigured) return;
+
+    let cancelled = false;
+
+    const fetchSeller = async () => {
+      try {
+        const sellerProfile = await getPublicSellerByUsername(username);
+        if (cancelled) return;
+
+        if (!sellerProfile) {
+          setResult({ username, status: 'not-found' });
+          return;
+        }
+
+        const [sellerAds, sellerBusiness] = await Promise.all([
+          getSellerAds(sellerProfile.id),
+          getSellerBusiness(sellerProfile.id),
+        ]);
+        if (cancelled) return;
+
+        setResult({
+          username,
+          status: 'loaded',
+          seller: { profile: sellerProfile, ads: sellerAds },
+          business: sellerBusiness,
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load public seller page.', error);
+          setResult({ username, status: 'error' });
+        }
+      }
+    };
+
+    void fetchSeller();
+    return () => {
+      cancelled = true;
+    };
+  }, [invalidUsername, username]);
+
+  const shareProfile = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${profile?.display_name ?? 'Seller'} on FindIt`,
+          text: `View ${profile?.display_name ?? 'this seller'}'s public profile on FindIt`,
+          url,
+        });
+        setShareMessage('');
+        return;
+      }
+
+      await navigator.clipboard.writeText(url);
+      setShareMessage('Profile link copied.');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareMessage('Profile link copied.');
+      } catch {
+        console.error('Unable to share seller profile.');
+        setShareMessage('Unable to share the profile link on this device.');
+      }
+    }
+  };
+
+  const resetReport = () => {
+    setReportOpen(false);
+    setReportReason('');
+    setReportDescription('');
+    setReportError('');
+    setReportSubmitted(false);
+    setReportRequiresLogin(false);
+  };
+
+  const submitReport = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setReportError('');
+
+    if (!profile || !reportReason) {
+      setReportError('Choose a reason before submitting your report.');
+      return;
+    }
+    if (reportDescription.trim().length > 1000) {
+      setReportError('Description must be 1000 characters or fewer.');
+      return;
+    }
+
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      setReportError('Reporting is temporarily unavailable. Please try again later.');
+      return;
+    }
+
+    setReportSending(true);
+    try {
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!auth.user) {
+        setReportRequiresLogin(true);
+        return;
+      }
+      if (auth.user.id === profile.id) {
+        setReportError('You cannot report your own profile.');
+        return;
+      }
+
+      const { error } = await supabase.from('reports').insert({
+        reporter_id: auth.user.id,
+        reported_user_id: profile.id,
+        reason: reportReason,
+        description: reportDescription.trim() || null,
+      });
+      if (error) throw error;
+
+      setReportSubmitted(true);
+    } catch (error) {
+      console.error('Failed to submit seller report.', error);
+      setReportError('We could not submit your report. Please try again.');
+    } finally {
+      setReportSending(false);
+    }
+  };
+
+  if (!invalidUsername && isSupabaseConfigured && !currentResult) {
+    return <SellerProfileSkeleton />;
+  }
+
+  const notFound = invalidUsername || currentResult?.status === 'not-found';
+  const unavailable = !invalidUsername && (!isSupabaseConfigured || currentResult?.status === 'error');
+
+  if (notFound || unavailable) {
+    return (
+      <div className="min-h-screen bg-[#F6F8FB] text-[#0F172A] flex flex-col font-sans">
+        <Header />
+        <main className="flex flex-1 items-center justify-center px-4 py-16 text-center">
+          <div className="max-w-md">
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-50">
+              <SearchX className="h-10 w-10 text-[#E53935]" />
+            </div>
+            <h1 className="mb-3 text-2xl font-black tracking-tight">
+              {unavailable ? 'Profile temporarily unavailable' : 'Seller not found'}
+            </h1>
+            <p className="mb-8 text-sm leading-relaxed text-slate-500">
+              {unavailable
+                ? 'We could not load this seller profile right now. Please try again later.'
+                : 'This seller profile doesn’t exist or isn’t publicly available.'}
+            </p>
+            <Link
+              href="/browse"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#E53935] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-red-200 transition-colors hover:bg-[#D32F2F]"
+            >
+              Browse Ads <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!profile) return null;
+
+  const memberSince = new Date(profile.created_at).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F6F8FB] font-sans text-[#0F172A]">
       <Header />
-      <main className="flex-grow py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8 mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 lg:w-2/3">
+      <main className="py-6 sm:py-8">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:mb-8 sm:p-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center sm:gap-6">
                 <div className="relative shrink-0">
-                  {primaryImage ? (
+                  {profile.avatar_url ? (
                     <img
-                      src={primaryImage}
-                      alt={profile.display_name}
+                      src={profile.avatar_url}
+                      alt={`${profile.display_name}'s profile`}
                       width={96}
                       height={96}
-                      className="w-24 h-24 rounded-2xl object-cover shadow-lg ring-4 ring-white"
+                      className="h-20 w-20 rounded-2xl object-cover shadow-md sm:h-24 sm:w-24"
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-2xl bg-[#E53935] text-white font-black text-4xl flex items-center justify-center shadow-lg shadow-red-200">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#E53935] text-3xl font-black text-white shadow-md sm:h-24 sm:w-24 sm:text-4xl">
                       {(profile.display_name || 'S').charAt(0).toUpperCase()}
                     </div>
                   )}
                   {profile.phone_verified && (
-                    <span className="absolute -bottom-1 -right-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
-                      <ShieldCheck className="w-3 h-3" /> Verified
+                    <span
+                      className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-white"
+                      title="Phone verified"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
                     </span>
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight truncate">{profile.display_name}</h1>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="break-words text-2xl font-black tracking-tight text-[#0F172A] sm:text-3xl">
+                      {profile.display_name}
+                    </h1>
                     {profile.phone_verified && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold shrink-0">
-                        <ShieldCheck className="w-3 h-3" /> Phone Verified
-                      </span>
-                    )}
-                    {profile.email_verified && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold shrink-0">
-                        <ShieldCheck className="w-3 h-3" /> Email Verified
-                      </span>
-                    )}
-                    {profile.business_verified && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-xs font-bold shrink-0">
-                        <ShieldCheck className="w-3 h-3" /> Business Verified
-                      </span>
-                    )}
-                    {business && business.verification_status === 'verified' && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold shrink-0">
-                        <ShieldCheck className="w-3 h-3" /> Verified Business
-                      </span>
-                    )}
-                    {profile.account_type === 'business' && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[10px] font-bold">
-                        <Zap className="w-3 h-3" /> Business Account
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Phone Verified
                       </span>
                     )}
                   </div>
 
-                  <p className="text-sm text-slate-500 flex flex-wrap items-center gap-2">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                      {profile.location_text || 'Location not specified'}
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <MapPin className="h-4 w-4 shrink-0 text-[#E53935]" />
+                      <span className="break-words">{profile.location_text || 'Location not specified'}</span>
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      Member since {new Date(profile.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4 shrink-0 text-slate-400" />
+                      Member since {memberSince}
                     </span>
-                  </p>
-
-                  {business && business.verification_status === 'verified' && (
-                    <p className="text-sm text-emerald-600 flex items-center gap-1 mt-1">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Verified Business — {business.business_category}
-                    </p>
-                  )}
+                  </div>
 
                   {profile.bio && (
-                    <p className="text-sm text-slate-600 mt-3 leading-relaxed line-clamp-3">{profile.bio}</p>
+                    <p className="mt-3 max-w-3xl break-words text-sm leading-relaxed text-slate-600">
+                      {profile.bio}
+                    </p>
                   )}
-
-                  <div className="flex flex-col sm:flex-row gap-3 mt-4 pt-4 border-t border-slate-100">
-                    <button
-                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-[#E53935] hover:text-[#E53935] transition-colors"
-                      onClick={() => {
-                        if (navigator.share) {
-                          navigator.share({
-                            title: `${profile.display_name}'s Profile on FindIt`,
-                            text: `Check out ${profile.display_name}'s listings on FindIt`,
-                            url: window.location.href,
-                          });
-                        } else {
-                          navigator.clipboard.writeText(window.location.href);
-                          alert('Profile link copied to clipboard!');
-                        }
-                      }}
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span className="hidden sm:inline">Share Profile</span>
-                    </button>
-                    <Link
-                      href={`/dashboard/messages?seller=${profile.username}`}
-                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-semibold transition-colors shadow-md shadow-red-200"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      <span>Contact Seller</span>
-                    </Link>
-                  </div>
+                  {business?.verification_status === 'verified' && (
+                    <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                      <ShieldCheck className="h-4 w-4" />
+                      Verified Business{business.business_category ? ` · ${business.business_category}` : ''}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="lg:hidden">
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-[#E53935] hover:text-[#E53935] transition-colors"
-                    onClick={() => {
-                      if (navigator.share) {
-                        navigator.share({
-                          title: `${profile.display_name}'s Profile on FindIt`,
-                          text: `Check out ${profile.display_name}'s listings on FindIt`,
-                          url: window.location.href,
-                        });
-                      } else {
-                        navigator.clipboard.writeText(window.location.href);
-                        alert('Profile link copied to clipboard!');
-                      }
-                    }}
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>Share</span>
-                  </button>
-                  <Link
-                    href={`/dashboard/messages?seller=${profile.username}`}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-semibold transition-colors shadow-md shadow-red-200"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Contact</span>
-                  </Link>
-                </div>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[190px] sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => void shareProfile()}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-[#E53935] hover:text-[#E53935]"
+                >
+                  <Share2 className="h-4 w-4" /> Share Profile
+                </button>
+                <Link
+                  href={`/dashboard/messages?seller=${encodeURIComponent(profile.username)}`}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#E53935] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#D32F2F]"
+                >
+                  <MessageSquare className="h-4 w-4" /> Contact Seller
+                </Link>
               </div>
             </div>
-          </div>
+            {shareMessage && (
+              <p role="status" className="mt-3 text-right text-xs font-medium text-slate-500">
+                {shareMessage}
+              </p>
+            )}
+          </section>
 
-          <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
-            <div className="lg:w-2/3">
-              <div className="mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {ads.length === 0 ? 'No active listings' : `Active Listings (${ads.length})`}
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {ads.length === 0 ? 'This seller has no active listings at the moment.' : 'Browse their active listings below.'}
-                    </p>
-                  </div>
-                  <button
-                    className="sm:hidden inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-[#E53935] hover:text-[#E53935] transition-colors"
-                    onClick={() => setMobileFiltersOpen((prev) => !prev)}
-                  >
-                    <Filter className="w-4 h-4" />
-                    <span>Filters</span>
-                  </button>
+          <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
+            <section className="min-w-0">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-black tracking-tight sm:text-2xl">
+                    Active Listings ({ads.length})
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {ads.length ? 'Browse this seller’s current listings.' : 'This seller has no active listings at the moment.'}
+                  </p>
                 </div>
+              </div>
 
-                <div className={`flex flex-wrap gap-3 mb-6 ${mobileFiltersOpen ? 'block' : 'hidden sm:flex'}`}>
-                  <div className="flex-1 min-w-[200px] relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              {ads.length > 0 && (
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+                  <label className="relative min-w-0 flex-1">
+                    <span className="sr-only">Search listings</span>
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
-                      type="text"
-                      placeholder="Search listings..."
+                      type="search"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Search listings..."
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
                     />
-                  </div>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-40 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
-                  >
-                    <option value="newest">Newest First</option>
-                    <option value="price_low">Price: Low to High</option>
-                    <option value="price_high">Price: High to Low</option>
-                    <option value="popular">Most Popular</option>
-                  </select>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-48 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
-                  >
-                    <option value="All">All Categories</option>
-                    {uniqueCategories
-                      .filter((cat) => cat !== 'All')
-                      .map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
+                  </label>
+                  <label className="min-w-0 sm:w-44">
+                    <span className="sr-only">Sort listings</span>
+                    <select
+                      value={sortBy}
+                      onChange={(event) => setSortBy(event.target.value)}
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="price_low">Price: Low to High</option>
+                      <option value="price_high">Price: High to Low</option>
+                      <option value="popular">Most Popular</option>
+                    </select>
+                  </label>
+                  <label className="min-w-0 sm:w-48">
+                    <span className="sr-only">Filter by category</span>
+                    <select
+                      value={selectedCategory}
+                      onChange={(event) => setSelectedCategory(event.target.value)}
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    >
+                      {uniqueCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {category === 'All' ? 'All Categories' : category}
                         </option>
                       ))}
-                  </select>
+                    </select>
+                  </label>
                 </div>
+              )}
 
-                <div className="mb-4 text-sm text-slate-500">
-                  {filteredAds.length === 0 ? 'No listings found' : `${filteredAds.length} listing${filteredAds.length !== 1 ? 's' : ''} found`}
-                </div>
-
-                {filteredAds.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-14 text-center bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-5">
-                      <SearchX className="w-10 h-10" />
-                    </div>
-                    <h3 className="text-lg font-bold mb-1.5">No listings found</h3>
-                    <p className="text-sm text-slate-500 max-w-sm mb-6 leading-relaxed">
-                      Try adjusting your search or filters to find listings.
-                    </p>
+              {filteredAds.length === 0 ? (
+                <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white px-5 py-12 text-center shadow-sm">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                    <SearchX className="h-7 w-7" />
+                  </div>
+                  <h3 className="text-lg font-bold">
+                    {ads.length ? 'No matching listings' : 'No active listings'}
+                  </h3>
+                  <p className="mt-1 max-w-sm text-sm text-slate-500">
+                    {ads.length
+                      ? 'Try another search or category filter.'
+                      : 'Check back later to see this seller’s new listings.'}
+                  </p>
+                  {ads.length > 0 && (searchQuery || selectedCategory !== 'All') && (
                     <button
+                      type="button"
                       onClick={() => {
                         setSearchQuery('');
                         setSelectedCategory('All');
-                        setSortBy('newest');
                       }}
-                      className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold hover:bg-slate-50 transition-colors"
+                      className="mt-4 rounded-lg px-3 py-2 text-sm font-bold text-[#E53935] hover:bg-red-50"
                     >
                       Clear filters
                     </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredAds.map((ad) => (
-                      <Link key={ad.id} href={getAdUrl(ad.slug)} className="block">
-                        <ListingCard
-                          listing={{
-                            id: ad.id,
-                            slug: ad.slug,
-                            title: ad.title,
-                            price: ad.price,
-                            images: ad.images.map((img) => img.url),
-                            category: ad.category_name,
-                            location: ad.location_name,
-                            postedAt: new Date(ad.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-                            condition: 'used_good',
-                            featured: false,
-                            promoted: false,
-                            verified: false,
-                            views: ad.views_count,
-                            favorites: ad.favorites_count,
-                            contactEmail: '',
-                            seller: {
-                              name: profile.display_name,
-                              verified: profile.phone_verified || profile.email_verified,
-                              showPhone: false,
-                              showWhatsApp: false,
-                              allowMessages: true,
-                            },
-                          }}
-                        />
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 min-[520px]:grid-cols-2 xl:grid-cols-3">
+                  {filteredAds.map((ad) => (
+                    <div key={ad.id} className="min-w-0">
+                      <ListingCard
+                        wholeCardLink
+                        showFavorite={false}
+                        showCondition={ad.condition !== null}
+                        listing={{
+                          id: ad.id,
+                          slug: ad.slug,
+                          title: ad.title,
+                          description: '',
+                          price: ad.price,
+                          currency: 'INR',
+                          images: ad.images.map((image) => image.url),
+                          category: ad.category_name,
+                          categorySlug: ad.category_slug,
+                          country: '',
+                          countrySlug: '',
+                          state: '',
+                          stateSlug: '',
+                          city: '',
+                          citySlug: '',
+                          location: ad.location_name,
+                          locationSlug: '',
+                          postedAt: new Date(ad.created_at).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                          }),
+                          condition: ad.condition ?? 'used_good',
+                          featured: false,
+                          promoted: false,
+                          verified: false,
+                          views: ad.views_count,
+                          favorites: ad.favorites_count,
+                          contactEmail: '',
+                          seller: {
+                            name: profile.display_name,
+                            verified: profile.phone_verified,
+                            joinedAt: profile.created_at,
+                            email: '',
+                          },
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
-            <aside className="lg:w-72 lg:sticky lg:top-24 lg:self-start">
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h3 className="text-lg font-bold mb-4">About this seller</h3>
-                <dl className="space-y-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                    <div>
-                      <dt className="text-xs text-slate-400">Location</dt>
-                      <dd className="font-medium text-slate-900">{profile.location_text || 'Not specified'}</dd>
+            <aside className="min-w-0">
+              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-24">
+                <h2 className="text-lg font-black tracking-tight">About this seller</h2>
+                <dl className="mt-5 space-y-4 text-sm">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#E53935]" />
+                    <div className="min-w-0">
+                      <dt className="text-xs font-medium text-slate-400">Location</dt>
+                      <dd className="mt-0.5 break-words font-semibold text-slate-800">
+                        {profile.location_text || 'Not specified'}
+                      </dd>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div className="flex items-start gap-3">
+                    <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                     <div>
-                      <dt className="text-xs text-slate-400">Member since</dt>
-                      <dd className="font-medium text-slate-900">{new Date(profile.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</dd>
+                      <dt className="text-xs font-medium text-slate-400">Member since</dt>
+                      <dd className="mt-0.5 font-semibold text-slate-800">{memberSince}</dd>
                     </div>
                   </div>
                   {profile.phone_verified && (
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <dd className="font-medium text-emerald-700">Phone verified</dd>
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <dd className="font-semibold text-emerald-700">Phone verified</dd>
                     </div>
                   )}
-                  {profile.email_verified && (
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-                      <dd className="font-medium text-blue-700">Email verified</dd>
-                    </div>
-                  )}
-                  {profile.business_verified && (
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-sky-500 shrink-0" />
-                      <dd className="font-medium text-sky-700">Business verified</dd>
-                    </div>
-                  )}
-                  {business && business.verification_status === 'verified' && (
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <dd className="font-medium text-emerald-700">Verified Business — {business.business_category}</dd>
-                    </div>
-                  )}
-                  {profile.account_type === 'business' && (
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-purple-500 shrink-0" />
-                      <dd className="font-medium text-purple-700">Business Account</dd>
+                  {business?.verification_status === 'verified' && (
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <dd className="break-words font-semibold text-emerald-700">
+                        Verified Business{business.business_category ? ` · ${business.business_category}` : ''}
+                      </dd>
                     </div>
                   )}
                 </dl>
-
-                <div className="mt-6 pt-4 border-t border-slate-100">
-                  <button
-                    onClick={() => {
-                      window.location.href = `/contact?seller=${profile.username}`;
-                    }}
-                    className="w-full py-2.5 rounded-xl border-2 border-[#E53935] text-[#E53935] font-bold hover:bg-red-50 transition-colors"
-                  >
-                    <Flag className="w-4 h-4 mr-2" /> Report Seller
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportOpen(true);
+                    setReportError('');
+                  }}
+                  className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#E53935] px-4 py-2.5 text-sm font-bold text-[#E53935] transition-colors hover:bg-red-50"
+                >
+                  <Flag className="h-4 w-4" /> Report Seller
+                </button>
               </div>
             </aside>
           </div>
         </div>
       </main>
       <Footer />
+
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/50 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !reportSending) resetReport();
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="seller-report-title"
+            className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="seller-report-title" className="text-lg font-black">Report this seller</h2>
+                <p className="mt-1 text-sm text-slate-500">Choose the reason that best describes your concern.</p>
+              </div>
+              <button
+                type="button"
+                onClick={resetReport}
+                disabled={reportSending}
+                aria-label="Close report dialog"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+
+            {reportSubmitted ? (
+              <p role="status" className="mt-6 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                Report submitted. Our moderation team will review it.
+              </p>
+            ) : reportRequiresLogin ? (
+              <div className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                Sign in to submit a report.
+                <Link
+                  href={`/login?next=${encodeURIComponent(`/seller/${profile.username}`)}`}
+                  className="ml-2 font-bold underline"
+                >
+                  Log in
+                </Link>
+              </div>
+            ) : (
+              <form onSubmit={(event) => void submitReport(event)} className="mt-5 space-y-4">
+                <fieldset className="space-y-2">
+                  <legend className="mb-2 text-sm font-bold text-slate-700">Reason</legend>
+                  {REPORT_REASONS.map((reason) => (
+                    <label
+                      key={reason}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
+                        reportReason === reason
+                          ? 'border-red-200 bg-red-50 font-semibold text-[#C62828]'
+                          : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="seller-report-reason"
+                        value={reason}
+                        checked={reportReason === reason}
+                        onChange={() => setReportReason(reason)}
+                        className="accent-[#E53935]"
+                      />
+                      {reason}
+                    </label>
+                  ))}
+                </fieldset>
+                <label className="block text-sm font-bold text-slate-700">
+                  Additional details <span className="font-normal text-slate-400">(optional)</span>
+                  <textarea
+                    value={reportDescription}
+                    onChange={(event) => setReportDescription(event.target.value)}
+                    maxLength={1000}
+                    rows={3}
+                    className="mt-2 w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  />
+                </label>
+                {reportError && <p role="alert" className="text-sm font-medium text-red-700">{reportError}</p>}
+                <button
+                  type="submit"
+                  disabled={!reportReason || reportSending}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#E53935] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#D32F2F] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reportSending ? 'Submitting…' : 'Submit report'}
+                </button>
+              </form>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }
 
 function SellerProfileSkeleton() {
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F6F8FB] font-sans">
       <Header />
-      <main className="flex-grow py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="animate-pulse space-y-8">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <div className="flex gap-4">
-              <div className="w-24 h-24 rounded-2xl bg-slate-200" />
-              <div className="flex-1 space-y-3">
-                <div className="h-8 w-48 bg-slate-200 rounded" />
-                <div className="h-4 w-64 bg-slate-200 rounded" />
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                <div className="aspect-[4/3] w-full rounded-xl bg-slate-200 mb-3" />
-                <div className="h-4 w-3/4 bg-slate-200 rounded mb-2" />
-                <div className="h-8 w-1/2 bg-slate-200 rounded" />
-              </div>
+      <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="h-40 animate-pulse rounded-2xl bg-white shadow-sm" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="h-72 animate-pulse rounded-2xl bg-white shadow-sm" />
             ))}
           </div>
+          <div className="h-64 animate-pulse rounded-2xl bg-white shadow-sm" />
         </div>
       </main>
       <Footer />

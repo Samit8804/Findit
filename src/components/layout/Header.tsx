@@ -180,7 +180,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold text-slate-600">
+          <nav className="hidden xl:flex items-center gap-8 text-sm font-semibold text-slate-600">
             <Link href="/browse" className="hover:text-[#E53935] transition-colors">
               Browse Ads
             </Link>
@@ -279,7 +279,7 @@ export const Header: React.FC = () => {
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden xl:flex items-center gap-4">
             {authUser ? (
               <div ref={userMenuRef} className="relative">
                 <button
@@ -336,7 +336,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex md:hidden items-center gap-2">
+          <div className="flex xl:hidden items-center gap-2">
             <Link href="/post-ad">
               <Button variant="primary" size="sm" className="gap-1">
                 <PlusCircle className="w-3.5 h-3.5" /> Post
@@ -354,7 +354,7 @@ export const Header: React.FC = () => {
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-slate-100 px-6 py-6 space-y-4">
+        <div className="xl:hidden bg-white border-b border-slate-100 px-6 py-6 space-y-4">
           <div className="flex flex-col space-y-3 font-semibold text-slate-700">
             <Link
               href="/browse"
@@ -443,4 +443,3 @@ export const Header: React.FC = () => {
     </header>
   );
 };
-
