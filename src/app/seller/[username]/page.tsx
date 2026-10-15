@@ -25,7 +25,7 @@ import { getPublicSellerByUsername, getSellerAds, getSellerBusiness, SellerBusin
 
 type SellerPageResult =
   | { username: string; status: 'not-found' | 'error' }
-  | { username: string; status: 'loaded'; seller: SellerWithAds; business: SellerBusiness };
+  | { username: string; status: 'loaded'; seller: SellerWithAds; business: SellerBusiness | null };
 
 const REPORT_REASONS = ['Spam', 'Scam or fraud', 'Harassment', 'Impersonation', 'Other'];
 
