@@ -72,7 +72,7 @@ returns table (
   verified_phone text,
   used int,
   remaining int,
-  limit int,
+  "limit" int,
   eligible boolean,
   is_paid boolean
 ) language plpgsql security definer set search_path = public as $$
@@ -89,7 +89,7 @@ begin
       null::text as verified_phone,
       0 as used,
       v_limit as remaining,
-      v_limit as limit,
+      v_limit as "limit",
       true as eligible,
       true as is_paid;
   end if;
@@ -102,7 +102,7 @@ begin
       null::text as verified_phone,
       0 as used,
       0 as remaining,
-      v_limit as limit,
+      v_limit as "limit",
       false as eligible,
       false as is_paid;
   end if;
@@ -114,7 +114,7 @@ begin
     v_phone as verified_phone,
     v_used as used,
     greatest(v_limit - v_used, 0) as remaining,
-    v_limit as limit,
+    v_limit as "limit",
     (v_used < v_limit) as eligible,
     false as is_paid;
 end;

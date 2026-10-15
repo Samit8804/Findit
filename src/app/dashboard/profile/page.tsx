@@ -5,16 +5,7 @@ import Link from 'next/link';
 import { Camera, Check, ShieldCheck, Store } from 'lucide-react';
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import { compressImage } from '@/lib/images';
-
-const RESERVED = new Set(['admin','administrator','support','help','api','login','register','dashboard','settings','messages','system','seller','user','business','findit']);
-
-function isValidUsername(v: string) {
-  if (v.length < 3 || v.length > 30) return 'Username must be 3-30 characters.';
-  if (!/^[a-z0-9-]+$/.test(v)) return 'Only lowercase letters, numbers and hyphens.';
-  if (v.startsWith('-') || v.endsWith('-')) return 'Cannot start or end with hyphen.';
-  if (RESERVED.has(v)) return 'This username is reserved.';
-  return null;
-}
+import { getUsernameValidationError } from '@/lib/username';
 
 const inputCls = (err?: string) =>
   `w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent ${
@@ -49,6 +40,7 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [verified, setVerified] = useState({ email: false, phone: false, business: false });
   const [userId, setUserId] = useState<string | null>(null);
+  const [savedUsername, setSavedUsername] = useState('');
 
   // Load existing profile
   useEffect(() => {
@@ -75,6 +67,7 @@ export default function ProfilePage() {
           privacyAddress: p.privacy_address || 'private',
           showRecentlySold: p.show_recently_sold || false,
         }));
+        setSavedUsername(p.username || '');
         setVerified({ email: !!p.email_verified, phone: !!p.phone_verified, business: !!p.business_verified });
         if (p.avatar_url) setAvatarUrl(p.avatar_url);
         // Auto-generate username if missing
@@ -125,21 +118,27 @@ export default function ProfilePage() {
     e.preventDefault();
     const errs: Record<string,string> = {};
     if (form.displayName.trim().length < 3) errs.displayName = 'Display name too short.';
-    const uErr = isValidUsername(form.username.toLowerCase());
+    const uErr = getUsernameValidationError(form.username.toLowerCase());
     if (uErr) errs.username = uErr;
     if (form.bio.length > 500) errs.bio = 'Bio max 500 chars.';
     if (form.website && !/^https:\/\/.+/.test(form.website)) errs.website = 'Website must start with https://';
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setSaving(true);
-    if (!isSupabaseConfigured || !userId) {
+    if (!isSupabaseConfigured) {
       setTimeout(()=>{ setSaving(false); setSaved(true); setTimeout(()=>setSaved(false),2000); },800);
       return;
     }
+    if (!userId) {
+      setSaving(false);
+      setErrors({ form: 'Your profile could not be saved. Please sign in and try again.' });
+      return;
+    }
     const sb = getSupabaseBrowser()!;
-    const { error } = await sb.from('profiles').update({
+    const username = form.username.toLowerCase().trim();
+    const { data: updatedProfile, error } = await sb.from('profiles').update({
       display_name: form.displayName.trim(),
-      username: form.username.toLowerCase().trim(),
+      username,
       bio: form.bio.trim() || null,
       location_text: form.location.trim() || null,
       account_type: form.accountType,
@@ -148,13 +147,18 @@ export default function ProfilePage() {
       privacy_email: form.privacyEmail,
       privacy_address: form.privacyAddress,
       show_recently_sold: form.showRecentlySold,
-    }).eq('id', userId);
+    }).eq('id', userId).select('username').maybeSingle();
     setSaving(false);
     if (error) {
       if (error.message.includes('duplicate') || error.message.includes('username')) setErrors({ username: 'Username already taken.' });
       else setErrors({ form: error.message });
       return;
     }
+    if (!updatedProfile || updatedProfile.username !== username) {
+      setErrors({ form: 'The profile save could not be confirmed. Please try again.' });
+      return;
+    }
+    setSavedUsername(updatedProfile.username);
     setSaved(true); setTimeout(()=>setSaved(false),2000);
   };
 
@@ -162,7 +166,7 @@ export default function ProfilePage() {
     <div className="max-w-3xl">
       <div className="mb-6">
         <h1 className="text-2xl font-black tracking-tight">Profile</h1>
-        <p className="text-xs text-slate-500 mt-1">Manage your public seller profile. {form.username && <Link href={`/seller/${form.username}`} className="text-[#E53935] font-semibold hover:underline">View public profile →</Link>}</p>
+        <p className="text-xs text-slate-500 mt-1">Manage your public seller profile. {savedUsername && <Link href={`/seller/${encodeURIComponent(savedUsername)}`} className="text-[#E53935] font-semibold hover:underline">View public profile →</Link>}</p>
       </div>
 
       <form onSubmit={submit} noValidate className="space-y-6">

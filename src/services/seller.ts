@@ -36,23 +36,29 @@ export interface SellerWithAds {
   ads: SellerAd[];
 }
 
+function reportLookupError(scope: string, code: string | undefined): Error {
+  console.error(`Seller ${scope} lookup failed`, { code: code || 'unknown' });
+  return new Error(`Unable to load seller ${scope}.`);
+}
+
 /**
  * Fetch a public seller profile by username
  */
 export async function getPublicSellerByUsername(username: string): Promise<PublicSellerProfile | null> {
-  if (!isSupabaseConfigured) return null;
+  if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
   
   const sb = getSupabaseBrowser()!;
   
   const { data, error } = await sb
-    .from('profiles')
+    .from('public_profiles')
     .select('id, username, display_name, name, avatar_url, bio, location_text, phone_verified, email_verified, business_verified, account_type, created_at')
     .eq('username', username.toLowerCase())
-    .single();
+    .maybeSingle();
     
-  if (error || !data) return null;
+  if (error) throw reportLookupError('public profile', error.code);
+  if (!data) return null;
   
-  const profile = data as any;
+  const profile = data;
   
   // Check if profile is public (has username set)
   if (!profile.username) return null;
@@ -97,7 +103,8 @@ export async function getSellerAds(userId: string): Promise<SellerAd[]> {
     .order('published_at', { ascending: false })
     .order('created_at', { ascending: false });
     
-  if (error || !data) return [];
+  if (error) throw reportLookupError('active advertisements', error.code);
+  if (!data) return [];
   
   return (data as any[]).map((ad: any) => ({
     id: ad.id,
@@ -134,12 +141,13 @@ export async function getSellerBusiness(userId: string): Promise<{
   const sb = getSupabaseBrowser()!;
   
   const { data, error } = await sb
-    .from('business_profiles')
+    .from('public_business_profiles')
     .select('id, business_name, business_slug, business_category, verification_status, business_logo')
     .eq('user_id', userId)
     .maybeSingle();
     
-  if (error || !data) return null;
+  if (error) throw reportLookupError('business profile', error.code);
+  if (!data) return null;
   
   return data as any;
 }

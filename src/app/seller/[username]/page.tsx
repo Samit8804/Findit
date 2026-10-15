@@ -5,27 +5,27 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { ShieldCheck, Clock, Store, MapPin, Eye, Calendar, Zap, ArrowRight, SearchX, Loader2 } from 'lucide-react';
-import { getPublicSellerByUsername, getSellerAds, getSellerBusiness, PublicSellerProfile, SellerAd, SellerWithAds } from '@/services/seller';
+import { ShieldCheck, MapPin, Calendar, Zap, ArrowRight, SearchX } from 'lucide-react';
+import { getPublicSellerByUsername, getSellerAds, getSellerBusiness, SellerWithAds } from '@/services/seller';
+import { getUsernameValidationError } from '@/lib/username';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { formatINR } from '@/lib/format';
 import { getAdUrl } from '@/lib/adUrl';
 
+type SellerBusiness = Awaited<ReturnType<typeof getSellerBusiness>>;
+type SellerPageResult =
+  | { username: string; status: 'not-found' | 'error' }
+  | { username: string; status: 'loaded'; seller: SellerWithAds; business: SellerBusiness };
+
 function SellerProfileContent() {
   const params = useParams<{ username: string }>();
-  const username = decodeURIComponent(params.username);
-  
-  const [seller, setSeller] = useState<SellerWithAds | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [business, setBusiness] = useState<any>(null);
+  const username = params.username.toLowerCase();
+  const invalidUsername = !!getUsernameValidationError(username);
+  const [result, setResult] = useState<SellerPageResult | null>(null);
+  const currentResult = result?.username === username ? result : null;
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      setNotFound(true);
-      return;
-    }
+    if (invalidUsername || !isSupabaseConfigured) return;
     
     let cancelled = false;
     
@@ -35,7 +35,7 @@ function SellerProfileContent() {
         if (cancelled) return;
         
         if (!profile) {
-          setNotFound(true);
+          setResult({ username, status: 'not-found' });
           return;
         }
         
@@ -46,24 +46,21 @@ function SellerProfileContent() {
         
         if (cancelled) return;
         
-        setSeller({ profile, ads });
-        setBusiness(business);
-      } catch (err) {
+        setResult({ username, status: 'loaded', seller: { profile, ads }, business });
+      } catch {
         if (!cancelled) {
-          console.error('Failed to load seller:', err);
-          setNotFound(true);
+          console.error('Failed to load public seller page.');
+          setResult({ username, status: 'error' });
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     };
     
     fetchSeller();
     
     return () => { cancelled = true; };
-  }, [username]);
+  }, [invalidUsername, username]);
 
-  if (loading) {
+  if (!invalidUsername && isSupabaseConfigured && !currentResult) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
         <Header />
@@ -94,7 +91,10 @@ function SellerProfileContent() {
     );
   }
 
-  if (notFound || !seller) {
+  const notFound = invalidUsername || currentResult?.status === 'not-found';
+  const unavailable = !invalidUsername && (!isSupabaseConfigured || currentResult?.status === 'error');
+
+  if (notFound || unavailable) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
         <Header />
@@ -103,9 +103,11 @@ function SellerProfileContent() {
             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <SearchX className="w-10 h-10 text-[#E53935]" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight mb-3">Seller not found</h1>
+            <h1 className="text-2xl font-black tracking-tight mb-3">{unavailable ? 'Profile temporarily unavailable' : 'Seller not found'}</h1>
             <p className="text-sm text-slate-500 leading-relaxed mb-8">
-              This seller profile doesn&apos;t exist or isn&apos;t publicly available.
+              {unavailable
+                ? 'We could not load this seller profile right now. Please try again later.'
+                : 'This seller profile doesn&apos;t exist or isn&apos;t publicly available.'}
             </p>
             <Link href="/browse" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold transition-colors shadow-lg shadow-red-200">
               Browse Ads <ArrowRight className="w-4 h-4" />
@@ -117,7 +119,10 @@ function SellerProfileContent() {
     );
   }
 
-  const { profile, ads } = seller;
+  if (!currentResult || currentResult.status !== 'loaded') return null;
+
+  const { profile, ads } = currentResult.seller;
+  const business = currentResult.business;
   const formattedJoined = new Date(profile.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
   const primaryImage = profile.avatar_url || null;
 
