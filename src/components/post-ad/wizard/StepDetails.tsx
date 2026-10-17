@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Condition } from './wizardData';
 import { WIZARD_CATEGORIES } from './wizardData';
-import { AiAssistant } from './AiAssistant';
+import { AiFieldButton } from './AiAssistant';
 
 const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'new', label: 'Brand New' },
@@ -40,6 +40,7 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
   onChange,
   onExtraChange,
 }) => {
+  const [aiLanguage, setAiLanguage] = useState<'en' | 'hi'>('en');
   const wizardCategory = WIZARD_CATEGORIES.find((c) => c.name === category);
   const extraFields = wizardCategory?.fields || [];
 
@@ -50,23 +51,46 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
         <p className="text-xs text-slate-400 mb-5">
           Fields marked <span className="text-[#E53935]">*</span> are required.
         </p>
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-medium text-slate-600 uppercase tracking-tighter">AI Language</label>
+          <select
+            value={aiLanguage}
+            onChange={(e) => setAiLanguage(e.target.value as 'en' | 'hi')}
+            className="text-xs px-2 py-1.5 rounded border border-slate-200 bg-white focus:ring-1 focus:ring-[#E53935] outline-none"
+          >
+            <option value="en">English</option>
+            <option value="hi">हिंदी</option>
+          </select>
+        </div>
       </div>
 
       {/* Title */}
-      <div>
+      <div className="relative group">
         <label htmlFor="ad-title" className="block text-sm font-semibold text-slate-700 mb-1.5">
           Ad Title <span className="text-[#E53935]">*</span>
         </label>
-        <input
-          id="ad-title"
-          type="text"
-          value={title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="e.g., Spacious 2 BHK Apartment Near Metro Station"
-          maxLength={80}
-          aria-describedby="title-count"
-          className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
-        />
+        <div className="relative group">
+          <input
+            id="ad-title"
+            type="text"
+            value={title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder="e.g., Spacious 2 BHK Apartment Near Metro Station"
+            maxLength={80}
+            aria-describedby="title-count"
+            className="w-full pr-12 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
+          />
+          <AiFieldButton
+            fieldType="title"
+            currentValue={title}
+            category={category}
+            price={price}
+            condition={condition}
+            location={location || ''}
+            language={aiLanguage}
+            onResult={(t) => onChange({ title: t })}
+          />
+        </div>
         <p id="title-count" className="text-xs text-slate-400 mt-1">{title.length}/80 characters</p>
       </div>
 
@@ -146,35 +170,33 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
       )}
 
       {/* Description */}
-      <div className="pt-4 border-t border-slate-100">
+      <div className="relative group pt-4 border-t border-slate-100">
         <label htmlFor="ad-desc" className="block text-sm font-semibold text-slate-700 mb-1.5">
           Description <span className="text-[#E53935]">*</span>
         </label>
-        <textarea
-          id="ad-desc"
-          rows={6}
-          value={description}
-          onChange={(e) => onChange({ description: e.target.value })}
-          maxLength={2000}
-          aria-describedby="desc-count"
-          placeholder="Describe your item or service in detail..."
-          className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent resize-y"
-        />
+        <div className="relative">
+          <textarea
+            id="ad-desc"
+            rows={6}
+            value={description}
+            onChange={(e) => onChange({ description: e.target.value })}
+            maxLength={2000}
+            aria-describedby="desc-count"
+            placeholder="Describe your item or service in detail..."
+            className="w-full pr-12 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent resize-y"
+          />
+          <AiFieldButton
+            fieldType="description"
+            currentValue={description}
+            category={category}
+            price={price}
+            condition={condition}
+            location={location || ''}
+            language={aiLanguage}
+            onResult={(d) => onChange({ description: d })}
+          />
+        </div>
         <p id="desc-count" className="text-xs text-slate-400 mt-1">{description.length}/2000 characters</p>
-      </div>
-
-      {/* AI Assistant */}
-      <div className="pt-4 border-t border-slate-100">
-        <AiAssistant
-          category={category}
-          title={title}
-          description={description}
-          price={price}
-          condition={condition}
-          location={location || ''}
-          onTitleChange={(t) => onChange({ title: t })}
-          onDescriptionChange={(d) => onChange({ description: d })}
-        />
       </div>
     </div>
   );
