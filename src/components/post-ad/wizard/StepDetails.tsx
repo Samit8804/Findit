@@ -69,7 +69,7 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
         <label htmlFor="ad-title" className="block text-sm font-semibold text-slate-700 mb-1.5">
           Ad Title <span className="text-[#E53935]">*</span>
         </label>
-        <div className="relative group">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             id="ad-title"
             type="text"
@@ -78,7 +78,7 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
             placeholder="e.g., Spacious 2 BHK Apartment Near Metro Station"
             maxLength={80}
             aria-describedby="title-count"
-            className="w-full pr-12 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
+            className="w-full min-w-0 flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent"
           />
           <AiFieldButton
             fieldType="title"
@@ -174,7 +174,7 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
         <label htmlFor="ad-desc" className="block text-sm font-semibold text-slate-700 mb-1.5">
           Description <span className="text-[#E53935]">*</span>
         </label>
-        <div className="relative">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
           <textarea
             id="ad-desc"
             rows={6}
@@ -183,7 +183,7 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
             maxLength={2000}
             aria-describedby="desc-count"
             placeholder="Describe your item or service in detail..."
-            className="w-full pr-12 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent resize-y"
+            className="w-full min-w-0 flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent resize-y"
           />
           <AiFieldButton
             fieldType="description"

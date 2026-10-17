@@ -18,6 +18,7 @@ import {
   listPublicAds,
   listPublicCategories,
   listPublicCities,
+  getLocationTree,
   PublicAd,
   PublicCategoryOption,
 } from '@/services/ads';
@@ -46,6 +47,7 @@ export function ListingGallery({ mode }: { mode: GalleryMode }) {
   const searchKey = searchParams.toString();
   const page = Math.max(Number(searchParams.get('page')) || 1, 1);
   const category = searchParams.get('category') || '';
+  const state = searchParams.get('state') || '';
   const city = searchParams.get('city') || '';
   const search = searchParams.get('q') || '';
   const featured = searchParams.get('featured') === 'true';
@@ -54,6 +56,7 @@ export function ListingGallery({ mode }: { mode: GalleryMode }) {
   const [reloadKey, setReloadKey] = useState(0);
   const currentResult = result?.key === searchKey ? result : null;
   const isMarketplace = mode === 'marketplace';
+  const [stateOptions, setStateOptions] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -75,7 +78,19 @@ export function ListingGallery({ mode }: { mode: GalleryMode }) {
     return () => { cancelled = true; };
   }, []);
 
-  /* getStates function removed - using existing city filter mechanism */
+  /* Load states from location tree */
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    getLocationTree().then((tree: any) => {
+      // Extract states (level 'state') from the location tree
+      const states = tree.filter((l: any) => l.level === 'state').map((l: any) => l.name);
+      if (!cancelled) setStateOptions(states);
+    }).catch(() => {
+      if (!cancelled) console.error('Failed to load location tree.');
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
