@@ -3,6 +3,7 @@
 import React from 'react';
 import { Condition } from './wizardData';
 import { WIZARD_CATEGORIES } from './wizardData';
+import { AiAssistant } from './AiAssistant';
 
 const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'new', label: 'Brand New' },
@@ -18,6 +19,7 @@ interface StepDetailsProps {
   price: string;
   condition: Condition;
   extra: Record<string, string>;
+  location: string;
   onChange: (patch: Partial<{
     title: string;
     description: string;
@@ -34,6 +36,7 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
   price,
   condition,
   extra,
+  location,
   onChange,
   onExtraChange,
 }) => {
@@ -158,6 +161,20 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
           className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent resize-y"
         />
         <p id="desc-count" className="text-xs text-slate-400 mt-1">{description.length}/2000 characters</p>
+      </div>
+
+      {/* AI Assistant */}
+      <div className="pt-4 border-t border-slate-100">
+        <AiAssistant
+          category={category}
+          title={title}
+          description={description}
+          price={price}
+          condition={condition}
+          location={location || ''}
+          onTitleChange={(t) => onChange({ title: t })}
+          onDescriptionChange={(d) => onChange({ description: d })}
+        />
       </div>
     </div>
   );

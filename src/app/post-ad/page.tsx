@@ -347,6 +347,7 @@ function WizardContent() {
                 price={data.price}
                 condition={data.condition}
                 extra={data.extra}
+                location={[data.locality, data.location.city].filter(Boolean).join(', ')}
                 onChange={(p) => patch(p)}
                 onExtraChange={(key, value) => setData((d) => ({ ...d, extra: { ...d.extra, [key]: value } }))}
               />
