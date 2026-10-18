@@ -1,6 +1,11 @@
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+interface AuthorizeResult {
+  allowed: boolean;
+  reason?: string;
+}
+
 export interface ConversationSummary {
   id: string;
   adId: string;
@@ -89,7 +94,15 @@ export async function listConversations(): Promise<ConversationSummary[]> {
   return (data || []).map((r: any) => mapConversation(r, auth.user!.id));
 }
 
-/** Create-or-get a conversation for this buyer/seller/ad pair. Returns id. */
+/** Create-or-get a conversation for this buyer/seller/ad pair. Returns id.
+ *
+ * Requires:
+ * 1. An accepted connection request for this buyer/seller/listing triple
+ * 2. The buyer has an active, verified messaging subscription
+ *
+ * Server-side authorization is enforced via /api/conversations/authorize
+ * and database triggers (guard_conversation, guard_message_entitlement).
+ */
 export async function openOrCreateConversation(
   adId: string,
   sellerId: string
@@ -101,6 +114,39 @@ export async function openOrCreateConversation(
   const me = auth.user.id;
 
   if (me === sellerId) throw new Error('SELF_CONVERSATION');
+
+  // 1. Check messaging entitlement via RPC
+  const { data: entitlement, error: entErr } = await sb.rpc('has_active_messaging_subscription', {
+    p_user_id: me,
+  });
+  if (entErr) throw new Error(entErr.message);
+  if (!(entitlement as boolean)) {
+    throw new Error('MESSAGING_LOCKED');
+  }
+
+  // 2. Server-side authorization: accepted connection request + entitlement
+  const token = (await sb.auth.getSession()).data.session?.access_token;
+  if (!token) throw new Error('NOT_AUTHENTICATED');
+
+  const authRes = await fetch('/api/conversations/authorize', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ buyer_id: me, seller_id: sellerId, listing_id: adId }),
+  });
+
+  if (!authRes.ok) {
+    const body = await authRes.json().catch(() => ({}));
+    if (authRes.status === 403) throw new Error(body.reason || 'NOT_AUTHORIZED');
+    throw new Error(body.error || 'AUTHORIZATION_FAILED');
+  }
+
+  const result: AuthorizeResult = await authRes.json();
+  if (!result.allowed) {
+    throw new Error(result.reason || 'NOT_AUTHORIZED');
+  }
 
   // Existing?
   const { data: existing } = await sb

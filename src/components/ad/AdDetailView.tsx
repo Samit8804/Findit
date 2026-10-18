@@ -20,7 +20,7 @@ import {
   getFavoriteState,
   PublicAd,
 } from '@/services/ads';
-import { getMyProfile, canUseMessaging } from '@/services/profile';
+import { getMyProfile, canUseMessagingVerified } from '@/services/profile';
 import { trackAdView, trackFavorite as trackFavEvent } from '@/lib/analytics';
 import { useToast } from '@/components/ui/Feedback';
 import {
@@ -54,15 +54,19 @@ export default function AdDetailView() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    Promise.all([getMyProfile(), getSupabaseBrowser()!.auth.getUser()]).then(([p, auth]) => {
-      setMessagingLocked(p ? !canUseMessaging(p) : true);
+    (async () => {
+      const [p, auth] = await Promise.all([getMyProfile(), getSupabaseBrowser()!.auth.getUser()]);
+      setMessagingLocked(p ? !(await canUseMessagingVerified(p)) : true);
       setIsOwnAd(!!p && !!auth.data.user && p.id === auth.data.user.id);
-    });
+    })();
   }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    getMyProfile().then((p) => setMessagingLocked(p ? !canUseMessaging(p) : true));
+    (async () => {
+      const p = await getMyProfile();
+      setMessagingLocked(p ? !(await canUseMessagingVerified(p)) : true);
+    })();
   }, []);
 
   useEffect(() => {

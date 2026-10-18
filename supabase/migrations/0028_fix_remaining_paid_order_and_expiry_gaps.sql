@@ -668,34 +668,28 @@ begin
   from cron.job
   where jobname = 'expire-due-ads-every-15min';
 
-  if v_job_id is null then
-    perform cron.schedule(
-      'expire-due-ads-every-15min',
-      '*/15 * * * *',
-      $expire_job$select public.expire_due_ads();$expire_job$
-    );
-  else
-    update cron.job
-       set schedule = '*/15 * * * *',
-           command = 'select public.expire_due_ads();'
-     where jobid = v_job_id;
+  if v_job_id is not null then
+    perform cron.unschedule(v_job_id);
   end if;
+
+  perform cron.schedule(
+    'expire-due-ads-every-15min',
+    '*/15 * * * *',
+    $expire_job$select public.expire_due_ads();$expire_job$
+  );
 
   select jobid into v_job_id
   from cron.job
   where jobname = 'expiry-notifications-hourly';
 
-  if v_job_id is null then
-    perform cron.schedule(
-      'expiry-notifications-hourly',
-      '0 * * * *',
-      $notification_job$select public.send_expiry_notifications();$notification_job$
-    );
-  else
-    update cron.job
-       set schedule = '0 * * * *',
-           command = 'select public.send_expiry_notifications();'
-     where jobid = v_job_id;
+  if v_job_id is not null then
+    perform cron.unschedule(v_job_id);
   end if;
+
+  perform cron.schedule(
+    'expiry-notifications-hourly',
+    '0 * * * *',
+    $notification_job$select public.send_expiry_notifications();$notification_job$
+  );
 end
 $cron_setup$;

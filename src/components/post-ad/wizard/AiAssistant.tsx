@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 
 interface AiFieldButtonProps {
   fieldType: 'title' | 'description';
@@ -26,12 +26,21 @@ export const AiFieldButton: React.FC<AiFieldButtonProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestInFlightRef = useRef(false);
+  const currentValueRef = useRef(currentValue);
+
+  useEffect(() => {
+    currentValueRef.current = currentValue;
+  }, [currentValue]);
 
   const isEmpty = !currentValue.trim();
   const task = isEmpty ? 'generate' : 'improve';
   const buttonLabel = isEmpty ? '✨ Generate with AI' : '✨ Improve with AI';
+  const loadingLabel = task === 'generate' ? 'Generating...' : 'Improving...';
 
   const handleClick = useCallback(async () => {
+    if (requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -69,6 +78,9 @@ export const AiFieldButton: React.FC<AiFieldButtonProps> = ({
           : '';
         if (!suggestedTitle) throw new Error('AI did not return a title. Please try again.');
         if (suggestedTitle.length > 80) throw new Error('AI returned a title over 80 characters. Please try again.');
+        if (currentValueRef.current !== currentValue) {
+          throw new Error('Your text changed while AI was working. Please try again.');
+        }
         onResult(suggestedTitle);
       } else {
         const suggestedDescription = typeof result.description === 'string' ? result.description.trim() : '';
@@ -76,18 +88,22 @@ export const AiFieldButton: React.FC<AiFieldButtonProps> = ({
         if (suggestedDescription.length > 2000) {
           throw new Error('AI returned a description over 2,000 characters. Please try again.');
         }
+        if (currentValueRef.current !== currentValue) {
+          throw new Error('Your text changed while AI was working. Please try again.');
+        }
         onResult(suggestedDescription);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'AI request failed';
-      setError(message);
+      setError(message.length > 100 ? `${message.slice(0, 97)}...` : message);
     } finally {
+      requestInFlightRef.current = false;
       setIsLoading(false);
     }
-  }, [fieldType, currentValue, category, price, condition, location, language, onResult]);
+  }, [fieldType, currentValue, task, category, price, condition, location, language, onResult]);
 
   return (
-    <div className="flex shrink-0 flex-col items-start gap-1">
+    <div className="flex min-w-0 shrink-0 flex-col items-start gap-1">
       {error && (
         <p className="max-w-56 text-xs text-red-600" role="alert">{error}</p>
       )}
@@ -102,13 +118,14 @@ export const AiFieldButton: React.FC<AiFieldButtonProps> = ({
             : 'border-slate-200 bg-white text-slate-600 hover:border-[#E53935] hover:bg-[#E53935] hover:text-white focus:ring-2 focus:ring-[#E53935] focus:outline-none'
         }`}
         aria-label={isLoading ? `${task === 'generate' ? 'Generating' : 'Improving'} with AI` : buttonLabel}
+        aria-busy={isLoading}
       >
         {isLoading ? (
           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
         ) : (
-          <Sparkles className="h-3.5 w-3.5" />
+          <span aria-hidden="true">✨</span>
         )}
-        <span>{isLoading ? 'Working...' : buttonLabel.replace('✨ ', '')}</span>
+        <span>{isLoading ? loadingLabel : buttonLabel.replace('✨ ', '')}</span>
       </button>
     </div>
   );

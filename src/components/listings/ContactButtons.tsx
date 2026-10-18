@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,11 +11,22 @@ import {
   Send,
   Lock,
   Loader2,
+  Clock,
+  ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
+import { openOrCreateConversation } from '@/services/messaging';
 import {
-  openOrCreateConversation,
-} from '@/services/messaging';
+  sendConnectionRequest,
+  listConnectionRequests,
+  respondToConnectionRequest,
+  cancelConnectionRequest,
+  type ConnectionRequest,
+} from '@/services/connectionRequests';
+import { hasActiveMessagingSubscription } from '@/services/profile';
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
+import { Modal } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/Feedback';
 
 interface ContactButtonsProps {
   adId: string;
@@ -23,14 +34,13 @@ interface ContactButtonsProps {
   sellerSlug?: string;
   sellerName: string;
   adTitle: string;
-  /** Respects the seller's privacy settings — omit when disabled. */
   phone?: string;
   whatsapp?: string;
-  /** Subscription gate (free plan / not permitted). */
   messageLocked?: boolean;
-  /** Viewer owns this ad — hide messaging entirely. */
   isOwnAd?: boolean;
 }
+
+type RequestStatus = 'none' | 'pending' | 'accepted' | 'declined' | 'cancelled';
 
 export const ContactButtons: React.FC<ContactButtonsProps> = ({
   adId,
@@ -44,14 +54,57 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
   isOwnAd = false,
 }) => {
   const router = useRouter();
+  const toast = useToast();
+  const [reqStatus, setReqStatus] = useState<RequestStatus>('none');
+  const [request, setRequest] = useState<ConnectionRequest | null>(null);
+  const [loading, setLoading] = useState(true);
   const [msgOpen, setMsgOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [initialMessage, setInitialMessage] = useState('');
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [responding, setResponding] = useState<string | null>(null);
+  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
+  const [myId, setMyId] = useState<string | null>(null);
 
-  const handleSendMessageClick = async () => {
-    // Not logged in → prompt + redirect back after login
+  useEffect(() => {
+    if (isOwnAd) { setLoading(false); return; }
+    (async () => {
+      const sb = getSupabaseBrowser();
+      if (!sb) { setLoading(false); return; }
+      const { data: auth } = await sb.auth.getUser();
+      if (!auth.user) { setLoading(false); return; }
+      setMyId(auth.user.id);
+
+      // Check subscription
+      const sub = await hasActiveMessagingSubscription(auth.user.id);
+      setHasSubscription(sub);
+
+      // Load existing requests
+      try {
+        const { data, error } = await sb
+          .from('connection_requests')
+          .select('*')
+          .eq('listing_id', adId)
+          .or(`and(sender_id.eq.${auth.user.id},recipient_id.eq.${sellerUserId}),and(sender_id.eq.${sellerUserId},recipient_id.eq.${auth.user.id})`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && data) {
+          setRequest(data);
+          setReqStatus(data.status as RequestStatus);
+        } else {
+          setReqStatus('none');
+        }
+      } catch {
+        setReqStatus('none');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [adId, sellerUserId, isOwnAd]);
+
+  const handleRequestClick = async () => {
     const sb = isSupabaseConfigured ? getSupabaseBrowser() : null;
     if (!sb) {
       setMsgOpen(true);
@@ -59,55 +112,76 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
     }
     const { data } = await sb.auth.getUser();
     if (!data.user) {
-      toast('Login to contact the seller.');
+      window.dispatchEvent(new CustomEvent('findit-toast', { detail: 'Login to send a connection request.' }));
       router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
+    setMsgOpen(true);
+  };
 
-    setCreating(true);
+  const handleSendRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!initialMessage.trim()) { setError('Please write an introduction.'); return; }
+    if (initialMessage.trim().length > 500) { setError('Maximum 500 characters.'); return; }
+    setSending(true);
+    setError('');
+    try {
+      const cr = await sendConnectionRequest(adId, sellerUserId, initialMessage.trim());
+      setRequest(cr);
+      setReqStatus('pending');
+      setMsgOpen(false);
+      setInitialMessage('');
+      window.dispatchEvent(new CustomEvent('findit-toast', { detail: 'Connection request sent.' }));
+    } catch (err: any) {
+      setSending(false);
+      setError(err.message || 'Failed to send request.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleRespond = async (action: 'accept' | 'decline') => {
+    if (!request) return;
+    setResponding(request.id);
+    try {
+      const updated = await respondToConnectionRequest(request.id, action);
+      setRequest(updated);
+      setReqStatus(updated.status as RequestStatus);
+      window.dispatchEvent(new CustomEvent('findit-toast', { detail: `Request ${action}ed.` }));
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('findit-toast', { detail: err.message || 'Failed to respond.' }));
+    } finally {
+      setResponding(null);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!request) return;
+    try {
+      await cancelConnectionRequest(request.id);
+      setReqStatus('none');
+      setRequest(null);
+      window.dispatchEvent(new CustomEvent('findit-toast', { detail: 'Request cancelled.' }));
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('findit-toast', { detail: err.message || 'Failed to cancel.' }));
+    }
+  };
+
+  const handleStartConversation = async () => {
+    if (!myId) return;
     try {
       const convId = await openOrCreateConversation(adId, sellerUserId);
       router.push(`/dashboard/messages?c=${convId}`);
-    } catch (e: any) {
-      setCreating(false);
-      switch (e.message) {
-        case 'NOT_AUTHENTICATED':
-          toast('Login to contact the seller.');
-          break;
-        case 'SELF_CONVERSATION':
-          toast('This is your own advertisement.');
-          break;
-        case 'USER_BLOCKED':
-          toast('User blocked.');
-          break;
-        case 'BACKEND_NOT_CONFIGURED':
-          toast('Messaging requires Supabase configuration.');
-          break;
-        default:
-          toast(e.message || 'Unable to start conversation.');
+    } catch (err: any) {
+      if (err.message === 'MESSAGING_LOCKED') {
+        // Fall through to show unlock UI
+      } else {
+        window.dispatchEvent(new CustomEvent('findit-toast', { detail: err.message || 'Unable to start conversation.' }));
       }
     }
-
-    function toast(msg: string) {
-      window.dispatchEvent(new CustomEvent('findit-toast', { detail: msg }));
-    }
   };
 
-  const sendMessageDemo = () => {
-    if (!message.trim()) {
-      setError('Please write a message first.');
-      return;
-    }
-    setError('');
-    setSent(true);
-    setTimeout(() => {
-      setMsgOpen(false);
-      setSent(false);
-      setMessage('');
-    }, 1600);
-  };
-
-  /* ---------------- Button row ---------------- */
+  /* ---------------- Button row (call / WhatsApp) ---------------- */
   const callBtn =
     phone !== undefined && phone !== '' ? (
       <a
@@ -130,35 +204,81 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
       </a>
     ) : null;
 
-  const msgBtn = isOwnAd ? (
-    <span className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold cursor-default">
-      Your Ad
-    </span>
-  ) : messageLocked ? (
-    <a
-      href="/pricing"
-      title="Messaging requires a Business plan"
-      className="flex items-center justify-center gap-1.5 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-[#0F172A] text-sm font-bold transition-colors"
-    >
-      <Lock className="w-4 h-4" /> Message
-    </a>
-  ) : (
-    <button
-      onClick={handleSendMessageClick}
-      disabled={creating}
-      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-70 text-white text-sm font-semibold transition-colors"
-    >
-      {creating ? (
-        <>
-          <Loader2 className="w-4 h-4 animate-spin" /> Opening…
-        </>
-      ) : (
-        <>
-          <Send className="w-4 h-4" /> Message
-        </>
-      )}
-    </button>
-  );
+  /* ---------------- Messaging button / state ---------------- */
+  let msgBtn: React.ReactNode;
+
+  if (isOwnAd) {
+    msgBtn = (
+      <span className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold cursor-default">
+        Your Ad
+      </span>
+    );
+  } else if (loading) {
+    msgBtn = (
+      <button disabled className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-200 text-slate-400 text-sm font-semibold">
+        <Loader2 className="w-4 h-4 animate-spin" />
+      </button>
+    );
+  } else if (reqStatus === 'none') {
+    msgBtn = (
+      <button
+        onClick={handleRequestClick}
+        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-semibold transition-colors"
+      >
+        <MessageCircle className="w-4 h-4" /> Request to Connect
+      </button>
+    );
+  } else if (reqStatus === 'pending') {
+    msgBtn = (
+      <button disabled className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-200 text-slate-400 text-sm font-semibold">
+        <Clock className="w-4 h-4" /> Request Sent
+      </button>
+    );
+  } else if (reqStatus === 'declined') {
+    msgBtn = (
+      <button
+        onClick={handleRequestClick}
+        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-600 text-sm font-semibold transition-colors"
+      >
+        <RefreshCw className="w-4 h-4" /> Request Again
+      </button>
+    );
+  } else if (reqStatus === 'accepted') {
+    if (hasSubscription === true) {
+      msgBtn = (
+        <button
+          onClick={handleStartConversation}
+          disabled={sending}
+          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-70 text-white text-sm font-semibold transition-colors"
+        >
+          {sending ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Opening…
+            </>
+          ) : (
+            <>
+              <ArrowRight className="w-4 h-4" /> Start Conversation
+            </>
+          )}
+        </button>
+      );
+    } else if (hasSubscription === false) {
+      msgBtn = (
+        <button
+          onClick={() => router.push('/pricing')}
+          className="flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-[#0F172A] text-sm font-bold transition-colors"
+        >
+          <Lock className="w-4 h-4" /> Unlock Messaging
+        </button>
+      );
+    } else {
+      msgBtn = (
+        <button disabled className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-200 text-slate-400 text-sm font-semibold">
+          <Loader2 className="w-4 h-4 animate-spin" />
+        </button>
+      );
+    }
+  }
 
   const buttons = [callBtn, waBtn, msgBtn].filter(Boolean);
 
@@ -168,60 +288,79 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
         {buttons}
       </div>
 
-      {/* Demo-mode modal (no backend configured) */}
+      {/* Connection Request Modal */}
       <AnimatePresence>
-        {msgOpen && !isSupabaseConfigured && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
-            onClick={() => setMsgOpen(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {sent ? (
-                <div className="text-center py-4">
-                  <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Check className="w-7 h-7 text-emerald-600" />
-                  </div>
-                  <h3 className="font-bold text-[#0F172A]">Message Sent!</h3>
-                  <p className="text-xs text-slate-500 mt-1">{sellerName} will reply soon.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-[#0F172A]">Message {sellerName}</h3>
-                    <button onClick={() => setMsgOpen(false)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
-                      <XIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <label htmlFor="seller-msg" className="block text-xs font-semibold text-slate-500 mb-1.5">Your message</label>
-                  <textarea
-                    id="seller-msg"
-                    rows={4}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    maxLength={2000}
-                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent resize-none ${error ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
-                  />
-                  {error && <p role="alert" className="text-xs text-red-600 font-medium mt-1.5">{error}</p>}
-                  <button onClick={sendMessageDemo} className="w-full mt-4 py-3 bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <Send className="w-4 h-4" /> Send Message
-                  </button>
-                </>
-              )}
-            </motion.div>
-          </motion.div>
+        {msgOpen && (
+          <Modal open={msgOpen} onClose={() => setMsgOpen(false)} title="Request to Connect" size="sm">
+            <form onSubmit={handleSendRequest} className="space-y-4">
+              <p className="text-sm text-slate-600">
+                Introduce yourself to <strong>{sellerName}</strong> about <strong>"{adTitle}"</strong>. This request is free — the seller can accept or decline.
+              </p>
+              <label htmlFor="conn-msg" className="block text-xs font-semibold text-slate-500 mb-1.5">
+                Your introduction
+              </label>
+              <textarea
+                id="conn-msg"
+                rows={4}
+                value={initialMessage}
+                onChange={(e) => setInitialMessage(e.target.value)}
+                maxLength={500}
+                placeholder="Hi, I'm interested in your listing..."
+                className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-[#E53935] focus:border-transparent resize-none ${error ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}
+              />
+              {error && <p role="alert" className="text-xs text-red-600 font-medium mt-1.5">{error}</p>}
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMsgOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="px-5 py-2 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold transition-colors disabled:opacity-70"
+                >
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send Request
+                </button>
+              </div>
+            </form>
+          </Modal>
         )}
       </AnimatePresence>
 
-      {/* Toast listener (loose coupling with page toasts) */}
+      {/* Accept/Decline modal for recipient */}
+      <AnimatePresence>
+        {reqStatus === 'pending' && request && request.recipientId === myId && (
+          <Modal open={true} onClose={() => {}} title="Connection Request" size="sm">
+            <p className="text-sm text-slate-600 mb-4">
+              {request.senderName || 'A user'} wants to connect about <strong>"{request.listingTitle || adTitle}"</strong>.
+            </p>
+            <p className="text-sm text-slate-600 mb-6">
+              <em>"{request.initialMessage}"</em>
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleRespond('accept')}
+                disabled={responding === request.id}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition-colors disabled:opacity-70"
+              >
+                {responding === request.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Accept'}
+              </button>
+              <button
+                onClick={() => handleRespond('decline')}
+                disabled={responding === request.id}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:border-[#E53935] hover:text-[#E53935] text-sm font-bold transition-colors disabled:opacity-70"
+              >
+                Decline
+              </button>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Toast listener */}
       <ToastBridge />
     </>
   );

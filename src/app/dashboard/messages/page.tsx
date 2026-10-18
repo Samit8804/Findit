@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
+  ArrowRight,
+  Lock,
   Paperclip,
   SendHorizonal,
   Search,
@@ -29,6 +31,7 @@ import {
   ChatMessage,
 } from '@/services/messaging';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
+import { hasActiveMessagingSubscription } from '@/services/profile';
 
 const QUICK_REPLIES = [
   'Is this still available?',
@@ -57,6 +60,8 @@ function MessagesContent() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
   const [toast, setToast] = useState('');
+  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const myIdRef = useRef<string | null>(null);
   const activeIdRef = useRef('');
@@ -96,6 +101,26 @@ function MessagesContent() {
     });
     return () => unsub?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ---------------- subscription check ---------------- */
+  useEffect(() => {
+    if (!isSupabaseConfigured) { setHasSubscription(true); setSubscriptionLoading(false); return; }
+    (async () => {
+      const sb = getSupabaseBrowser();
+      if (!sb) { setHasSubscription(true); setSubscriptionLoading(false); return; }
+      const { data: auth } = await sb.auth.getUser();
+      if (!auth.user) { setHasSubscription(false); setSubscriptionLoading(false); return; }
+      try {
+        const sub = await hasActiveMessagingSubscription(auth.user.id);
+        setHasSubscription(sub);
+      } catch {
+        setHasSubscription(false);
+      } finally {
+        setSubscriptionLoading(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const active = useMemo(
@@ -198,6 +223,29 @@ function MessagesContent() {
           <button onClick={() => void loadConversations()} className="px-4 py-2 rounded-lg bg-[#E53935] text-white text-xs font-bold">Retry</button>
         </div>
       )}
+
+      {/* Locked state: no active messaging subscription */}
+      {subscriptionLoading ? (
+        <div className="mb-6 p-8 text-center bg-white rounded-2xl border border-slate-100">
+          <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto mb-3" />
+          <p className="text-sm text-slate-500">Checking messaging access…</p>
+        </div>
+      ) : hasSubscription === false ? (
+        <div className="mb-6 p-8 text-center bg-white rounded-2xl border border-slate-100">
+          <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-black mb-2">Unlock Messaging</h2>
+          <p className="text-slate-600 mb-6 max-w-sm mx-auto leading-relaxed">
+            You need an active Business or Business Pro subscription to start private conversations.
+            Once subscribed, you can message multiple sellers without paying again.
+          </p>
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold transition-colors shadow-lg shadow-red-200"
+          >
+            <ArrowRight className="w-4 h-4" /> Choose a Plan
+          </Link>
+        </div>
+      ) : null}
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="flex flex-col lg:grid lg:grid-cols-[320px_1fr] lg:h-[calc(100dvh-12rem)] min-h-[calc(100dvh-12rem)]">

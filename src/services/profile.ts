@@ -10,11 +10,31 @@ export interface MyProfile {
   role: 'user' | 'admin';
 }
 
-/** Messaging is a paid feature: free plan cannot access it.
- *  Admins are always allowed. */
+/** Sync quick check based on profile.plan. Admins always allowed. */
 export function canUseMessaging(profile: MyProfile): boolean {
   if (profile.role === 'admin') return true;
   return profile.plan !== 'free';
+}
+
+/** Async server-verified check: queries user_subscriptions for an active,
+ * non-expired subscription. This is the single source of truth for messaging
+ * entitlement. Returns true in demo mode (no backend configured). */
+export async function hasActiveMessagingSubscription(userId: string): Promise<boolean> {
+  const sb = getSupabaseBrowser();
+  if (!sb) return true; // demo mode
+  const { data, error } = await sb.rpc('has_active_messaging_subscription', {
+    p_user_id: userId,
+  });
+  if (error) return false;
+  return Boolean(data);
+}
+
+/** Combined check: profile.plan is non-free AND an active subscription exists.
+ * Use this for UI gating; server-side authorization is enforced separately. */
+export async function canUseMessagingVerified(profile: MyProfile): Promise<boolean> {
+  if (profile.role === 'admin') return true;
+  if (profile.plan === 'free') return false;
+  return hasActiveMessagingSubscription(profile.id);
 }
 
 export async function getMyProfile(): Promise<MyProfile | null> {
