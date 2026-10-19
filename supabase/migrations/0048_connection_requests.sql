@@ -14,12 +14,14 @@ create table if not exists public.connection_requests (
     check (status in ('pending','accepted','declined','cancelled')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  responded_at timestamptz,
-  unique(sender_id, recipient_id, listing_id, status)
-    where status in ('pending','accepted')
+  responded_at timestamptz
 );
 
 -- ---------- INDEXES ----------
+create unique index if not exists idx_cr_one_active_request
+  on public.connection_requests(sender_id, recipient_id, listing_id)
+  where status in ('pending','accepted');
+
 create index if not exists idx_cr_sender on public.connection_requests(sender_id, created_at desc);
 create index if not exists idx_cr_recipient on public.connection_requests(recipient_id, status, created_at desc);
 create index if not exists idx_cr_listing on public.connection_requests(listing_id);
@@ -43,7 +45,6 @@ using (auth.uid() = recipient_id)
 with check (
   auth.uid() = recipient_id
   and status in ('accepted','declined')
-  and (old.status is distinct from new.status or old.responded_at is distinct from new.responded_at)
 );
 
 -- Admins can read all
