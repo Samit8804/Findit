@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { useUnread } from '@/components/providers/UnreadProvider';
+import { useMyProfile } from '@/lib/useMyProfile';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -29,10 +30,21 @@ const NAV = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
-export const DashboardSidebar: React.FC<{ userName?: string }> = ({ userName = 'Demo' }) => {
+export const DashboardSidebar: React.FC = () => {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const unread = useUnread();
+  const { profile, loading: profileLoading } = useMyProfile();
+
+  const displayName = profile?.name || 'My Account';
+  const planLabel =
+    profile?.role === 'admin'
+      ? 'Admin'
+      : profile?.plan === 'business-pro'
+        ? 'Business Pro'
+        : profile?.plan === 'business'
+          ? 'Business'
+          : 'Free plan';
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
@@ -89,15 +101,36 @@ export const DashboardSidebar: React.FC<{ userName?: string }> = ({ userName = '
       <aside className="hidden lg:flex flex-col w-64 shrink-0">
         <div className="sticky top-24 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           {/* Mini profile */}
-          <div className="flex items-center gap-3 px-2 py-3 mb-3 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-red-50 text-[#E53935] flex items-center justify-center font-black shrink-0">
-              {userName.charAt(0)}
-            </div>
+          <Link
+            href="/dashboard/profile"
+            className="flex items-center gap-3 px-2 py-3 mb-3 border-b border-slate-100 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            {profile?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.avatarUrl}
+                alt=""
+                className="w-10 h-10 rounded-xl object-cover shrink-0 bg-slate-100"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-[#E53935] flex items-center justify-center font-black shrink-0 uppercase">
+                {displayName.charAt(0)}
+              </div>
+            )}
             <div className="min-w-0">
-              <p className="text-sm font-bold truncate">{userName}</p>
-              <p className="text-[11px] text-slate-400">Pro Seller</p>
+              {profileLoading ? (
+                <div className="space-y-1.5" aria-hidden="true">
+                  <div className="h-3.5 w-24 rounded bg-slate-200 animate-pulse" />
+                  <div className="h-3 w-16 rounded bg-slate-100 animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-bold truncate">{displayName}</p>
+                  <p className="text-[11px] text-slate-400">{planLabel}</p>
+                </>
+              )}
             </div>
-          </div>
+          </Link>
           {links}
         </div>
       </aside>

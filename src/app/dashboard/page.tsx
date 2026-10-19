@@ -11,6 +11,7 @@ import type { AdStatus } from '@/lib/adStore';
 import { normalizeAdStatus } from '@/lib/adStatus';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { getDashboardStats, getMyAds, DashboardStats } from '@/services/ads';
+import { useMyProfile } from '@/lib/useMyProfile';
 
 const CARD_DEFS = [
   { key: 'total', label: 'Total Ads', icon: 'LayoutGrid', trend: 'All time', color: '#E53935' },
@@ -54,6 +55,8 @@ export default function DashboardOverview() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentAds, setRecentAds] = useState<any[] | null>(null);
   const realConvs = useRealConversations();
+  const { profile } = useMyProfile();
+  const firstName = profile?.name?.trim().split(/\s+/)[0] || '';
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -95,7 +98,9 @@ export default function DashboardOverview() {
       {/* Welcome */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Welcome back, Demo User</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+            Welcome back{firstName ? `, ${firstName}` : ''}
+          </h1>
           <p className="text-sm text-slate-600 mt-1">Here&apos;s what&apos;s happening with your listings today.</p>
         </div>
           <Link

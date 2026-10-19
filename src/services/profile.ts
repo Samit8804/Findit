@@ -47,13 +47,13 @@ export async function getMyProfile(): Promise<MyProfile | null> {
   if (!auth.user) return null;
   const { data } = await sb
     .from('profiles')
-    .select('id, name, avatar_url, plan, role')
+    .select('id, name, display_name, avatar_url, plan, role')
     .eq('id', auth.user.id)
     .single();
   if (!data) return null;
   return {
     id: data.id,
-    name: data.name || '',
+    name: data.display_name || data.name || '',
     avatarUrl: data.avatar_url || undefined,
     plan: (data.plan as Plan) || 'free',
     role: (data.role as MyProfile['role']) || 'user',

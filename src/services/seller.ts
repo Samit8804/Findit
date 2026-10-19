@@ -51,31 +51,28 @@ function reportLookupError(scope: string, code: string | undefined): Error {
   return new Error(`Unable to load seller ${scope}.`);
 }
 
-/**
- * Fetch a public seller profile by username
- */
-export async function getPublicSellerByUsername(username: string): Promise<PublicSellerProfile | null> {
-  if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
-  
-  const sb = getSupabaseBrowser()!;
-  
-  const { data, error } = await sb
-    .from('public_profiles')
-    .select('id, username, display_name, name, avatar_url, bio, location_text, phone_verified, email_verified, business_verified, account_type, created_at')
-    .eq('username', username.toLowerCase())
-    .maybeSingle();
-    
-  if (error) throw reportLookupError('public profile', error.code);
-  if (!data) return null;
-  
-  const profile = data;
-  
-  // Check if profile is public (has username set)
-  if (!profile.username) return null;
-  
+const PUBLIC_PROFILE_FIELDS =
+  'id, username, display_name, name, avatar_url, bio, location_text, phone_verified, email_verified, business_verified, account_type, created_at';
+
+interface PublicProfileRow {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  location_text: string | null;
+  phone_verified: boolean | null;
+  email_verified: boolean | null;
+  business_verified: boolean | null;
+  account_type: string | null;
+  created_at: string;
+}
+
+function mapPublicProfile(profile: PublicProfileRow): PublicSellerProfile {
   return {
     id: profile.id,
-    username: profile.username,
+    username: profile.username || '',
     display_name: profile.display_name || profile.name || 'Seller',
     name: profile.name || 'Seller',
     avatar_url: profile.avatar_url,
@@ -88,6 +85,48 @@ export async function getPublicSellerByUsername(username: string): Promise<Publi
     created_at: profile.created_at,
     account_type_label: profile.account_type === 'business' ? 'Business' : 'Individual',
   };
+}
+
+/**
+ * Fetch a public seller profile by username
+ */
+export async function getPublicSellerByUsername(username: string): Promise<PublicSellerProfile | null> {
+  if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
+
+  const sb = getSupabaseBrowser()!;
+
+  const { data, error } = await sb
+    .from('public_profiles')
+    .select(PUBLIC_PROFILE_FIELDS)
+    .eq('username', username.toLowerCase())
+    .maybeSingle();
+
+  if (error) throw reportLookupError('public profile', error.code);
+  if (!data || !data.username) return null;
+
+  return mapPublicProfile(data);
+}
+
+/**
+ * Fetch the same public profile by user id. Used as a stable fallback for
+ * sellers who have not picked a username yet so listing "View Profile"
+ * links always resolve.
+ */
+export async function getPublicSellerById(userId: string): Promise<PublicSellerProfile | null> {
+  if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
+
+  const sb = getSupabaseBrowser()!;
+
+  const { data, error } = await sb
+    .from('public_profiles')
+    .select(PUBLIC_PROFILE_FIELDS)
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) throw reportLookupError('public profile', error.code);
+  if (!data) return null;
+
+  return mapPublicProfile(data);
 }
 
 /**

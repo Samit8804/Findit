@@ -23,6 +23,7 @@ import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client'
 import { Check, ChevronLeft, ChevronRight, Send, ShieldCheck, Tag, ImageIcon, MapPin, Eye, Rocket } from 'lucide-react';
 import { PhoneVerificationGate } from '@/components/auth/PhoneVerificationGate';
 import { getFreeAdUsage, FreeAdUsage, getPhoneVerificationStatus } from '@/services/phoneVerification';
+import { getMySettings } from '@/services/settings';
 
 const STEPS = [
   { id: 1, label: 'Category', icon: Tag },
@@ -72,6 +73,28 @@ function WizardContent() {
       cancelled = true;
     };
   }, []);
+
+  // Apply saved contact-visibility defaults to new ads only.
+  useEffect(() => {
+    if (!isSupabaseConfigured || editAdId) return;
+    let cancelled = false;
+    getMySettings()
+      .then((settings) => {
+        if (cancelled || !settings) return;
+        setData((d) => ({
+          ...d,
+          contactPrefs: {
+            ...d.contactPrefs,
+            showPhone: settings.showPhoneOnAds,
+            allowWhatsApp: settings.whatsappContact,
+          },
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [editAdId]);
 
   const refreshFreeAdUsage = useCallback(async () => {
     if (!isSupabaseConfigured) return;

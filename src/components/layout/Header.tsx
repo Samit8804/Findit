@@ -94,16 +94,18 @@ export const Header: React.FC = () => {
     sb.auth.getSession().then(({ data }) => void sync(data.session?.user ?? null));
     const { data: sub } = sb.auth.onAuthStateChange((_e, session) => void sync(session?.user ?? null));
 
-    // Profile page dispatches this after an avatar upload
-    const onAvatarUpdated = () => {
+    // Profile page dispatches these after saving details or an avatar.
+    const onProfileUpdated = () => {
       sb.auth.getSession().then(({ data }) => void sync(data.session?.user ?? null));
     };
-    window.addEventListener('avatar-updated', onAvatarUpdated);
+    window.addEventListener('avatar-updated', onProfileUpdated);
+    window.addEventListener('profile-updated', onProfileUpdated);
 
     return () => {
       active = false;
       sub.subscription.unsubscribe();
-      window.removeEventListener('avatar-updated', onAvatarUpdated);
+      window.removeEventListener('avatar-updated', onProfileUpdated);
+      window.removeEventListener('profile-updated', onProfileUpdated);
     };
   }, []);
 

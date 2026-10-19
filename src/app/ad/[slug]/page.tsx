@@ -104,11 +104,17 @@ async function fetchSupabaseAd(slug: string) {
 
   if (!data) return null;
 
-  // Fetch seller profile separately (ads.user_id -> profiles.id via auth)
+  // Fetch the seller's public profile. The base profiles table is RLS
+  // protected for anonymous visitors, so use the public view that exposes
+  // display name, username (for /seller links) and verification flags.
   const profId = (data as any).user_id;
   let enriched: any = data;
   if (profId) {
-    const { data: prof } = await sb.from('profiles').select('name').eq('id', profId).maybeSingle();
+    const { data: prof } = await sb
+      .from('public_profiles')
+      .select('id, name, display_name, username, avatar_url, is_verified, phone_verified, created_at')
+      .eq('id', profId)
+      .maybeSingle();
     if (prof) enriched = { ...data, profiles: prof };
   }
   return enriched as any;
@@ -271,7 +277,18 @@ export default async function AdDetailPage({ params }: AdPageProps) {
                     <ShareButton title={sbAd.title} url={`${SITE_URL}/ad/${sbAd.slug}`} />
                   </div>
                   <div className="pt-4 border-t border-slate-100">
-                    <SellerCard name={sbAd.profiles?.name || 'Seller'} joinedAt={new Date(sbAd.created_at).toLocaleDateString()} verified={false} />
+                    <SellerCard
+                      name={sbAd.profiles?.display_name || sbAd.profiles?.name || 'Seller'}
+                      joinedAt={new Date(sbAd.profiles?.created_at || sbAd.created_at).toLocaleDateString()}
+                      verified={!!(sbAd.profiles?.phone_verified || sbAd.profiles?.is_verified)}
+                      profileHref={
+                        sbAd.profiles?.username
+                          ? `/seller/${encodeURIComponent(sbAd.profiles.username)}`
+                          : sbAd.profiles?.id
+                            ? `/seller/${sbAd.profiles.id}`
+                            : undefined
+                      }
+                    />
                   </div>
                 </div>
                 <SafetyTipsCard />

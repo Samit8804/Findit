@@ -1,7 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Bell,
@@ -23,6 +22,7 @@ import {
   AppNotification,
 } from '@/services/notifications';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { useUnread } from '@/components/providers/UnreadProvider';
 
 const META: Record<string, { icon: React.ElementType; classes: string }> = {
   new_message: { icon: MessageSquare, classes: 'bg-sky-50 text-sky-600' },
@@ -45,33 +45,76 @@ const META: Record<string, { icon: React.ElementType; classes: string }> = {
 
 function NotificationsContent() {
   const [items, setItems] = useState<AppNotification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState('');
   const searchParams = useSearchParams();
   const router = useRouter();
+  const unread = useUnread();
+  const refreshUnread = unread.refresh;
 
-  const load = useCallback(async () => {
-    if (!isSupabaseConfigured) { setLoading(false); return; }
-    try {
-      setItems(await getMyNotifications());
-      setError('');
-    } catch {
-      setError('Failed to load notifications.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
 
-  useEffect(() => { void load(); }, [load]);
+    getMyNotifications()
+      .then(async (list) => {
+        if (cancelled) return;
+        setItems(list);
+        setError('');
+        // Viewing the notifications page marks everything as read so the
+        // sidebar/header badges clear as soon as the user has seen them.
+        if (list.some((n) => !n.read)) {
+          try {
+            await markAllNotificationsRead();
+            if (!cancelled) setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+          } catch {
+            // Badge may stay stale if the update failed; list still renders.
+          }
+          refreshUnread();
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError('Failed to load notifications.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey, refreshUnread]);
+
+  const retry = () => {
+    setLoading(true);
+    setError('');
+    setReloadKey((k) => k + 1);
+  };
 
   const unreadCount = items.filter((n) => !n.read).length;
 
   const openNotification = async (n: AppNotification) => {
     if (!n.read) {
-      await markNotificationRead(n.id);
-      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      try {
+        await markNotificationRead(n.id);
+        setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+        refreshUnread();
+      } catch {
+        // Still navigate; the notification stays unread if the update failed.
+      }
     }
     router.push(notificationLink(n));
+  };
+
+  const markAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+      refreshUnread();
+    } catch {
+      setError('Could not mark notifications as read. Please try again.');
+    }
   };
 
   return (
@@ -85,10 +128,7 @@ function NotificationsContent() {
         </div>
         {unreadCount > 0 && (
           <button
-            onClick={async () => {
-              await markAllNotificationsRead();
-              setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-            }}
+            onClick={() => void markAllRead()}
             className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold hover:border-slate-300 transition-colors"
           >
             <CheckCheck className="w-4 h-4" /> Mark all as read
@@ -111,7 +151,7 @@ function NotificationsContent() {
       ) : error ? (
         <div className="p-10 text-center bg-white rounded-2xl border border-red-100">
           <p className="text-sm font-semibold text-[#D32F2F]">{error}</p>
-          <button onClick={() => void load()} className="mt-4 px-5 py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-bold">Retry</button>
+          <button onClick={retry} className="mt-4 px-5 py-2.5 rounded-xl bg-[#E53935] text-white text-xs font-bold">Retry</button>
         </div>
       ) : items.length === 0 ? (
         /* Empty state */
@@ -119,7 +159,7 @@ function NotificationsContent() {
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
             <Bell className="w-8 h-8 text-slate-400" />
           </div>
-          <h3 className="text-lg font-bold mb-1">You're all caught up.</h3>
+          <h3 className="text-lg font-bold mb-1">You&apos;re all caught up.</h3>
           <p className="text-sm text-slate-500 max-w-xs">New activity on your ads and messages will appear here.</p>
         </div>
       ) : (

@@ -8,6 +8,7 @@ interface SellerCardProps {
   verified?: boolean;
   responseTime?: string;
   isBusiness?: boolean;
+  profileHref?: string;
 }
 
 export const SellerCard: React.FC<SellerCardProps> = ({
@@ -16,6 +17,7 @@ export const SellerCard: React.FC<SellerCardProps> = ({
   verified = false,
   responseTime = 'Usually responds within 2 hours',
   isBusiness = false,
+  profileHref,
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
@@ -48,12 +50,21 @@ export const SellerCard: React.FC<SellerCardProps> = ({
         {responseTime}
       </p>
 
-      <span
-        title="Seller profiles coming soon"
-        className="block w-full text-center py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed text-sm font-semibold"
-      >
-        View Profile
-      </span>
+      {profileHref ? (
+        <Link
+          href={profileHref}
+          className="block w-full text-center py-2.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold transition-colors shadow-sm"
+        >
+          View Profile
+        </Link>
+      ) : (
+        <span
+          title="This seller has not published a public profile yet"
+          className="block w-full text-center py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed text-sm font-semibold"
+        >
+          View Profile
+        </span>
+      )}
     </div>
   );
 };

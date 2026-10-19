@@ -12,25 +12,47 @@ const inputCls = (err?: string) =>
     err ? 'border-red-300 bg-red-50' : 'border-slate-200'
   }`;
 
+const DEMO_FORM = {
+  name: 'Demo User',
+  displayName: 'Demo User',
+  username: '',
+  email: 'demo.user@findit.example',
+  phone: '+91 98765 43210',
+  location: 'Sector 150, Noida, Uttar Pradesh',
+  bio: 'Pro seller on FindIt since 2022. I list quality electronics, vehicles and property deals across Delhi NCR.',
+  whatsapp: '+91 98765 43210',
+  website: 'https://demostore.example.com',
+  instagram: '@demouser',
+  twitter: '@demouser',
+  accountType: 'individual' as 'individual'|'business',
+  privacyPhone: 'private' as 'public'|'registered_users'|'private',
+  privacyEmail: 'private' as 'public'|'registered_users'|'private',
+  privacyAddress: 'private' as 'public'|'registered_users'|'private',
+  showRecentlySold: false,
+};
+
+const EMPTY_FORM = {
+  name: '',
+  displayName: '',
+  username: '',
+  email: '',
+  phone: '',
+  location: '',
+  bio: '',
+  whatsapp: '',
+  website: '',
+  instagram: '',
+  twitter: '',
+  accountType: 'individual' as 'individual'|'business',
+  privacyPhone: 'private' as 'public'|'registered_users'|'private',
+  privacyEmail: 'private' as 'public'|'registered_users'|'private',
+  privacyAddress: 'private' as 'public'|'registered_users'|'private',
+  showRecentlySold: false,
+};
+
 export default function ProfilePage() {
-  const [form, setForm] = useState({
-    name: 'Demo User',
-    displayName: 'Demo User',
-    username: '',
-    email: 'demo.user@findit.example',
-    phone: '+91 98765 43210',
-    location: 'Sector 150, Noida, Uttar Pradesh',
-    bio: 'Pro seller on FindIt since 2022. I list quality electronics, vehicles and property deals across Delhi NCR.',
-    whatsapp: '+91 98765 43210',
-    website: 'https://demostore.example.com',
-    instagram: '@demouser',
-    twitter: '@demouser',
-    accountType: 'individual' as 'individual'|'business',
-    privacyPhone: 'private' as 'public'|'registered_users'|'private',
-    privacyEmail: 'private' as 'public'|'registered_users'|'private',
-    privacyAddress: 'private' as 'public'|'registered_users'|'private',
-    showRecentlySold: false,
-  });
+  // Never flash demo identity data over a real, signed-in profile.
+  const [form, setForm] = useState(isSupabaseConfigured ? EMPTY_FORM : DEMO_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -61,6 +83,7 @@ export default function ProfilePage() {
           phone: p.phone || f.phone,
           location: p.location_text || f.location,
           bio: p.bio || f.bio,
+          whatsapp: p.whatsapp || f.whatsapp,
           accountType: p.account_type || 'individual',
           privacyPhone: p.privacy_phone || 'private',
           privacyEmail: p.privacy_email || 'private',
@@ -143,6 +166,7 @@ export default function ProfilePage() {
       location_text: form.location.trim() || null,
       account_type: form.accountType,
       phone: form.phone.trim() || null,
+      whatsapp: form.whatsapp.trim() || null,
       privacy_phone: form.privacyPhone,
       privacy_email: form.privacyEmail,
       privacy_address: form.privacyAddress,
@@ -159,6 +183,7 @@ export default function ProfilePage() {
       return;
     }
     setSavedUsername(updatedProfile.username);
+    window.dispatchEvent(new CustomEvent('profile-updated'));
     setSaved(true); setTimeout(()=>setSaved(false),2000);
   };
 

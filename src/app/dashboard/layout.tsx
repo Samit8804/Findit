@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-8">
             <div className="lg:w-64 lg:shrink-0">
-              <DashboardSidebar userName="Demo User" />
+              <DashboardSidebar />
             </div>
             <div className="flex-grow min-w-0 w-full pb-8 lg:pb-0">{children}</div>
           </div>

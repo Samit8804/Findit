@@ -32,6 +32,7 @@ import {
 } from '@/services/messaging';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
 import { hasActiveMessagingSubscription } from '@/services/profile';
+import { useUnread } from '@/components/providers/UnreadProvider';
 
 const QUICK_REPLIES = [
   'Is this still available?',
@@ -45,6 +46,8 @@ const REPORT_REASONS = ['Spam', 'Scam', 'Harassment', 'Inappropriate behavior', 
 function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const unread = useUnread();
+  const refreshUnread = unread.refresh;
 
   const [convs, setConvs] = useState<ConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string>('');
@@ -146,11 +149,11 @@ function MessagesContent() {
       .catch(() => !cancelled && setLoadError('Failed to load messages.'))
       .finally(() => { if (!cancelled) setMsgsLoading(false); });
 
-    void markConversationRead(active.id);
+    void markConversationRead(active.id).then(refreshUnread);
 
     unsubscribe = subscribeToConversation(active.id, () => {
       getMessages(active.id).then((m) => { if (!cancelled) setMessages(m); });
-      void markConversationRead(active.id);
+      void markConversationRead(active.id).then(refreshUnread);
       void loadConversations();
     });
 

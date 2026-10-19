@@ -21,18 +21,20 @@ import { Header } from '@/components/layout/Header';
 import { ListingCard } from '@/components/listings/ListingCard';
 import { getUsernameValidationError } from '@/lib/username';
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
-import { getPublicSellerByUsername, getSellerAds, getSellerBusiness, SellerBusiness, SellerWithAds } from '@/services/seller';
+import { getPublicSellerById, getPublicSellerByUsername, getSellerAds, getSellerBusiness, SellerBusiness, SellerWithAds } from '@/services/seller';
 
 type SellerPageResult =
   | { username: string; status: 'not-found' | 'error' }
   | { username: string; status: 'loaded'; seller: SellerWithAds; business: SellerBusiness | null };
 
 const REPORT_REASONS = ['Spam', 'Scam or fraud', 'Harassment', 'Impersonation', 'Other'];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function SellerProfileContent() {
   const params = useParams<{ username: string }>();
   const username = (params.username || '').toLowerCase();
-  const invalidUsername = !!getUsernameValidationError(username);
+  const isSellerId = UUID_RE.test(username);
+  const invalidUsername = !isSellerId && !!getUsernameValidationError(username);
   const [result, setResult] = useState<SellerPageResult | null>(null);
   const currentResult = result?.username === username ? result : null;
   const profile = currentResult?.status === 'loaded' ? currentResult.seller.profile : null;
@@ -91,7 +93,9 @@ function SellerProfileContent() {
 
     const fetchSeller = async () => {
       try {
-        const sellerProfile = await getPublicSellerByUsername(username);
+        const sellerProfile = isSellerId
+          ? await getPublicSellerById(username)
+          : await getPublicSellerByUsername(username);
         if (cancelled) return;
 
         if (!sellerProfile) {
@@ -123,7 +127,7 @@ function SellerProfileContent() {
     return () => {
       cancelled = true;
     };
-  }, [invalidUsername, username]);
+  }, [invalidUsername, isSellerId, username]);
 
   const shareProfile = async () => {
     const url = window.location.href;
@@ -332,12 +336,14 @@ function SellerProfileContent() {
                 >
                   <Share2 className="h-4 w-4" /> Share Profile
                 </button>
-                <Link
-                  href={`/dashboard/messages?seller=${encodeURIComponent(profile.username)}`}
-                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#E53935] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#D32F2F]"
-                >
-                  <MessageSquare className="h-4 w-4" /> Contact Seller
-                </Link>
+                {profile.username && (
+                  <Link
+                    href={`/dashboard/messages?seller=${encodeURIComponent(profile.username)}`}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#E53935] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#D32F2F]"
+                  >
+                    <MessageSquare className="h-4 w-4" /> Contact Seller
+                  </Link>
+                )}
               </div>
             </div>
             {shareMessage && (
@@ -569,7 +575,7 @@ function SellerProfileContent() {
               <div className="mt-6 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
                 Sign in to submit a report.
                 <Link
-                  href={`/login?next=${encodeURIComponent(`/seller/${profile.username}`)}`}
+                  href={`/login?next=${encodeURIComponent(`/seller/${username}`)}`}
                   className="ml-2 font-bold underline"
                 >
                   Log in

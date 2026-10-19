@@ -41,13 +41,27 @@ export async function getMyNotifications(): Promise<AppNotification[]> {
 export async function markNotificationRead(id: string): Promise<void> {
   const sb = getSupabaseBrowser();
   if (!sb) return;
-  await sb.from('notifications').update({ read: true }).eq('id', id);
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) throw new Error('NOT_AUTHENTICATED');
+  const { error } = await sb
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', id)
+    .eq('user_id', auth.user.id);
+  if (error) throw new Error(error.message);
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
   const sb = getSupabaseBrowser();
   if (!sb) return;
-  await sb.from('notifications').update({ read: true }).eq('read', false);
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) throw new Error('NOT_AUTHENTICATED');
+  const { error } = await sb
+    .from('notifications')
+    .update({ read: true })
+    .eq('user_id', auth.user.id)
+    .eq('read', false);
+  if (error) throw new Error(error.message);
 }
 
 /** Where should this notification take the user? */
