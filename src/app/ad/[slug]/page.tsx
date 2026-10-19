@@ -266,6 +266,10 @@ export default async function AdDetailPage({ params }: AdPageProps) {
                   <h1 className="text-xl sm:text-2xl font-black tracking-tight mb-4">{sbAd.title}</h1>
                   <p className="text-3xl font-black text-[#E53935] mb-4">₹{Number(sbAd.price).toLocaleString('en-IN')}</p>
                   <p className="text-sm text-slate-500 mb-4">{sbAd.city?.name || ''}</p>
+                  <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <FavouriteButton adId={sbAd.id} variant="button" />
+                    <ShareButton title={sbAd.title} url={`${SITE_URL}/ad/${sbAd.slug}`} />
+                  </div>
                   <div className="pt-4 border-t border-slate-100">
                     <SellerCard name={sbAd.profiles?.name || 'Seller'} joinedAt={new Date(sbAd.created_at).toLocaleDateString()} verified={false} />
                   </div>

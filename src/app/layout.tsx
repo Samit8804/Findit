@@ -4,6 +4,7 @@ import { ToastProvider } from "@/components/ui/Feedback";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { UnreadProvider } from "@/components/providers/UnreadProvider";
+import { FavoritesProvider } from "@/components/providers/FavoritesProvider";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SITE_URL, organizationJsonLd, webSiteJsonLd } from "@/lib/seo";
 import { AnalyticsPageView } from "@/components/analytics/PageViewTracker";
@@ -65,15 +66,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ToastProvider>
           <ConsentProvider>
             <UnreadProvider>
-              <LogoIntro />
-              <AuthGate>
-                <AnalyticsPageView />
-                <GoogleAnalytics />
-                {children}
-              </AuthGate>
-              <ConsentBanner />
-              <div className="h-16 md:hidden" aria-hidden />
-              <MobileBottomNav />
+              <FavoritesProvider>
+                <LogoIntro />
+                <AuthGate>
+                  <AnalyticsPageView />
+                  <GoogleAnalytics />
+                  {children}
+                </AuthGate>
+                <ConsentBanner />
+                <div className="h-16 md:hidden" aria-hidden />
+                <MobileBottomNav />
+              </FavoritesProvider>
             </UnreadProvider>
           </ConsentProvider>
         </ToastProvider>

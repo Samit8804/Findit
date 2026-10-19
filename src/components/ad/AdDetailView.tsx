@@ -16,13 +16,12 @@ import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client'
 import {
   getPublicAdBySlug,
   listPublicAds,
-  toggleFavorite,
-  getFavoriteState,
   PublicAd,
 } from '@/services/ads';
 import { getMyProfile, canUseMessagingVerified } from '@/services/profile';
 import { trackAdView, trackFavorite as trackFavEvent } from '@/lib/analytics';
 import { useToast } from '@/components/ui/Feedback';
+import { useFavorites } from '@/components/providers/FavoritesProvider';
 import {
   MapPin,
   Eye,
@@ -43,11 +42,11 @@ export default function AdDetailView() {
   const params = useParams<{ slug: string }>();
   const slug = decodeURIComponent(params.slug);
   const toast = useToast();
+  const { isFavorite, toggleFavorite, loading: favoritesLoading } = useFavorites();
 
   const [ad, setAd] = useState<PublicAd | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [fav, setFav] = useState(false);
   const [similar, setSimilar] = useState<PublicAd[]>([]);
   const [messagingLocked, setMessagingLocked] = useState(!isSupabaseConfigured ? false : null);
   const [isOwnAd, setIsOwnAd] = useState(false);
@@ -81,7 +80,6 @@ export default function AdDetailView() {
         } else {
           setAd(result);
           void trackAdView(result.id, result.categorySlug, result.city as any);
-          void getFavoriteState(result.id).then((f) => !cancelled && setFav(f));
           if (result.categorySlug) {
             listPublicAds({ categorySlug: result.categorySlug })
               .then((res) => !cancelled && setSimilar(res.ads.filter((a) => a.id !== result.id).slice(0, 4)))
@@ -98,14 +96,16 @@ export default function AdDetailView() {
     if (!ad) return;
     try {
       const next = await toggleFavorite(ad.id);
-      setFav(next);
       trackFavEvent(ad.id, next);
       toast(next ? 'Added to favorites' : 'Removed from favorites');
-    } catch (e: any) {
-      if (e.message === 'NOT_AUTHENTICATED') {
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '';
+      if (message === 'NOT_AUTHENTICATED') {
         toast('Please log in to save favorites');
+      } else if (message === 'BACKEND_NOT_CONFIGURED') {
+        toast('Favorites are unavailable right now');
       } else {
-        toast("You don't have permission to perform this action.");
+        toast('Could not update favorites. Please try again.');
       }
     }
   };
@@ -169,6 +169,7 @@ export default function AdDetailView() {
   }
 
   const primaryImage = ad.images.find((i) => i.isPrimary)?.url || ad.images[0]?.url || '';
+  const fav = isFavorite(ad.id);
   const postedDate = new Date(ad.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   const related = similar.filter((a) => a.slug !== ad.slug);
 
@@ -304,7 +305,8 @@ export default function AdDetailView() {
                 <div className="grid grid-cols-3 gap-3 mt-3">
                   <button
                     onClick={handleToggleFav}
-                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
+                    disabled={favoritesLoading}
+                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-60 ${
                       fav ? 'bg-red-50 border-[#E53935] text-[#E53935]' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                     }`}
                   >

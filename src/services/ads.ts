@@ -946,24 +946,73 @@ export async function moderateAd(
 /* FAVORITES                                                           */
 /* ------------------------------------------------------------------ */
 
+async function requireAuthUserId(sb: NonNullable<ReturnType<typeof getSupabaseBrowser>>): Promise<string> {
+  const { data: auth, error } = await sb.auth.getUser();
+  if (error || !auth.user) throw new Error('NOT_AUTHENTICATED');
+  return auth.user.id;
+}
+
+/** The authenticated user's favorite ad ids (most recently saved first). */
+export async function listMyFavoriteIds(): Promise<string[]> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const userId = await requireAuthUserId(sb);
+  const { data, error } = await sb
+    .from('favorites')
+    .select('ad_id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const row of (data || []) as { ad_id: string }[]) {
+    const id = row.ad_id;
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+/** Idempotent save — safe to call repeatedly (PK user_id + ad_id). */
+export async function addFavorite(adId: string): Promise<void> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const userId = await requireAuthUserId(sb);
+  const { error } = await sb
+    .from('favorites')
+    .upsert({ user_id: userId, ad_id: adId }, { onConflict: 'user_id,ad_id', ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+}
+
+/** Idempotent removal — only ever touches the caller's own row. */
+export async function removeFavorite(adId: string): Promise<void> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const userId = await requireAuthUserId(sb);
+  const { error } = await sb.from('favorites').delete().eq('ad_id', adId).eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+
+/** Toggles and reports the resulting persisted state. Throws on failure. */
 export async function toggleFavorite(adId: string): Promise<boolean> {
   const sb = getSupabaseBrowser();
   if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
-  const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) throw new Error('NOT_AUTHENTICATED');
-
-  const { data: existing } = await sb
+  const userId = await requireAuthUserId(sb);
+  const { data: existing, error: readError } = await sb
     .from('favorites')
-    .select('user_id')
+    .select('ad_id')
     .eq('ad_id', adId)
-    .eq('user_id', auth.user.id)
+    .eq('user_id', userId)
     .maybeSingle();
+  if (readError) throw new Error(readError.message);
 
   if (existing) {
-    await sb.from('favorites').delete().eq('ad_id', adId).eq('user_id', auth.user.id);
+    await removeFavorite(adId);
     return false;
   }
-  await sb.from('favorites').insert({ ad_id: adId, user_id: auth.user.id });
+  await addFavorite(adId);
   return true;
 }
 
@@ -972,23 +1021,29 @@ export async function getFavoriteState(adId: string): Promise<boolean> {
   if (!sb) return false;
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return false;
-  const { data } = await sb.from('favorites').select('user_id').eq('ad_id', adId).eq('user_id', auth.user.id).maybeSingle();
+  const { data, error } = await sb
+    .from('favorites')
+    .select('ad_id')
+    .eq('ad_id', adId)
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
   return !!data;
 }
 
 export async function getMyFavoriteAds(): Promise<PublicAd[]> {
   const sb = getSupabaseBrowser();
-  if (!sb) return [];
-  const { data: favs, error } = await sb
-    .from('favorites')
-    .select(`ad_id, ads(*, categories(name, slug), locations(name),
-             profiles:user_id(name, is_verified, phone, whatsapp),
-             ad_images(image_url, is_primary, sort_order))`)
-    .order('created_at', { ascending: false });
-  if (error || !favs) return [];
-  return favs
-    .map((f: any) => (f.ads ? mapRowToPublicAd(f.ads) : null))
-    .filter(Boolean) as PublicAd[];
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return [];
+
+  const adIds = await listMyFavoriteIds();
+  if (adIds.length === 0) return [];
+
+  const { ads } = await listPublicAds({ adIds, pageSize: adIds.length });
+  // Keep the most-recently-favorited ordering from the favorites table.
+  const byId = new Map(ads.map((ad) => [ad.id, ad]));
+  return adIds.map((id) => byId.get(id)).filter((ad): ad is PublicAd => !!ad);
 }
 
 /* ------------------------------------------------------------------ */

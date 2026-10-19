@@ -4,19 +4,42 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Flag } from 'lucide-react';
 import { X as XIcon, Check } from 'lucide-react';
+import { useFavorites } from '@/components/providers/FavoritesProvider';
+import { useToast } from '@/components/ui/Feedback';
+import { trackFavorite } from '@/lib/analytics';
 
 export function FavouriteButton({
+  adId,
   variant = 'floating',
 }: {
+  adId: string;
   variant?: 'floating' | 'button';
 }) {
-  const [active, setActive] = useState(false);
+  const { isFavorite, toggleFavorite, loading } = useFavorites();
+  const toast = useToast();
+  const active = isFavorite(adId);
+
+  const handleToggle = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    try {
+      const next = await toggleFavorite(adId);
+      trackFavorite(adId, next);
+      toast(next ? 'Added to favorites' : 'Removed from favorites');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message === 'NOT_AUTHENTICATED') toast('Please log in to save favorites');
+      else if (message === 'BACKEND_NOT_CONFIGURED') toast('Favorites are unavailable right now');
+      else toast('Could not update favorites. Please try again.');
+    }
+  };
 
   if (variant === 'button') {
     return (
       <button
-        onClick={() => setActive(!active)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
+        onClick={handleToggle}
+        disabled={loading}
+        aria-pressed={active}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-60 ${
           active
             ? 'bg-red-50 border-[#E53935] text-[#E53935]'
             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
@@ -38,14 +61,13 @@ export function FavouriteButton({
   return (
     <motion.button
       whileTap={{ scale: 0.85 }}
-      onClick={(e) => {
-        e.preventDefault();
-        setActive(!active);
-      }}
-      className={`p-2 rounded-full backdrop-blur-md transition-colors ${
+      onClick={handleToggle}
+      disabled={loading}
+      aria-pressed={active}
+      className={`p-2 rounded-full backdrop-blur-md transition-colors disabled:opacity-60 ${
         active ? 'bg-red-500 text-white' : 'bg-white/80 text-slate-700 hover:bg-white'
       }`}
-      aria-label="Toggle favourite"
+      aria-label={active ? 'Remove from favourites' : 'Save to favourites'}
     >
       <Heart className={`w-4 h-4 ${active ? 'fill-current' : ''}`} />
     </motion.button>

@@ -8,6 +8,9 @@ import { Badge } from '../ui/Badge';
 import { ImageCarousel } from './ImageCarousel';
 import { formatINR } from '@/lib/format';
 import { getAdUrl } from '@/lib/adUrl';
+import { useFavorites } from '@/components/providers/FavoritesProvider';
+import { useToast } from '@/components/ui/Feedback';
+import { trackFavorite } from '@/lib/analytics';
 
 interface ListingCardProps {
   listing: Listing;
@@ -22,7 +25,23 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   showCondition = true,
   wholeCardLink = false,
 }) => {
-  const [isFavorite, setIsFavorite] = React.useState(false);
+  const { isFavorite, toggleFavorite, loading: favoritesLoading } = useFavorites();
+  const toast = useToast();
+  const isFavoriteAd = isFavorite(listing.id);
+
+  const handleToggleFavorite = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const next = await toggleFavorite(listing.id);
+      trackFavorite(listing.id, next);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message === 'NOT_AUTHENTICATED') toast('Please log in to save favorites');
+      else if (message === 'BACKEND_NOT_CONFIGURED') toast('Favorites are unavailable right now');
+      else toast('Could not update favorites. Please try again.');
+    }
+  };
 
   const adHref = getAdUrl(listing.slug);
   const imgAlt = `${listing.title} for sale in ${listing.location} - ${listing.category}`;
@@ -50,19 +69,17 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         </div>
         {showFavorite && (
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsFavorite(!isFavorite);
-            }}
-            className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors ${
-              isFavorite
+            onClick={handleToggleFavorite}
+            disabled={favoritesLoading}
+            className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-colors disabled:opacity-60 ${
+              isFavoriteAd
                 ? 'bg-red-500 text-white'
                 : 'bg-white/80 text-slate-700 hover:bg-white'
             }`}
-            aria-label="Save to favourites"
+            aria-label={isFavoriteAd ? 'Remove from favourites' : 'Save to favourites'}
+            aria-pressed={isFavoriteAd}
           >
-            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+            <Heart className={`w-4 h-4 ${isFavoriteAd ? 'fill-current' : ''}`} />
           </button>
         )}
         {showCondition && (
