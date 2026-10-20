@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   SlidingWindowRateLimiter,
   aiListingRequestSchema,
+  buildAiListingRequestFromForm,
+  buildAssistantFormValues,
   buildListingPrompt,
   buildSearchTerms,
   parseAiJson,
@@ -33,6 +35,105 @@ const reference = (overrides = {}) => ({
   location: 'Noida',
   publishedAt: '2026-10-01T00:00:00.000Z',
   ...overrides,
+});
+
+const mobileFields = [
+  { key: 'brand', label: 'Brand' },
+  { key: 'model', label: 'Model' },
+  { key: 'storage', label: 'Storage' },
+  { key: 'warranty', label: 'Warranty Remaining' },
+  { key: 'year', label: 'Year of Manufacture' },
+];
+
+test('assistant form refreshes from the latest listing values on each open', () => {
+  const firstOpen = buildAssistantFormValues({
+    title: 'Old phone title',
+    condition: 'used_good',
+    extra: {
+      brand: 'Apple',
+      model: 'iPhone 13',
+      storage: '128 GB',
+      warranty: '1 month',
+      year: '2021',
+    },
+    price: '42000',
+    location: 'Noida',
+    fields: mobileFields,
+  });
+
+  const nextOpen = buildAssistantFormValues({
+    title: 'Latest phone title',
+    condition: 'new',
+    extra: {
+      brand: 'Samsung',
+      model: 'Galaxy S24',
+      storage: '256 GB',
+      warranty: '6 months',
+      year: '2025',
+    },
+    price: '70000',
+    location: 'Delhi',
+    fields: mobileFields,
+  });
+
+  assert.equal(firstOpen.itemName, 'Old phone title');
+  assert.equal(nextOpen.itemName, 'Latest phone title');
+  assert.equal(nextOpen.brand, 'Samsung');
+  assert.equal(nextOpen.model, 'Galaxy S24');
+  assert.equal(nextOpen.condition, 'new');
+  assert.equal(nextOpen.ageOrPurchase, 'Year of manufacture/purchase: 2025');
+  assert.match(nextOpen.details, /Storage: 256 GB/);
+  assert.match(nextOpen.details, /Warranty Remaining: 6 months/);
+  assert.doesNotMatch(nextOpen.details, /Brand:|Model:|Year of Manufacture:/);
+});
+
+test('assistant request uses current props and edited form values for empty generation', () => {
+  const emptyForm = buildAssistantFormValues({
+    title: '',
+    condition: 'used_good',
+    extra: {},
+    price: '',
+    location: '',
+    fields: mobileFields,
+  });
+
+  const request = buildAiListingRequestFromForm({
+    target: 'both',
+    language: 'en',
+    category: ' Mobile ',
+    currentTitle: '',
+    currentDescription: '',
+    form: {
+      ...emptyForm,
+      itemName: '  iPhone 13 Pro  ',
+      details: '  Box and charger  ',
+      price: '42000',
+      location: ' Noida ',
+    },
+  });
+
+  assert.equal(request.target, 'both');
+  assert.equal(request.category, 'Mobile');
+  assert.equal(request.itemName, 'iPhone 13 Pro');
+  assert.equal(request.price, 42000);
+  assert.equal(request.location, 'Noida');
+  assert.equal(request.details, 'Box and charger');
+  assert.ok(!('currentTitle' in request));
+  assert.ok(!('currentDescription' in request));
+
+  const improvement = buildAiListingRequestFromForm({
+    target: 'title',
+    language: 'hi',
+    category: 'Mobile',
+    currentTitle: '  Existing title  ',
+    currentDescription: '  Existing description  ',
+    form: emptyForm,
+  });
+
+  assert.equal(improvement.target, 'title');
+  assert.equal(improvement.language, 'hi');
+  assert.equal(improvement.currentTitle, 'Existing title');
+  assert.equal(improvement.currentDescription, 'Existing description');
 });
 
 test('request schema accepts a complete listing request and rejects unsafe shapes', () => {
@@ -150,6 +251,10 @@ test('search terms are stripped of PostgREST filter punctuation', () => {
   for (const term of terms) {
     assert.ok(!/[%_,()"]/.test(term));
   }
+
+  const phoneTerms = buildSearchTerms(baseRequest);
+  assert.ok(phoneTerms.includes('iphone'));
+  assert.ok(phoneTerms.includes('128gb'));
 });
 
 test('prompt keeps facts separate from untrusted references', () => {

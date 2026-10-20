@@ -1,10 +1,16 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Loader2, RefreshCw, Search, Sparkles, X } from 'lucide-react';
 import { WIZARD_CATEGORIES, type Condition } from './wizardData';
 import { generateAiListing, type AiListingResult } from '@/services/aiListing';
-import type { AiLanguage, AiTarget } from '@/lib/ai/listingAssistant';
+import {
+  buildAiListingRequestFromForm,
+  buildAssistantFormValues,
+  type AiLanguage,
+  type AiTarget,
+  type AssistantFormValues,
+} from '@/lib/ai/listingAssistant';
 
 interface ListingAiAssistantProps {
   open: boolean;
@@ -22,17 +28,6 @@ interface ListingAiAssistantProps {
   onApply: (patch: { title?: string; description?: string }) => void;
 }
 
-interface AssistantForm {
-  itemName: string;
-  brand: string;
-  model: string;
-  condition: '' | Condition;
-  ageOrPurchase: string;
-  price: string;
-  location: string;
-  details: string;
-}
-
 const CONDITION_OPTIONS: { value: '' | Condition; label: string }[] = [
   { value: '', label: 'Not specified' },
   { value: 'new', label: 'Brand new' },
@@ -40,22 +35,6 @@ const CONDITION_OPTIONS: { value: '' | Condition; label: string }[] = [
   { value: 'used_good', label: 'Used - good' },
   { value: 'used_fair', label: 'Used - fair' },
 ];
-
-function buildDetails(category: string, extra: Record<string, string>): string {
-  const categoryConfig = WIZARD_CATEGORIES.find((item) => item.name === category);
-  const skip = new Set(['brand', 'model', 'year', 'ageYears']);
-  return (categoryConfig?.fields || [])
-    .filter((field) => !skip.has(field.key) && extra[field.key]?.trim())
-    .map((field) => `${field.label}: ${extra[field.key].trim()}`)
-    .join('\n')
-    .slice(0, 1200);
-}
-
-function buildAgeOrPurchase(extra: Record<string, string>): string {
-  if (extra.year?.trim()) return `Year of manufacture/purchase: ${extra.year.trim()}`;
-  if (extra.ageYears?.trim()) return `Age: ${extra.ageYears.trim()} year(s)`;
-  return '';
-}
 
 export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
   open,
@@ -72,7 +51,7 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
   onClose,
   onApply,
 }) => {
-  const [form, setForm] = useState<AssistantForm>({
+  const [form, setForm] = useState<AssistantFormValues>({
     itemName: '',
     brand: '',
     model: '',
@@ -87,23 +66,43 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const initializedRef = useRef(false);
   const requestInFlightRef = useRef(false);
+  const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const itemNameRef = useRef<HTMLInputElement | null>(null);
   const titleId = 'ai-listing-title';
 
+  const closeAssistant = useCallback(() => {
+    initializedRef.current = false;
+    requestIdRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    requestInFlightRef.current = false;
+    setIsLoading(false);
+    setPreview(null);
+    setError('');
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
-    if (!open || initializedRef.current) return;
+    if (!open) {
+      initializedRef.current = false;
+      requestIdRef.current += 1;
+      abortRef.current?.abort();
+      abortRef.current = null;
+      requestInFlightRef.current = false;
+      return;
+    }
+    if (initializedRef.current) return;
     initializedRef.current = true;
-    setForm({
-      itemName: title.trim(),
-      brand: extra.brand || '',
-      model: extra.model || '',
+    const categoryConfig = WIZARD_CATEGORIES.find((item) => item.name === category);
+    setForm(buildAssistantFormValues({
+      title,
       condition,
-      ageOrPurchase: buildAgeOrPurchase(extra),
+      extra,
       price,
       location,
-      details: buildDetails(category, extra),
-    });
+      fields: categoryConfig?.fields || [],
+    }));
   }, [open, title, extra, condition, price, location, category]);
 
   useEffect(() => {
@@ -117,22 +116,23 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') closeAssistant();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, closeAssistant]);
 
   useEffect(() => {
     return () => {
+      requestIdRef.current += 1;
       abortRef.current?.abort();
     };
   }, []);
 
-  const updateForm = (patch: Partial<AssistantForm>) => {
+  const updateForm = (patch: Partial<AssistantFormValues>) => {
     setForm((current) => ({ ...current, ...patch }));
     setError('');
   };
@@ -180,15 +180,16 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
       setError('Choose a category before generating a listing.');
       return;
     }
-    let numericPrice: number | undefined;
     if (form.price.trim()) {
-      numericPrice = Number(form.price);
+      const numericPrice = Number(form.price);
       if (!Number.isFinite(numericPrice) || numericPrice < 0) {
         setError('Enter a valid price or leave it blank.');
         return;
       }
     }
 
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     requestInFlightRef.current = true;
     setIsLoading(true);
     setError('');
@@ -199,25 +200,20 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
 
     try {
       const result = await generateAiListing(
-        {
+        buildAiListingRequestFromForm({
           target,
           language,
-          category: category.trim(),
-          itemName,
-          currentTitle: title.trim() || undefined,
-          currentDescription: description.trim() || undefined,
-          brand: form.brand.trim() || undefined,
-          model: form.model.trim() || undefined,
-          condition: form.condition || undefined,
-          ageOrPurchase: form.ageOrPurchase.trim() || undefined,
-          price: numericPrice,
-          location: form.location.trim() || undefined,
-          details: form.details.trim() || undefined,
-        },
+          category,
+          currentTitle: title,
+          currentDescription: description,
+          form,
+        }),
         { signal: controller.signal }
       );
+      if (requestIdRef.current !== requestId) return;
       setPreview(result);
     } catch (caught) {
+      if (requestIdRef.current !== requestId) return;
       if (controller.signal.aborted) {
         setError('AI took too long to respond. Your details are safe. Please try again.');
       } else {
@@ -225,9 +221,11 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
       }
     } finally {
       window.clearTimeout(timeout);
-      requestInFlightRef.current = false;
-      setIsLoading(false);
-      abortRef.current = null;
+      if (requestIdRef.current === requestId) {
+        requestInFlightRef.current = false;
+        setIsLoading(false);
+        abortRef.current = null;
+      }
     }
   };
 
@@ -251,7 +249,7 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
       patch.description = nextDescription;
     }
     onApply(patch);
-    onClose();
+    closeAssistant();
   };
 
   if (!open) return null;
@@ -259,7 +257,7 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
   return (
     <div
       className="fixed inset-0 z-[95] flex items-end justify-center bg-black/50 backdrop-blur-xs sm:items-center sm:p-4"
-      onClick={onClose}
+      onClick={closeAssistant}
     >
       <div
         role="dialog"
@@ -278,12 +276,13 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
               {modalTitle}
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              We use only the details you provide. Nothing is published or saved until you continue.
+              We use your details and may consult similar approved ads as references. Nothing is
+              published or saved until you continue.
             </p>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={closeAssistant}
             aria-label="Close AI listing assistant"
             className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
           >
@@ -468,7 +467,7 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={closeAssistant}
                 className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
               >
                 Close
@@ -491,9 +490,11 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
                   <div>
                     <h3 className="text-sm font-bold text-[#0F172A]">Review before applying</h3>
                     <p className="text-xs text-slate-500">
-                      {preview.reference_count > 0
-                        ? `Compared with ${preview.reference_count} similar approved listing${preview.reference_count === 1 ? '' : 's'}.`
-                        : 'No similar approved listings were found, so this uses only your details.'}
+                      {preview.reference_status === 'unavailable'
+                        ? 'Similar approved ads could not be checked, so this uses only your details.'
+                        : preview.reference_count > 0
+                          ? `Compared with ${preview.reference_count} similar approved listing${preview.reference_count === 1 ? '' : 's'}.`
+                          : 'No similar approved listings were found, so this uses only your details.'}
                     </p>
                   </div>
                   <button
@@ -567,7 +568,7 @@ export const ListingAiAssistant: React.FC<ListingAiAssistantProps> = ({
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    onClick={onClose}
+      onClick={closeAssistant}
                     className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                   >
                     Keep editing

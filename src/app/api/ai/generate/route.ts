@@ -132,9 +132,11 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     let references: Awaited<ReturnType<typeof findReferenceListings>> = [];
+    let referenceStatus: 'ok' | 'unavailable' = 'ok';
     try {
       references = await findReferenceListings(supabase, userId, input);
     } catch (referenceError) {
+      referenceStatus = 'unavailable';
       console.error(
         '[ai/generate] reference search failed:',
         referenceError instanceof Error ? referenceError.message : 'unknown error'
@@ -183,6 +185,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       missing_details: result.data.missing_details,
       questions: result.data.questions,
       reference_count: references.length,
+      reference_status: referenceStatus,
     });
   } catch (error) {
     console.error(

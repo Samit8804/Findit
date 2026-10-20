@@ -17,6 +17,8 @@ export interface AiListingRequest {
   details?: string;
 }
 
+export type AiReferenceStatus = 'ok' | 'unavailable';
+
 export interface AiListingResult {
   title?: string;
   description?: string;
@@ -24,6 +26,7 @@ export interface AiListingResult {
   missing_details: string[];
   questions: string[];
   reference_count: number;
+  reference_status: AiReferenceStatus;
 }
 
 function stringList(value: unknown, maxItems: number): string[] {
@@ -92,5 +95,6 @@ export async function generateAiListing(
       typeof result.reference_count === 'number' && Number.isFinite(result.reference_count)
         ? Math.max(0, Math.floor(result.reference_count))
         : 0,
+    reference_status: result.reference_status === 'unavailable' ? 'unavailable' : 'ok',
   };
 }

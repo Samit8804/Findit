@@ -35,6 +35,93 @@ export const aiListingRequestSchema = z
 
 export type AiListingRequest = z.infer<typeof aiListingRequestSchema>;
 
+export interface AssistantDetailField {
+  key: string;
+  label: string;
+}
+
+export interface AssistantFormValues {
+  itemName: string;
+  brand: string;
+  model: string;
+  condition: AiCondition | '';
+  ageOrPurchase: string;
+  price: string;
+  location: string;
+  details: string;
+}
+
+export interface BuildAssistantFormInput {
+  title: string;
+  condition: AiCondition;
+  extra: Record<string, string>;
+  price: string;
+  location: string;
+  fields: AssistantDetailField[];
+}
+
+export interface BuildAssistantRequestInput {
+  target: AiTarget;
+  language: AiLanguage;
+  category: string;
+  currentTitle: string;
+  currentDescription: string;
+  form: AssistantFormValues;
+}
+
+export function buildAssistantFormValues(input: BuildAssistantFormInput): AssistantFormValues {
+  const skip = new Set(['brand', 'model', 'year', 'ageYears']);
+  const details = input.fields
+    .filter((field) => !skip.has(field.key) && input.extra[field.key]?.trim())
+    .map((field) => `${field.label}: ${input.extra[field.key].trim()}`)
+    .join('\n')
+    .slice(0, 1200);
+
+  return {
+    itemName: input.title.trim(),
+    brand: input.extra.brand || '',
+    model: input.extra.model || '',
+    condition: input.condition,
+    ageOrPurchase: input.extra.year?.trim()
+      ? `Year of manufacture/purchase: ${input.extra.year.trim()}`
+      : input.extra.ageYears?.trim()
+        ? `Age: ${input.extra.ageYears.trim()} year(s)`
+        : '',
+    price: input.price,
+    location: input.location,
+    details,
+  };
+}
+
+export function buildAiListingRequestFromForm(
+  input: BuildAssistantRequestInput
+): AiListingRequest {
+  const currentTitle = input.currentTitle.trim();
+  const currentDescription = input.currentDescription.trim();
+  const priceText = input.form.price.trim();
+  const parsedPrice = priceText ? Number(priceText) : undefined;
+
+  return {
+    target: input.target,
+    language: input.language,
+    category: input.category.trim(),
+    itemName: input.form.itemName.trim(),
+    ...(currentTitle ? { currentTitle } : {}),
+    ...(currentDescription ? { currentDescription } : {}),
+    ...(input.form.brand.trim() ? { brand: input.form.brand.trim() } : {}),
+    ...(input.form.model.trim() ? { model: input.form.model.trim() } : {}),
+    ...(input.form.condition ? { condition: input.form.condition } : {}),
+    ...(input.form.ageOrPurchase.trim()
+      ? { ageOrPurchase: input.form.ageOrPurchase.trim() }
+      : {}),
+    ...(parsedPrice !== undefined && Number.isFinite(parsedPrice) && parsedPrice >= 0
+      ? { price: parsedPrice }
+      : {}),
+    ...(input.form.location.trim() ? { location: input.form.location.trim() } : {}),
+    ...(input.form.details.trim() ? { details: input.form.details.trim() } : {}),
+  };
+}
+
 export const aiListingOutputSchema = z.object({
   title: z.string().trim().min(1).max(AI_TITLE_MAX).optional(),
   description: z.string().trim().min(20).max(AI_DESCRIPTION_MAX).optional(),
@@ -215,6 +302,7 @@ export function buildSearchTerms(input: AiListingRequest): string[] {
   const itemName = sanitizeSearchTerm(input.itemName, 60);
   const itemTokens = tokenize(itemName)
     .filter((token) => token.length >= 3)
+    .sort((a, b) => b.length - a.length)
     .slice(0, 2);
   const terms = [
     itemName,
