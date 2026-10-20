@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Rocket, Crown, Building2, Zap, Loader2 } from 'lucide-react';
+import { Rocket, Crown, Building2, Zap, Loader2, MessageSquare } from 'lucide-react';
 import {
   adminListPromotions,
   adminUpsertPromotion,
@@ -109,6 +109,12 @@ export default function AdminPromotionsPage() {
                   {p.duration_days && <span className="text-xs text-black font-semibold">/ {p.duration_days} days</span>}
                 </div>
                 {p.description && <p className="text-xs text-black mt-2 leading-relaxed">{p.description}</p>}
+                <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                  p.messaging_access ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  <MessageSquare className="w-3 h-3" />
+                  {p.messaging_access ? 'Messaging included' : 'No messaging'}
+                </div>
                 <p className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-bold uppercase tracking-wider">
                   <span className={p.is_active ? 'text-emerald-600' : 'text-black'}>
                     {p.is_active ? '● Live on pricing page' : '○ Hidden from users'}
@@ -162,12 +168,12 @@ function EditModal({
   const isNew = target === 'new';
   const p = isNew || !target ? null : (target as AdminPromotion);
 
-  const [form, setForm] = useState({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '' });
+  const [form, setForm] = useState({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '', messaging_access: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
-    if (target === 'new') setForm({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '' });
+    if (target === 'new') setForm({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '', messaging_access: false });
     else if (target)
       setForm({
         name: target.name,
@@ -176,6 +182,7 @@ function EditModal({
         description: target.description || '',
         price: String(target.price),
         duration_days: String(target.duration_days ?? ''),
+        messaging_access: target.messaging_access === true,
       });
   }, [target]);
 
@@ -183,6 +190,9 @@ function EditModal({
     const errs: Record<string, string> = {};
     if (!form.name.trim()) errs.name = 'Name required.';
     if (!form.price || Number(form.price) <= 0) errs.price = 'Valid price required.';
+    if (form.messaging_access && Number(form.price) < 149) {
+      errs.messaging_access = 'Messaging can only be enabled for plans priced ₹149 or more.';
+    }
     setErrors(errs);
     if (Object.keys(errs).length) return;
 
@@ -196,6 +206,7 @@ function EditModal({
         description: form.description.trim(),
         price: Number(form.price),
         duration_days: form.duration_days ? Number(form.duration_days) : null,
+        messaging_access: form.messaging_access,
       });
       toast(isNew ? 'Promotion created.' : 'Promotion updated.');
       onSaved();
@@ -213,6 +224,23 @@ function EditModal({
         <Input label="Price (₹)" name="promo-price" type="number" min={0} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} error={errors.price} />
         <Input label="Duration (days)" name="promo-days" type="number" min={1} value={form.duration_days} onChange={(e) => setForm((f) => ({ ...f, duration_days: e.target.value }))} hint="Leave empty for subscriptions shown as monthly" />
         <Input label="Description" name="promo-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+        <label className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${form.messaging_access ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200'}`}>
+          <input
+            type="checkbox"
+            checked={form.messaging_access}
+            onChange={(e) => setForm((f) => ({ ...f, messaging_access: e.target.checked }))}
+            className="mt-0.5 accent-[#E53935]"
+          />
+          <span>
+            <span className="flex items-center gap-1.5 text-sm font-bold text-[#0F172A]">
+              <MessageSquare className="w-4 h-4" /> Include messaging
+            </span>
+            <span className="block text-xs text-slate-500 mt-0.5">
+              Buyers on this plan can start and send conversations. Requires a price of ₹149 or more.
+            </span>
+            {errors.messaging_access && <span className="block text-xs font-semibold text-[#D32F2F] mt-1">{errors.messaging_access}</span>}
+          </span>
+        </label>
         <button onClick={save} disabled={saving} className="w-full py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-70 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2">
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           {saving ? 'Saving...' : 'Save Promotion'}

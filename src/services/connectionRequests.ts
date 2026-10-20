@@ -1,4 +1,4 @@
-import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
+import { getSupabaseBrowser } from '@/lib/supabase/client';
 
 export interface ConnectionRequest {
   id: string;
@@ -152,33 +152,4 @@ function mapConnectionRequest(row: any): ConnectionRequest {
     updatedAt: row.updated_at,
     respondedAt: row.responded_at,
   };
-}
-
-/* ------------------------------------------------------------------ */
-/* SERVER-SIDE ENTITLEMENT CHECK (call via Supabase RPC or API route) */
-/* ------------------------------------------------------------------ */
-
-/**
- * Check if a user has an active messaging subscription.
- * This calls the database RPC `has_active_messaging_subscription`.
- * Must be called server-side (or via a trusted API route) — never trust
- * client-supplied plan names or subscription status.
- */
-export async function hasActiveMessagingSubscription(userId: string): Promise<boolean> {
-  const sb = getSupabaseBrowser();
-  if (!sb) {
-    // Demo mode: no backend, assume unlocked for development
-    return true;
-  }
-
-  const { data, error } = await sb.rpc('has_active_messaging_subscription', {
-    p_user_id: userId,
-  });
-
-  if (error) {
-    console.error('[messagingEntitlement] RPC failed:', error.message);
-    return false;
-  }
-
-  return Boolean(data);
 }

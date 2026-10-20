@@ -1,4 +1,5 @@
-import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
+import { getSupabaseBrowser } from '@/lib/supabase/client';
+import { getMyMessagingAccess } from '@/services/messagingAccess';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface AuthorizeResult {
@@ -115,12 +116,9 @@ export async function openOrCreateConversation(
 
   if (me === sellerId) throw new Error('SELF_CONVERSATION');
 
-  // 1. Check messaging entitlement via RPC
-  const { data: entitlement, error: entErr } = await sb.rpc('has_active_messaging_subscription', {
-    p_user_id: me,
-  });
-  if (entErr) throw new Error(entErr.message);
-  if (!(entitlement as boolean)) {
+  // 1. Check server-derived messaging entitlement
+  const access = await getMyMessagingAccess();
+  if (!access.allowed) {
     throw new Error('MESSAGING_LOCKED');
   }
 

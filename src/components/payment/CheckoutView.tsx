@@ -9,7 +9,7 @@ import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { ShieldCheck, Lock, CreditCard, Loader2 } from 'lucide-react';
 import { getOrderStatus, OrderStatus } from '@/services/payments';
 import { openRazorpayCheckout, verifyPaymentApi } from '@/lib/payments/checkout';
-import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
+import { isSupabaseConfigured } from '@/lib/supabase/client';
 
 function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
   const router = useRouter();
@@ -22,9 +22,16 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
   const [loadError, setLoadError] = useState('');
   const [paying, setPaying] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState('');
 
   const loadOrder = useCallback(async () => {
-    if (!isSupabaseConfigured || !orderId) {
+    if (!isSupabaseConfigured) {
+      setLoadError('Payments are not configured in this environment. No payment has been taken.');
+      setLoading(false);
+      return;
+    }
+    if (!orderId) {
+      setLoadError('Order not found.');
       setLoading(false);
       return;
     }
@@ -58,8 +65,7 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
   const startCheckout = async () => {
     setError('');
     if (!isSupabaseConfigured || !order?.providerOrderId || !order.keyId) {
-      // Demo mode — no keys configured
-      flashDemo();
+      setError('Secure checkout is unavailable right now. No payment was taken.');
       return;
     }
     setPaying(true);
@@ -94,14 +100,7 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
       setPaying(false);
       setError(e.message === 'CHECKOUT_LOAD_FAILED' ? 'Could not reach the payment gateway.' : e.message);
     }
-
-    function flashDemo() {
-      setVerifying(true);
-      setTimeout(() => (window.location.href = '/payment/success'), 1200);
-    }
   };
-
-  const [error, setError] = useState('');
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
@@ -138,14 +137,15 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
                   <button onClick={() => (window.location.href = `/payment/success?order=${orderId}`)} className="mt-2 text-xs font-bold text-emerald-700 underline">View receipt</button>
                 </div>
               )}
-              {(order.status === 'sold' as any) && null}
 
               {/* Order summary */}
               <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-6 sm:p-8 mb-6 ${order.status === 'paid' ? 'opacity-60' : ''}`}>
                 <h2 className="font-bold mb-5 flex items-center gap-2"><CreditCard className="w-4 h-4 text-[#E53935]" /> Order Summary</h2>
                 <dl className="space-y-3 text-sm">
-                  <div className="flex justify-between gap-4"><dt className="text-slate-500">Advertisement</dt><dd className="font-semibold text-right max-w-[240px] truncate">{order.adTitle ?? '—'}</dd></div>
-                  <div className="flex justify-between"><dt className="text-slate-500">Promotion</dt><dd className="font-semibold">{order.promotionName ?? '—'}{order.promotionDays ? ` · ${order.promotionDays} days` : ''}</dd></div>
+                  {order.adTitle && (
+                    <div className="flex justify-between gap-4"><dt className="text-slate-500">Advertisement</dt><dd className="font-semibold text-right max-w-[240px] truncate">{order.adTitle}</dd></div>
+                  )}
+                  <div className="flex justify-between"><dt className="text-slate-500">{order.adTitle ? 'Promotion' : 'Plan'}</dt><dd className="font-semibold">{order.promotionName ?? '—'}{order.promotionDays ? ` · ${order.promotionDays} days` : ''}</dd></div>
                   <div className="flex justify-between"><dt className="text-slate-500">Amount</dt><dd className="font-semibold">₹{order.amount.toLocaleString('en-IN')}</dd></div>
                   <div className="flex justify-between"><dt className="text-slate-500">GST</dt><dd className="font-semibold text-slate-400">Included where applicable</dd></div>
                   <div className="flex justify-between pt-4 border-t border-slate-100 text-lg">

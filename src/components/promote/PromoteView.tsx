@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
-import { Rocket, Star, Crown, Clock, Check, ShieldCheck, Loader2, AlertCircle, Info } from 'lucide-react';
+import { Rocket, Star, Crown, Clock, Check, ShieldCheck, Loader2, AlertCircle, Info, MessageSquare } from 'lucide-react';
 import {
   getActivePromotions,
   Promotion,
@@ -14,7 +14,8 @@ import {
   BoostEligibility,
   ExtensionEligibility,
 } from '@/services/payments';
-import { createOrderApi, openRazorpayCheckout } from '@/lib/payments/checkout';
+import { createOrderApi } from '@/lib/payments/checkout';
+import { isEligibleMessagingPlan } from '@/lib/messagingEntitlement';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
 
 const formatINR = (value: number) =>
@@ -24,7 +25,7 @@ const formatINR = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const promoIcon = (type: string, planType?: string) => {
+const promoIcon = (type: string, planType?: string | null) => {
   if (planType === 'boost_3d' || type === 'boost') return Rocket;
   if (planType === 'extend_10d' || type === 'extension') return Clock;
   if (type === 'top') return Crown;
@@ -32,7 +33,7 @@ const promoIcon = (type: string, planType?: string) => {
   return Star;
 };
 
-const promoColor = (planType?: string) => {
+const promoColor = (planType?: string | null) => {
   if (planType === 'boost_3d') return 'bg-blue-50 text-blue-600';
   if (planType === 'extend_10d') return 'bg-amber-50 text-amber-600';
   if (planType === 'featured_7d') return 'bg-purple-50 text-purple-600';
@@ -176,12 +177,12 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
         return;
       } catch (e: any) {
         setCreating(false);
-        if (
-          e.message === 'BACKEND_NOT_CONFIGURED' ||
-          e.message === 'GATEWAY_NOT_CONFIGURED' ||
-          e.message === 'NOT_AUTHENTICATED'
-        ) {
-          router.push(`/payment?order=FND-${Date.now().toString(36).toUpperCase()}&promo=${selected.slug}`);
+        if (e.message === 'NOT_AUTHENTICATED') {
+          router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+          return;
+        }
+        if (e.message === 'BACKEND_NOT_CONFIGURED' || e.message === 'GATEWAY_NOT_CONFIGURED') {
+          setError('Online payments are temporarily unavailable. No payment was taken.');
           return;
         }
         // Handle specific eligibility errors from server
@@ -194,9 +195,7 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
       }
     }
 
-    /* Demo mode */
-    void openRazorpayCheckout;
-    router.push(`/payment?order=FND-${Date.now().toString(36).toUpperCase()}&promo=${selected.slug}`);
+    setError('Online payments are not configured in this environment.');
   };
 
   return (
@@ -285,6 +284,11 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
                     {p.durationDays && <span className="text-xs text-slate-400">/ {p.durationDays} days</span>}
                   </div>
                   <p className="text-xs text-slate-500 leading-relaxed mt-2">{p.description}</p>
+                  {isEligibleMessagingPlan(p) && (
+                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                      <MessageSquare className="w-3 h-3" /> Messaging included
+                    </span>
+                  )}
 
                   {/* Eligibility message for Boost and Extension */}
                   {isBoostOrExtension && planEligibility && (

@@ -23,10 +23,10 @@ import {
   cancelConnectionRequest,
   type ConnectionRequest,
 } from '@/services/connectionRequests';
-import { hasActiveMessagingSubscription } from '@/services/profile';
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
+import { useMessagingAccess } from '@/lib/useMessagingAccess';
+import { formatMessagingExpiry } from '@/lib/messagingEntitlement';
 import { Modal } from '@/components/ui/Feedback';
-import { useToast } from '@/components/ui/Feedback';
 
 interface ContactButtonsProps {
   adId: string;
@@ -36,7 +36,6 @@ interface ContactButtonsProps {
   adTitle: string;
   phone?: string;
   whatsapp?: string;
-  messageLocked?: boolean;
   isOwnAd?: boolean;
 }
 
@@ -50,11 +49,10 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
   adTitle,
   phone,
   whatsapp,
-  messageLocked = false,
   isOwnAd = false,
 }) => {
   const router = useRouter();
-  const toast = useToast();
+  const { access, loading: accessLoading } = useMessagingAccess();
   const [reqStatus, setReqStatus] = useState<RequestStatus>('none');
   const [request, setRequest] = useState<ConnectionRequest | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,7 +61,6 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [responding, setResponding] = useState<string | null>(null);
-  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,10 +71,6 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
       const { data: auth } = await sb.auth.getUser();
       if (!auth.user) { setLoading(false); return; }
       setMyId(auth.user.id);
-
-      // Check subscription
-      const sub = await hasActiveMessagingSubscription(auth.user.id);
-      setHasSubscription(sub);
 
       // Load existing requests
       try {
@@ -244,7 +237,13 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
       </button>
     );
   } else if (reqStatus === 'accepted') {
-    if (hasSubscription === true) {
+    if (accessLoading) {
+      msgBtn = (
+        <button disabled className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-200 text-slate-400 text-sm font-semibold">
+          <Loader2 className="w-4 h-4 animate-spin" />
+        </button>
+      );
+    } else if (access?.allowed) {
       msgBtn = (
         <button
           onClick={handleStartConversation}
@@ -262,25 +261,26 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
           )}
         </button>
       );
-    } else if (hasSubscription === false) {
+    } else {
       msgBtn = (
         <button
-          onClick={() => router.push('/pricing')}
+          onClick={() =>
+            router.push(
+              access?.reason === 'NOT_AUTHENTICATED'
+                ? `/login?redirect=${encodeURIComponent(window.location.pathname)}`
+                : '/pricing'
+            )
+          }
           className="flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-[#0F172A] text-sm font-bold transition-colors"
         >
           <Lock className="w-4 h-4" /> Unlock Messaging
-        </button>
-      );
-    } else {
-      msgBtn = (
-        <button disabled className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-200 text-slate-400 text-sm font-semibold">
-          <Loader2 className="w-4 h-4 animate-spin" />
         </button>
       );
     }
   }
 
   const buttons = [callBtn, waBtn, msgBtn].filter(Boolean);
+  const expiry = formatMessagingExpiry(access?.expiresAt);
 
   return (
     <>
@@ -288,13 +288,29 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
         {buttons}
       </div>
 
+      {!isOwnAd && access?.configured === false && (
+        <p className="mt-3 text-[11px] text-center font-semibold text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+          Demo preview — messaging is unlocked locally. No paid entitlement is active.
+        </p>
+      )}
+      {!isOwnAd && access?.configured !== false && reqStatus === 'accepted' && access?.allowed && expiry && (
+        <p className="mt-3 text-[11px] text-center font-semibold text-emerald-700">
+          {access.planName || 'Messaging'} active until {expiry}
+        </p>
+      )}
+      {!isOwnAd && access?.configured !== false && reqStatus === 'accepted' && !access?.allowed && !accessLoading && (
+        <p className="mt-3 text-[11px] text-center text-slate-400">
+          Messaging is included with plans of ₹149 or more.
+        </p>
+      )}
+
       {/* Connection Request Modal */}
       <AnimatePresence>
         {msgOpen && (
           <Modal open={msgOpen} onClose={() => setMsgOpen(false)} title="Request to Connect" size="sm">
             <form onSubmit={handleSendRequest} className="space-y-4">
               <p className="text-sm text-slate-600">
-                Introduce yourself to <strong>{sellerName}</strong> about <strong>"{adTitle}"</strong>. This request is free — the seller can accept or decline.
+                Introduce yourself to <strong>{sellerName}</strong> about <strong>"{adTitle}"</strong>. This request is free — the seller can accept or decline. After acceptance, an active ₹149+ plan is required to chat.
               </p>
               <label htmlFor="conn-msg" className="block text-xs font-semibold text-slate-500 mb-1.5">
                 Your introduction

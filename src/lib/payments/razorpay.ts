@@ -8,6 +8,30 @@ import type {
 
 const BASE = 'https://api.razorpay.com/v1';
 
+interface RazorpayOrderResponse {
+  id: string;
+  amount: number;
+  currency: string;
+  error?: { description?: string };
+}
+
+interface RazorpayEntity {
+  id?: string;
+  order_id?: string;
+  payment_id?: string;
+  amount?: number;
+  error_description?: string;
+}
+
+interface RazorpayWebhookPayload {
+  event?: string;
+  payload?: {
+    payment?: { entity?: RazorpayEntity };
+    order?: { entity?: RazorpayEntity };
+    refund?: { entity?: RazorpayEntity };
+  };
+}
+
 function authHeader(): string | null {
   const id = process.env.RAZORPAY_KEY_ID;
   const secret = process.env.RAZORPAY_KEY_SECRET;
@@ -51,7 +75,7 @@ export const razorpayProvider: PaymentProvider = {
         notes: { description },
       }),
     });
-    const body: any = await r.json();
+    const body = (await r.json()) as RazorpayOrderResponse;
     if (!r.ok) throw new Error(body?.error?.description || `Razorpay order failed (${r.status})`);
 
     const result: CreateOrderResult = {
@@ -80,22 +104,30 @@ export const razorpayProvider: PaymentProvider = {
       return null;
     }
 
-    let parsed: any;
+    let parsed: RazorpayWebhookPayload;
     try {
-      parsed = JSON.parse(rawBody);
+      parsed = JSON.parse(rawBody) as RazorpayWebhookPayload;
     } catch {
       return null;
     }
 
-    const event: string = parsed?.event ?? '';
-    const entity = parsed?.payload?.payment?.entity ?? {};
-    const orderEntity = parsed?.payload?.order?.entity ?? {};
+    const event: string = parsed.event ?? '';
+    const entity = parsed.payload?.payment?.entity ?? {};
+    const orderEntity = parsed.payload?.order?.entity ?? {};
+    const refundEntity = parsed.payload?.refund?.entity ?? {};
+    const isRefund = event === 'refund.processed' || event === 'payment.refunded';
 
     return {
       event,
-      providerOrderId: entity.order_id ?? orderEntity.id ?? null,
-      providerPaymentId: entity.id ?? null,
-      amount: entity.amount != null ? entity.amount / 100 : null,
+      providerOrderId: isRefund
+        ? (refundEntity.order_id ?? entity.order_id ?? orderEntity.id ?? null)
+        : (entity.order_id ?? orderEntity.id ?? null),
+      providerPaymentId: isRefund
+        ? (refundEntity.payment_id ?? entity.id ?? null)
+        : (entity.id ?? null),
+      amount: isRefund
+        ? (refundEntity.amount != null ? refundEntity.amount / 100 : null)
+        : (entity.amount != null ? entity.amount / 100 : null),
       failureReason:
         event === 'payment.failed' ? (entity.error_description ?? 'Payment failed') : null,
       raw: parsed,
@@ -116,8 +148,8 @@ export const razorpayProvider: PaymentProvider = {
         return { refunded: false, reason: t.slice(0, 120) };
       }
       return { refunded: true };
-    } catch (e: any) {
-      return { refunded: false, reason: e.message };
+    } catch (e: unknown) {
+      return { refunded: false, reason: e instanceof Error ? e.message : String(e) };
     }
   },
 };

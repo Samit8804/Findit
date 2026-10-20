@@ -31,7 +31,8 @@ import {
   ChatMessage,
 } from '@/services/messaging';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
-import { hasActiveMessagingSubscription } from '@/services/profile';
+import { useMessagingAccess } from '@/lib/useMessagingAccess';
+import { canBuyerSendMessage, formatMessagingExpiry } from '@/lib/messagingEntitlement';
 import { useUnread } from '@/components/providers/UnreadProvider';
 
 const QUICK_REPLIES = [
@@ -48,6 +49,7 @@ function MessagesContent() {
   const searchParams = useSearchParams();
   const unread = useUnread();
   const refreshUnread = unread.refresh;
+  const { access, loading: accessLoading, refresh: refreshAccess } = useMessagingAccess();
 
   const [convs, setConvs] = useState<ConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string>('');
@@ -63,8 +65,6 @@ function MessagesContent() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
   const [toast, setToast] = useState('');
-  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
-  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const myIdRef = useRef<string | null>(null);
   const activeIdRef = useRef('');
@@ -106,30 +106,13 @@ function MessagesContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ---------------- subscription check ---------------- */
-  useEffect(() => {
-    if (!isSupabaseConfigured) { setHasSubscription(true); setSubscriptionLoading(false); return; }
-    (async () => {
-      const sb = getSupabaseBrowser();
-      if (!sb) { setHasSubscription(true); setSubscriptionLoading(false); return; }
-      const { data: auth } = await sb.auth.getUser();
-      if (!auth.user) { setHasSubscription(false); setSubscriptionLoading(false); return; }
-      try {
-        const sub = await hasActiveMessagingSubscription(auth.user.id);
-        setHasSubscription(sub);
-      } catch {
-        setHasSubscription(false);
-      } finally {
-        setSubscriptionLoading(false);
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const active = useMemo(
     () => convs.find((c) => c.id === activeId) || convs[0],
     [convs, activeId]
   );
+
+  const canSend = active ? canBuyerSendMessage(access, active.role) : false;
+  const expiry = formatMessagingExpiry(access?.expiresAt);
 
   const filtered = convs.filter(
     (c) =>
@@ -168,6 +151,10 @@ function MessagesContent() {
 
   const send = async (text: string) => {
     if (!active || blocked) return;
+    if (!canSend) {
+      flash('Your messaging plan is not active. Choose a ₹149+ plan to reply.');
+      return;
+    }
     const trimmed = text.trim();
     if (!trimmed || sending) return;
     setSending(true);
@@ -176,7 +163,13 @@ function MessagesContent() {
       setDrafts((d) => ({ ...d, [active.id]: '' }));
       setMessages(await getMessages(active.id));
     } catch (e: any) {
-      flash(e.message === 'User blocked' ? 'You can no longer message this user.' : e.message || 'Failed to send message.');
+      const message = e.message || 'Failed to send message.';
+      if (/messaging subscription|subscription required|expired/i.test(message)) {
+        flash('Your messaging plan is not active. Renew it to send new messages.');
+        refreshAccess();
+      } else {
+        flash(message === 'User blocked' ? 'You can no longer message this user.' : message);
+      }
     } finally {
       setSending(false);
     }
@@ -215,9 +208,19 @@ function MessagesContent() {
   /* ---------------- render ---------------- */
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-black tracking-tight">Messages</h1>
-        <p className="text-xs text-slate-500 mt-1">Chat with buyers and sellers in real time.</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Messages</h1>
+          <p className="text-xs text-slate-500 mt-1">Chat with buyers and sellers in real time.</p>
+        </div>
+        {!accessLoading && access?.allowed && (
+          <span className="inline-flex items-center gap-1.5 self-start sm:self-auto px-3 py-1.5 rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            {access.configured === false
+              ? 'Demo preview — simulated messaging'
+              : `${access.planName || 'Messaging'} active${expiry ? ` · until ${expiry}` : ''}`}
+          </span>
+        )}
       </div>
 
       {loadError && (
@@ -227,25 +230,25 @@ function MessagesContent() {
         </div>
       )}
 
-      {/* Locked state: no active messaging subscription */}
-      {subscriptionLoading ? (
+      {accessLoading ? (
         <div className="mb-6 p-8 text-center bg-white rounded-2xl border border-slate-100">
           <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto mb-3" />
           <p className="text-sm text-slate-500">Checking messaging access…</p>
         </div>
-      ) : hasSubscription === false ? (
+      ) : access && !access.allowed ? (
         <div className="mb-6 p-8 text-center bg-white rounded-2xl border border-slate-100">
           <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-xl font-black mb-2">Unlock Messaging</h2>
-          <p className="text-slate-600 mb-6 max-w-sm mx-auto leading-relaxed">
-            You need an active Business or Business Pro subscription to start private conversations.
-            Once subscribed, you can message multiple sellers without paying again.
+          <h2 className="text-xl font-black mb-2">Messaging is locked</h2>
+          <p className="text-slate-600 mb-2 max-w-md mx-auto leading-relaxed">
+            You can still read your existing conversations. To start or reply as a buyer,
+            choose a plan of ₹149 or more.
           </p>
+          <p className="text-xs text-slate-400 mb-6">Sellers can reply to buyers who are already in a conversation.</p>
           <Link
             href="/pricing"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] text-white text-sm font-bold transition-colors shadow-lg shadow-red-200"
           >
-            <ArrowRight className="w-4 h-4" /> Choose a Plan
+            <ArrowRight className="w-4 h-4" /> View Plans
           </Link>
         </div>
       ) : null}
@@ -379,18 +382,28 @@ function MessagesContent() {
                     </div>
                   ) : messages.length === 0 ? (
                     <div className="text-center pt-10">
-                      <p className="text-sm font-semibold text-slate-500 mb-4">Start the conversation.</p>
-                      <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
-                        {QUICK_REPLIES.map((qr) => (
-                          <button
-                            key={qr}
-                            onClick={() => void send(qr)}
-                            className="px-3.5 py-2 rounded-full border border-slate-200 bg-white hover:border-[#E53935] hover:text-[#E53935] text-xs font-semibold transition-colors"
-                          >
-                            {qr}
-                          </button>
-                        ))}
-                      </div>
+                      <p className="text-sm font-semibold text-slate-500 mb-4">
+                        {canSend ? 'Start the conversation.' : 'No messages yet.'}
+                      </p>
+                      {canSend ? (
+                        <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
+                          {QUICK_REPLIES.map((qr) => (
+                            <button
+                              key={qr}
+                              onClick={() => void send(qr)}
+                              className="px-3.5 py-2 rounded-full border border-slate-200 bg-white hover:border-[#E53935] hover:text-[#E53935] text-xs font-semibold transition-colors"
+                            >
+                              {qr}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                          {active.role === 'buyer'
+                            ? 'An active ₹149+ messaging plan is required to reply. You can still read the history.'
+                            : 'Waiting for the buyer to send a message.'}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     messages.map((m, i) => (
@@ -411,6 +424,20 @@ function MessagesContent() {
                 <footer className="p-4 border-t border-slate-100">
                   {blocked ? (
                     <p className="text-center text-xs font-semibold text-slate-400 py-3 bg-slate-50 rounded-xl">User blocked</p>
+                  ) : active.role === 'buyer' && accessLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-3 text-xs font-semibold text-slate-400">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Checking your messaging plan…
+                    </div>
+                  ) : !canSend ? (
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-center">
+                      <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                      <p className="text-xs font-semibold text-amber-800">
+                        Your messaging plan is not active. Renew a ₹149+ plan to reply.
+                      </p>
+                      <Link href="/pricing" className="text-xs font-bold text-[#E53935] hover:underline">
+                        View plans
+                      </Link>
+                    </div>
                   ) : (
                     <form onSubmit={(e) => { e.preventDefault(); const el = document.getElementById('chat-input') as HTMLInputElement; void send(el.value); if (el) el.value = ''; }} className="flex items-center gap-2">
                       <button type="button" className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 shrink-0" aria-label="Attach a file">

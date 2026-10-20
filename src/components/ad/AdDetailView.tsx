@@ -18,7 +18,6 @@ import {
   listPublicAds,
   PublicAd,
 } from '@/services/ads';
-import { getMyProfile, canUseMessagingVerified } from '@/services/profile';
 import { trackAdView, trackFavorite as trackFavEvent } from '@/lib/analytics';
 import { useToast } from '@/components/ui/Feedback';
 import { useFavorites } from '@/components/providers/FavoritesProvider';
@@ -35,7 +34,6 @@ import {
   SearchX,
   Hourglass,
   PencilLine,
-  Lock,
 } from 'lucide-react';
 
 export default function AdDetailView() {
@@ -48,24 +46,11 @@ export default function AdDetailView() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [similar, setSimilar] = useState<PublicAd[]>([]);
-  const [messagingLocked, setMessagingLocked] = useState(!isSupabaseConfigured ? false : null);
-  const [isOwnAd, setIsOwnAd] = useState(false);
+  const [myId, setMyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    (async () => {
-      const [p, auth] = await Promise.all([getMyProfile(), getSupabaseBrowser()!.auth.getUser()]);
-      setMessagingLocked(p ? !(await canUseMessagingVerified(p)) : true);
-      setIsOwnAd(!!p && !!auth.data.user && p.id === auth.data.user.id);
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    (async () => {
-      const p = await getMyProfile();
-      setMessagingLocked(p ? !(await canUseMessagingVerified(p)) : true);
-    })();
+    getSupabaseBrowser()?.auth.getUser().then(({ data }) => setMyId(data.user?.id ?? null));
   }, []);
 
   useEffect(() => {
@@ -91,6 +76,8 @@ export default function AdDetailView() {
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
   }, [slug]);
+
+  const isOwnAd = !!ad && !!myId && ad.seller.id === myId;
 
   const handleToggleFav = async () => {
     if (!ad) return;
@@ -295,7 +282,6 @@ export default function AdDetailView() {
                     adTitle={ad.title}
                     phone={ad.seller.showPhone ? ad.seller.phone : undefined}
                     whatsapp={ad.seller.showWhatsApp ? ad.seller.whatsapp : undefined}
-                    messageLocked={messagingLocked === true}
                     isOwnAd={isOwnAd}
                   />
                 ) : (

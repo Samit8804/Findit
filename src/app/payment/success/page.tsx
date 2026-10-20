@@ -4,8 +4,11 @@ import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AuthShell } from '@/components/auth/AuthShell';
-import { CheckCircle2, Rocket, LayoutDashboard, Loader2 } from 'lucide-react';
+import { CheckCircle2, Rocket, Loader2, MessageSquare } from 'lucide-react';
 import { getOrderStatus } from '@/services/payments';
+import { useMessagingAccess } from '@/lib/useMessagingAccess';
+import { notifyMessagingAccessUpdated } from '@/services/messagingAccess';
+import { formatMessagingExpiry } from '@/lib/messagingEntitlement';
 
 /**
  * Success page NEVER decides payment succeeded on its own —
@@ -14,19 +17,28 @@ import { getOrderStatus } from '@/services/payments';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('order');
-  const [status, setStatus] = useState<'loading' | 'paid' | 'processing'>('loading');
+  const [status, setStatus] = useState<'loading' | 'paid' | 'processing'>(
+    orderId ? 'loading' : 'processing'
+  );
+  const { access, loading: accessLoading } = useMessagingAccess();
 
   useEffect(() => {
-    if (!orderId) { setStatus('processing'); return; }
+    if (!orderId) return;
     let attempts = 0;
     const check = async () => {
       const o = await getOrderStatus(orderId);
-      if (o?.status === 'paid') { setStatus('paid'); return; }
+      if (o?.status === 'paid') {
+        setStatus('paid');
+        notifyMessagingAccessUpdated();
+        return;
+      }
       if (attempts++ < 5) setTimeout(check, 2500);
       else setStatus('processing');
     };
     void check();
   }, [orderId]);
+
+  const expiry = formatMessagingExpiry(access?.expiresAt);
 
   return (
     <div className="text-center py-2">
@@ -47,8 +59,19 @@ function SuccessContent() {
           </div>
           <h2 className="text-lg font-bold mb-2">Payment verified!</h2>
           <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-            Your promotion is now active and your ad is getting boosted.
+            Your purchase is active. This status was confirmed by the payment backend.
           </p>
+
+          {!accessLoading && access?.allowed ? (
+            <div className="mt-5 mx-auto max-w-xs rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-left">
+              <p className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                <MessageSquare className="w-4 h-4" /> {access.planName || 'Messaging'} is active
+              </p>
+              <p className="text-[11px] text-emerald-700 mt-1">
+                {expiry ? `Messaging is unlocked until ${expiry}.` : 'Messaging is unlocked.'}
+              </p>
+            </div>
+          ) : null}
         </>
       )}
 

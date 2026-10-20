@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useUnread } from '@/components/providers/UnreadProvider';
 import { useMyProfile } from '@/lib/useMyProfile';
+import { useMessagingAccess } from '@/lib/useMessagingAccess';
+import { formatMessagingExpiry, planDisplayName } from '@/lib/messagingEntitlement';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,9 +37,10 @@ export const DashboardSidebar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const unread = useUnread();
   const { profile, loading: profileLoading } = useMyProfile();
+  const { access } = useMessagingAccess();
 
   const displayName = profile?.name || 'My Account';
-  const planLabel =
+  const profilePlan =
     profile?.role === 'admin'
       ? 'Admin'
       : profile?.plan === 'business-pro'
@@ -45,6 +48,9 @@ export const DashboardSidebar: React.FC = () => {
         : profile?.plan === 'business'
           ? 'Business'
           : 'Free plan';
+  const planLabel = access ? planDisplayName(access) : profilePlan;
+  const planExpiry =
+    access?.allowed && access.expiresAt ? formatMessagingExpiry(access.expiresAt) : null;
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
@@ -126,7 +132,9 @@ export const DashboardSidebar: React.FC = () => {
               ) : (
                 <>
                   <p className="text-sm font-bold truncate">{displayName}</p>
-                  <p className="text-[11px] text-slate-400">{planLabel}</p>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {planLabel}{planExpiry ? ` · until ${planExpiry}` : ''}
+                  </p>
                 </>
               )}
             </div>

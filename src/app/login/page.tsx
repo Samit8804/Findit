@@ -23,6 +23,19 @@ export default function LoginPage() {
     return Object.keys(e).length === 0;
   };
 
+  const destination = () => {
+    const redirect = new URLSearchParams(window.location.search).get('redirect');
+    if (!redirect) return '/';
+    try {
+      const url = new URL(redirect, window.location.origin);
+      return url.origin === window.location.origin
+        ? `${url.pathname}${url.search}${url.hash}`
+        : '/';
+    } catch {
+      return '/';
+    }
+  };
+
   const submit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!validate()) return;
@@ -33,7 +46,7 @@ export default function LoginPage() {
       setTimeout(() => {
         setLoading(false);
         setSuccess(true);
-        setTimeout(() => (window.location.href = '/'), 1000);
+        setTimeout(() => (window.location.href = destination()), 1000);
       }, 900);
       return;
     }
@@ -51,7 +64,7 @@ export default function LoginPage() {
     }
 
     setSuccess(true);
-    setTimeout(() => (window.location.href = '/'), 800);
+    setTimeout(() => (window.location.href = destination()), 800);
   };
 
   return (
