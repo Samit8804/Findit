@@ -1,198 +1,196 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { z } from 'zod';
+import { createClient } from '@supabase/supabase-js';
+import {
+  AI_REQUEST_MAX_BYTES,
+  SlidingWindowRateLimiter,
+  aiListingRequestSchema,
+  buildListingPrompt,
+  parseAiJson,
+  validateAiListingOutput,
+} from '@/lib/ai/listingAssistant';
+import { findReferenceListings } from '@/lib/ai/referenceSearch';
 
-// Environment check - API key must be server-side only
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const maxDuration = 30;
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-// Request validation schema
-const AiGenerateRequestSchema = z.object({
-  task: z.enum(['generate', 'improve']),
-  language: z.enum(['en', 'hi']),
-  category: z.string().min(1).max(100),
-  title: z.string().min(1).max(200).optional(),
-  description: z.string().min(1).max(5000).optional(),
-  price: z.number().min(0).max(100000000).optional(),
-  condition: z.enum(['new', 'used_like_new', 'used_good', 'used_fair']).optional(),
-  location: z.string().min(1).max(200).optional(),
-  brand: z.string().min(1).max(100).optional(),
-  model: z.string().min(1).max(100).optional(),
-  notes: z.string().max(2000).optional(),
-});
-
-// Response validation schema
-const AiGenerateResponseSchema = z.object({
-  titles: z.array(z.string().min(1).max(200)).length(3),
-  description: z.string().min(1).max(5000),
-  highlights: z.array(z.string().min(1).max(200)),
-  keywords: z.array(z.string().min(1).max(100)).max(20),
-  missingDetails: z.array(z.string().min(1).max(200)).optional(),
-});
+const rateLimiter = new SlidingWindowRateLimiter(8, 10 * 60 * 1000);
+const inFlight = new Set<string>();
 
 function isConfigured(): boolean {
   return Boolean(OPENAI_API_KEY && OPENAI_API_KEY.trim().length > 0);
 }
 
-function buildSystemPrompt(task: string, language: string): string {
-  const lang = language === 'hi' ? 'Hindi (Devanagari script)' : 'English';
-  const preserveNote = `IMPORTANT: Preserve all brand names, product model numbers, technical specifications, and numerical values exactly as provided. Do not translate or alter them. Keep prices and numerical details consistent with supplied facts.`;
-
-  if (task === 'generate') {
-    return `You are an expert classified ads copywriter. Generate a complete listing in ${lang}.
-
-${preserveNote}
-
-Generate exactly:
-1. Three distinct title options (each max 200 characters)
-2. One clear, well-organized description (max 5000 characters)
-3. Key highlights (5-10 short points, each max 200 characters)
-4. Relevant search keywords (up to 20 keywords, each max 100 characters)
-5. Optional suggestions for genuinely missing details
-
-Output ONLY valid JSON matching this schema:
-{
-  titles: string[],
-  description: string,
-  highlights: string[],
-  keywords: string[],
-  missingDetails?: string[]
+function bearerToken(request: Request): string {
+  const value = request.headers.get('authorization') || '';
+  const match = value.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || '';
 }
 
-Do not invent product facts, warranty coverage, ownership history, discounts, condition, location, or other claims. If information is missing, include suggestions in missingDetails rather than making assumptions.`;
-  } else {
-    return `You are an expert classified ads copywriter. Improve the provided listing in ${lang}.
-
-${preserveNote}
-
-Preserve the original meaning and all factual information. Do not invent specifications, warranty coverage, ownership history, discounts, condition, location, or other claims.
-
-Generate exactly:
-1. Three improved title options (each max 200 characters)
-2. A rewritten description (max 5000 characters)
-3. Key highlights (5-10 short points, each max 200 characters)
-4. Relevant search keywords (up to 20 keywords, each max 100 characters)
-5. Suggestions for clarity or completeness improvements
-
-Output ONLY valid JSON matching this schema:
-{
-  titles: string[],
-  description: string,
-  highlights: string[],
-  keywords: string[],
-  missingDetails?: string[]
+function errorResponse(message: string, status: number, headers?: Record<string, string>) {
+  return NextResponse.json({ error: message }, { status, headers });
 }
 
-Do not invent product facts. If information is missing, include suggestions in missingDetails rather than making assumptions.`;
+function openAiFailure(error: unknown): NextResponse {
+  const status =
+    error && typeof error === 'object' && 'status' in error
+      ? Number((error as { status?: unknown }).status)
+      : 0;
+  const message = error instanceof Error ? error.message : '';
+
+  if (status === 429 || /rate limit|429/i.test(message)) {
+    return errorResponse('AI is receiving too many requests. Please try again shortly.', 429);
   }
-}
-
-function buildUserPrompt(task: string, input: any): string {
-  const lines: string[] = [];
-  if (input.category) lines.push(`Category: ${input.category}`);
-  if (input.title) lines.push(`Current Title: ${input.title}`);
-  if (input.description) lines.push(`Current Description: ${input.description}`);
-  if (input.price !== undefined) lines.push(`Price: ${input.price}`);
-  if (input.condition) lines.push(`Condition: ${input.condition}`);
-  if (input.location) lines.push(`Location: ${input.location}`);
-  if (input.brand) lines.push(`Brand: ${input.brand}`);
-  if (input.model) lines.push(`Model: ${input.model}`);
-  if (input.notes) lines.push(`Notes: ${input.notes}`);
-
-  const taskName = task === 'generate' ? 'Generate a complete listing' : 'Improve this existing listing';
-  return `${taskName} based on the following details:\n\n${lines.join('\n')}`;
+  if (status === 408 || /timeout|timed out|ETIMEDOUT/i.test(message)) {
+    return errorResponse('AI took too long to respond. Please try again.', 504);
+  }
+  if (status === 401 || status === 403) {
+    return errorResponse('AI service authentication failed. Please contact support.', 503);
+  }
+  return errorResponse('AI could not generate your listing. Please try again.', 502);
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  // Check API key configuration
   if (!isConfigured()) {
-    return NextResponse.json(
-      { error: 'AI service is not configured. Please set OPENAI_API_KEY environment variable.' },
-      { status: 503 }
+    return errorResponse('AI service is not configured yet.', 503);
+  }
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return errorResponse('AI service requires an authenticated account.', 503);
+  }
+
+  const token = bearerToken(request);
+  if (!token) {
+    return errorResponse('Please log in to use the AI listing assistant.', 401);
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  let userId: string;
+  try {
+    const { data: authData, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !authData.user) {
+      return errorResponse('Your session has expired. Please log in again.', 401);
+    }
+    userId = authData.user.id;
+  } catch {
+    return errorResponse('Could not verify your session. Please try again.', 503);
+  }
+
+  const limit = rateLimiter.check(userId);
+  if (!limit.allowed) {
+    return errorResponse(
+      'You have reached the AI generation limit. Please try again later.',
+      429,
+      { 'Retry-After': String(limit.retryAfterSeconds) }
     );
+  }
+
+  if (inFlight.has(userId)) {
+    return errorResponse('An AI request is already running. Please wait for it to finish.', 409);
+  }
+
+  let raw: string;
+  try {
+    raw = await request.text();
+  } catch {
+    return errorResponse('Invalid request body.', 400);
+  }
+  if (new TextEncoder().encode(raw).length > AI_REQUEST_MAX_BYTES) {
+    return errorResponse('The AI request is too large.', 413);
   }
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(raw);
   } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    return errorResponse('Invalid request body.', 400);
   }
 
-  // Validate request
-  const validation = AiGenerateRequestSchema.safeParse(body);
+  const validation = aiListingRequestSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(
-      { error: 'Invalid input', details: validation.error.flatten().fieldErrors },
+      {
+        error: 'Please check the listing details and try again.',
+        details: validation.error.flatten().fieldErrors,
+      },
       { status: 400 }
     );
   }
 
-  const { task, language, ...input } = validation.data;
+  const input = validation.data;
+  inFlight.add(userId);
 
   try {
+    let references: Awaited<ReturnType<typeof findReferenceListings>> = [];
+    try {
+      references = await findReferenceListings(supabase, userId, input);
+    } catch (referenceError) {
+      console.error(
+        '[ai/generate] reference search failed:',
+        referenceError instanceof Error ? referenceError.message : 'unknown error'
+      );
+    }
+
+    const prompt = buildListingPrompt(input, references);
     const openai = new OpenAI({
       apiKey: OPENAI_API_KEY,
+      timeout: 25_000,
+      maxRetries: 0,
     });
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: buildSystemPrompt(task, language) },
-        { role: 'user', content: buildUserPrompt(task, input) },
+        { role: 'system', content: prompt.system },
+        { role: 'user', content: prompt.user },
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.45,
+      max_tokens: 1200,
       response_format: { type: 'json_object' },
     });
 
     const content = completion.choices[0]?.message?.content;
     if (!content) {
-      return NextResponse.json(
-        { error: 'AI service returned empty response' },
-        { status: 502 }
-      );
+      return errorResponse('AI returned an empty response. Please try again.', 502);
     }
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(content);
+      parsed = parseAiJson(content);
     } catch {
-      return NextResponse.json(
-        { error: 'AI service returned invalid response format' },
-        { status: 502 }
-      );
+      return errorResponse('AI returned an unreadable response. Please try again.', 502);
     }
 
-    // Validate response
-    const responseValidation = AiGenerateResponseSchema.safeParse(parsed);
-    if (!responseValidation.success) {
-      return NextResponse.json(
-        { error: 'AI service returned invalid output', details: responseValidation.error.flatten().fieldErrors },
-        { status: 502 }
-      );
+    const result = validateAiListingOutput(parsed, input.target, input.language);
+    if (!result.ok) {
+      return errorResponse(result.error, 502);
     }
 
-    return NextResponse.json(responseValidation.data);
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
-      return NextResponse.json(
-        { error: 'AI service rate limit exceeded. Please try again later.' },
-        { status: 429 }
-      );
-    }
-    
-    if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
-      return NextResponse.json(
-        { error: 'AI service request timed out. Please try again.' },
-        { status: 504 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'AI service error. Please try again.' },
-      { status: 500 }
+    return NextResponse.json({
+      ...(input.target === 'description' ? {} : { title: result.data.title }),
+      ...(input.target === 'title' ? {} : { description: result.data.description }),
+      language: result.data.language,
+      missing_details: result.data.missing_details,
+      questions: result.data.questions,
+      reference_count: references.length,
+    });
+  } catch (error) {
+    console.error(
+      '[ai/generate] generation failed:',
+      error instanceof Error ? error.message : 'unknown error'
     );
+    return openAiFailure(error);
+  } finally {
+    inFlight.delete(userId);
   }
 }

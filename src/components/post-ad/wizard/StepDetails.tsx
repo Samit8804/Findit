@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { Condition } from './wizardData';
 import { WIZARD_CATEGORIES } from './wizardData';
 import { AiFieldButton } from './AiAssistant';
+import { ListingAiAssistant } from './ListingAiAssistant';
+import type { AiTarget } from '@/lib/ai/listingAssistant';
 
 const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'new', label: 'Brand New' },
@@ -41,8 +44,29 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
   onExtraChange,
 }) => {
   const [aiLanguage, setAiLanguage] = useState<'en' | 'hi'>('en');
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantTarget, setAssistantTarget] = useState<AiTarget>('both');
   const wizardCategory = WIZARD_CATEGORIES.find((c) => c.name === category);
   const extraFields = wizardCategory?.fields || [];
+  const bothEmpty = !title.trim() && !description.trim();
+  const bothFilled = Boolean(title.trim() && description.trim());
+  const mainTarget: AiTarget = bothEmpty || bothFilled
+    ? 'both'
+    : !title.trim()
+      ? 'title'
+      : 'description';
+  const mainLabel = bothEmpty
+    ? 'Generate with AI'
+    : bothFilled
+      ? 'Improve with AI'
+      : mainTarget === 'title'
+        ? 'Generate title with AI'
+        : 'Generate description with AI';
+
+  const openAssistant = (target: AiTarget) => {
+    setAssistantTarget(target);
+    setAssistantOpen(true);
+  };
 
   return (
     <div className="space-y-5">
@@ -51,16 +75,27 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
         <p className="text-xs text-slate-400 mb-5">
           Fields marked <span className="text-[#E53935]">*</span> are required.
         </p>
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-slate-600 uppercase tracking-tighter">AI Language</label>
-          <select
-            value={aiLanguage}
-            onChange={(e) => setAiLanguage(e.target.value as 'en' | 'hi')}
-            className="text-xs px-2 py-1.5 rounded border border-slate-200 bg-white focus:ring-1 focus:ring-[#E53935] outline-none"
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <label htmlFor="ai-language" className="text-xs font-medium text-slate-600 uppercase tracking-tighter">AI Language</label>
+            <select
+              id="ai-language"
+              value={aiLanguage}
+              onChange={(e) => setAiLanguage(e.target.value as 'en' | 'hi')}
+              className="text-xs px-2 py-1.5 rounded border border-slate-200 bg-white focus:ring-1 focus:ring-[#E53935] outline-none"
+            >
+              <option value="en">English</option>
+              <option value="hi">हिंदी</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={() => openAssistant(mainTarget)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0F172A] px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#E53935]"
           >
-            <option value="en">English</option>
-            <option value="hi">हिंदी</option>
-          </select>
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            {mainLabel}
+          </button>
         </div>
       </div>
 
@@ -82,13 +117,9 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
           />
           <AiFieldButton
             fieldType="title"
-            currentValue={title}
-            category={category}
-            price={price}
-            condition={condition}
-            location={location || ''}
-            language={aiLanguage}
-            onResult={(t) => onChange({ title: t })}
+            title={title}
+            description={description}
+            onOpen={openAssistant}
           />
         </div>
         <p id="title-count" className="text-xs text-slate-400 mt-1">{title.length}/80 characters</p>
@@ -187,17 +218,29 @@ export const StepDetails: React.FC<StepDetailsProps> = ({
           />
           <AiFieldButton
             fieldType="description"
-            currentValue={description}
-            category={category}
-            price={price}
-            condition={condition}
-            location={location || ''}
-            language={aiLanguage}
-            onResult={(d) => onChange({ description: d })}
+            title={title}
+            description={description}
+            onOpen={openAssistant}
           />
         </div>
         <p id="desc-count" className="text-xs text-slate-400 mt-1">{description.length}/2000 characters</p>
       </div>
+
+      <ListingAiAssistant
+        open={assistantOpen}
+        target={assistantTarget}
+        category={category}
+        title={title}
+        description={description}
+        price={price}
+        condition={condition}
+        extra={extra}
+        location={location}
+        language={aiLanguage}
+        onLanguageChange={setAiLanguage}
+        onClose={() => setAssistantOpen(false)}
+        onApply={(patch) => onChange(patch)}
+      />
     </div>
   );
 };
