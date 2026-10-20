@@ -41,6 +41,7 @@ async function fetchSupabaseAd(slug: string) {
       views_count,
       favorites_count,
       is_featured,
+      contact_allow_messages,
       categories!ads_category_id_fkey(name, slug),
       locations(name),
       ad_images(image_url, is_primary, sort_order)
@@ -82,6 +83,7 @@ async function fetchSupabaseAd(slug: string) {
         views_count,
         favorites_count,
         is_featured,
+        contact_allow_messages,
         categories!ads_category_id_fkey(name, slug),
         locations(name),
         ad_images(image_url, is_primary, sort_order)
@@ -272,6 +274,20 @@ export default async function AdDetailPage({ params }: AdPageProps) {
                   <h1 className="text-xl sm:text-2xl font-black tracking-tight mb-4">{sbAd.title}</h1>
                   <p className="text-3xl font-black text-[#E53935] mb-4">₹{Number(sbAd.price).toLocaleString('en-IN')}</p>
                   <p className="text-sm text-slate-500 mb-4">{sbAd.city?.name || ''}</p>
+                  <div className="mb-4">
+                    {sbAd.contact_allow_messages !== false ? (
+                      <ContactButtons
+                        adId={sbAd.id}
+                        sellerUserId={sbAd.user_id}
+                        sellerName={sbAd.profiles?.display_name || sbAd.profiles?.name || 'Seller'}
+                        adTitle={sbAd.title}
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl">
+                        This seller is not accepting connection requests.
+                      </p>
+                    )}
+                  </div>
                   <div className="flex flex-wrap items-center gap-3 mb-4">
                     <FavouriteButton adId={sbAd.id} variant="button" />
                     <ShareButton title={sbAd.title} url={`${SITE_URL}/ad/${sbAd.slug}`} />

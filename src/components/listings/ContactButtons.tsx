@@ -72,6 +72,11 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
       if (!auth.user) { setLoading(false); return; }
       setMyId(auth.user.id);
 
+      if (auth.user.id === sellerUserId) {
+        setLoading(false);
+        return;
+      }
+
       // Load existing requests
       try {
         const { data, error } = await sb
@@ -198,9 +203,10 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
     ) : null;
 
   /* ---------------- Messaging button / state ---------------- */
+  const ownsListing = isOwnAd || myId === sellerUserId;
   let msgBtn: React.ReactNode;
 
-  if (isOwnAd) {
+  if (ownsListing) {
     msgBtn = (
       <span className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold cursor-default">
         Your Ad
@@ -227,7 +233,7 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
         <Clock className="w-4 h-4" /> Request Sent
       </button>
     );
-  } else if (reqStatus === 'declined') {
+  } else if (reqStatus === 'declined' || reqStatus === 'cancelled') {
     msgBtn = (
       <button
         onClick={handleRequestClick}
@@ -288,17 +294,17 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
         {buttons}
       </div>
 
-      {!isOwnAd && access?.configured === false && (
+      {!ownsListing && access?.configured === false && (
         <p className="mt-3 text-[11px] text-center font-semibold text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
           Demo preview — messaging is unlocked locally. No paid entitlement is active.
         </p>
       )}
-      {!isOwnAd && access?.configured !== false && reqStatus === 'accepted' && access?.allowed && expiry && (
+      {!ownsListing && access?.configured !== false && reqStatus === 'accepted' && access?.allowed && expiry && (
         <p className="mt-3 text-[11px] text-center font-semibold text-emerald-700">
           {access.planName || 'Messaging'} active until {expiry}
         </p>
       )}
-      {!isOwnAd && access?.configured !== false && reqStatus === 'accepted' && !access?.allowed && !accessLoading && (
+      {!ownsListing && access?.configured !== false && reqStatus === 'accepted' && !access?.allowed && !accessLoading && (
         <p className="mt-3 text-[11px] text-center text-slate-400">
           Messaging is included with plans of ₹149 or more.
         </p>
