@@ -1,8 +1,5 @@
-export const MESSAGING_MIN_PRICE = 149;
-
 export interface PlanMessagingConfig {
   messagingAccess?: boolean | null;
-  price?: number | string | null;
 }
 
 export interface MessagingAccess {
@@ -21,29 +18,24 @@ export interface SubscriptionRecord {
   promotionId: string | null;
   plan: string;
   status: string;
+  startsAt?: string | null;
   endsAt: string | null;
   promotion?: PlanMessagingConfig | null;
 }
 
-export function normalizePrice(price: number | string | null | undefined): number | null {
-  if (price === null || price === undefined || price === '') return null;
-  const value = Number(price);
-  return Number.isFinite(value) ? value : null;
-}
-
-/** A plan includes messaging only when the admin enabled it AND the plan's
- * configured price meets the floor. Checkout discounts are irrelevant. */
+/** Messaging is controlled by the explicit admin flag, never by price. */
 export function isEligibleMessagingPlan(
-  plan: PlanMessagingConfig | null | undefined,
-  minPrice: number = MESSAGING_MIN_PRICE
+  plan: PlanMessagingConfig | null | undefined
 ): boolean {
-  if (!plan || plan.messagingAccess !== true) return false;
-  const price = normalizePrice(plan.price);
-  return price !== null && price >= minPrice;
+  return plan?.messagingAccess === true;
 }
 
 export function isSubscriptionActive(sub: SubscriptionRecord, now: Date = new Date()): boolean {
   if (sub.status !== 'active') return false;
+  if (sub.startsAt) {
+    const starts = new Date(sub.startsAt);
+    if (!Number.isFinite(starts.getTime()) || starts.getTime() > now.getTime()) return false;
+  }
   if (!sub.endsAt) return true;
   const ends = new Date(sub.endsAt);
   return Number.isFinite(ends.getTime()) && ends.getTime() > now.getTime();
@@ -53,7 +45,6 @@ export function evaluateMessagingEntitlement(input: {
   isAdmin?: boolean;
   subscriptions: SubscriptionRecord[];
   now?: Date;
-  minPrice?: number;
 }): boolean {
   if (input.isAdmin) return true;
   const now = input.now ?? new Date();
@@ -62,7 +53,7 @@ export function evaluateMessagingEntitlement(input: {
     if (!sub.promotionId) {
       return sub.plan === 'business' || sub.plan === 'business-pro';
     }
-    return isEligibleMessagingPlan(sub.promotion, input.minPrice);
+    return isEligibleMessagingPlan(sub.promotion);
   });
 }
 
@@ -136,7 +127,7 @@ export function planDisplayName(access: MessagingAccess | null | undefined): str
 export function planAccessCaption(access: MessagingAccess | null | undefined): string {
   if (!access) return 'Checking plan access…';
   if (access.isAdmin) return 'Staff access — messaging enabled';
-  if (!access.allowed) return `Messaging is included with plans of ₹${MESSAGING_MIN_PRICE} or more.`;
+  if (!access.allowed) return 'Messaging is not included in your current plan.';
   const expiry = formatMessagingExpiry(access.expiresAt);
   return expiry ? `Messaging active until ${expiry}` : 'Messaging active';
 }

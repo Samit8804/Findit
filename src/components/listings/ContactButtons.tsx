@@ -306,7 +306,7 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
       )}
       {!ownsListing && access?.configured !== false && reqStatus === 'accepted' && !access?.allowed && !accessLoading && (
         <p className="mt-3 text-[11px] text-center text-slate-400">
-          Messaging is included with plans of ₹149 or more.
+          Messaging requires a plan that includes it.
         </p>
       )}
 
@@ -316,7 +316,7 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
           <Modal open={msgOpen} onClose={() => setMsgOpen(false)} title="Request to Connect" size="sm">
             <form onSubmit={handleSendRequest} className="space-y-4">
               <p className="text-sm text-slate-600">
-                Introduce yourself to <strong>{sellerName}</strong> about <strong>"{adTitle}"</strong>. This request is free — the seller can accept or decline. After acceptance, an active ₹149+ plan is required to chat.
+                Introduce yourself to <strong>{sellerName}</strong> about <strong>"{adTitle}"</strong>. This request is free — the seller can accept or decline. After acceptance, an active messaging plan is required to chat.
               </p>
               <label htmlFor="conn-msg" className="block text-xs font-semibold text-slate-500 mb-1.5">
                 Your introduction

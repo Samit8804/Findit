@@ -10,7 +10,7 @@ import {
 } from '@/services/payments';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { Modal, ConfirmDialog, useToast } from '@/components/ui/Feedback';
-import { Input } from '@/components/ui/Form';
+import { Input, Select } from '@/components/ui/Form';
 
 const ICONS: Record<string, React.ElementType> = {
   boost: Zap, featured: Rocket, top: Crown,
@@ -168,17 +168,18 @@ function EditModal({
   const isNew = target === 'new';
   const p = isNew || !target ? null : (target as AdminPromotion);
 
-  const [form, setForm] = useState({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '', messaging_access: false });
+  const [form, setForm] = useState({ name: '', slug: '', type: 'featured', plan_type: '', description: '', price: '', duration_days: '', messaging_access: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
-    if (target === 'new') setForm({ name: '', slug: '', type: 'featured', description: '', price: '', duration_days: '', messaging_access: false });
+    if (target === 'new') setForm({ name: '', slug: '', type: 'featured', plan_type: '', description: '', price: '', duration_days: '', messaging_access: false });
     else if (target)
       setForm({
         name: target.name,
         slug: target.slug,
         type: target.type,
+        plan_type: target.plan_type || '',
         description: target.description || '',
         price: String(target.price),
         duration_days: String(target.duration_days ?? ''),
@@ -189,10 +190,9 @@ function EditModal({
   const save = async () => {
     const errs: Record<string, string> = {};
     if (!form.name.trim()) errs.name = 'Name required.';
+    if (!form.plan_type.trim()) errs.plan_type = 'Plan type required.';
     if (!form.price || Number(form.price) <= 0) errs.price = 'Valid price required.';
-    if (form.messaging_access && Number(form.price) < 149) {
-      errs.messaging_access = 'Messaging can only be enabled for plans priced ₹149 or more.';
-    }
+    if (!form.duration_days || Number(form.duration_days) <= 0) errs.duration_days = 'Valid duration required.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
 
@@ -203,9 +203,11 @@ function EditModal({
         name: form.name.trim(),
         slug: p?.slug ?? form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         type: form.type,
+        plan_type: form.plan_type.trim(),
         description: form.description.trim(),
+        currency: p?.currency ?? 'INR',
         price: Number(form.price),
-        duration_days: form.duration_days ? Number(form.duration_days) : null,
+        duration_days: Number(form.duration_days),
         messaging_access: form.messaging_access,
       });
       toast(isNew ? 'Promotion created.' : 'Promotion updated.');
@@ -221,8 +223,22 @@ function EditModal({
     <Modal open={target !== null} onClose={onClose} title={isNew ? 'New Promotion' : `Edit — ${p?.name}`} size="md">
       <div className="space-y-4">
         <Input label="Name" name="promo-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} error={errors.name} />
+        <Select
+          label="Benefit type"
+          name="promo-type"
+          value={form.type}
+          onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+          options={[
+            { value: 'featured', label: 'Featured placement' },
+            { value: 'top', label: 'Top placement' },
+            { value: 'boost', label: 'Boost' },
+            { value: 'extension', label: 'Listing extension' },
+            { value: 'business_subscription', label: 'Business subscription' },
+          ]}
+        />
+        <Input label="Plan type" name="promo-plan-type" value={form.plan_type} onChange={(e) => setForm((f) => ({ ...f, plan_type: e.target.value }))} error={errors.plan_type} hint="Stable identifier, e.g. featured_7d or business_pro" />
         <Input label="Price (₹)" name="promo-price" type="number" min={0} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} error={errors.price} />
-        <Input label="Duration (days)" name="promo-days" type="number" min={1} value={form.duration_days} onChange={(e) => setForm((f) => ({ ...f, duration_days: e.target.value }))} hint="Leave empty for subscriptions shown as monthly" />
+        <Input label="Duration (days)" name="promo-days" type="number" min={1} value={form.duration_days} onChange={(e) => setForm((f) => ({ ...f, duration_days: e.target.value }))} error={errors.duration_days} />
         <Input label="Description" name="promo-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
         <label className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${form.messaging_access ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200'}`}>
           <input
@@ -236,7 +252,7 @@ function EditModal({
               <MessageSquare className="w-4 h-4" /> Include messaging
             </span>
             <span className="block text-xs text-slate-500 mt-0.5">
-              Buyers on this plan can start and send conversations. Requires a price of ₹149 or more.
+              Buyers on this plan can start and send conversations. This is independent of price.
             </span>
             {errors.messaging_access && <span className="block text-xs font-semibold text-[#D32F2F] mt-1">{errors.messaging_access}</span>}
           </span>

@@ -20,6 +20,7 @@ function SuccessContent() {
   const [status, setStatus] = useState<'loading' | 'paid' | 'processing'>(
     orderId ? 'loading' : 'processing'
   );
+  const [benefitFailure, setBenefitFailure] = useState<{ message?: string } | null>(null);
   const { access, loading: accessLoading } = useMessagingAccess();
 
   useEffect(() => {
@@ -29,6 +30,7 @@ function SuccessContent() {
       const o = await getOrderStatus(orderId);
       if (o?.status === 'paid') {
         setStatus('paid');
+        setBenefitFailure(o.benefitFailure ?? null);
         notifyMessagingAccessUpdated();
         return;
       }
@@ -59,8 +61,17 @@ function SuccessContent() {
           </div>
           <h2 className="text-lg font-bold mb-2">Payment verified!</h2>
           <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-            Your purchase is active. This status was confirmed by the payment backend.
+            This status was confirmed by the payment backend.
           </p>
+
+          {benefitFailure && (
+            <div className="mt-5 mx-auto max-w-xs rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left">
+              <p className="text-xs font-bold text-amber-800">Activation needs attention</p>
+              <p className="text-[11px] text-amber-700 mt-1">
+                {benefitFailure.message || 'The payment was verified, but the plan could not be activated automatically. Please contact support with your order ID.'}
+              </p>
+            </div>
+          )}
 
           {!accessLoading && access?.allowed ? (
             <div className="mt-5 mx-auto max-w-xs rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-left">

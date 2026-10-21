@@ -78,6 +78,7 @@ export default function PricingPage() {
       router.push(`/payment/${order.orderId}`);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'ORDER_CREATE_FAILED';
+      const detail = e instanceof Error && 'detail' in e ? (e as Error & { detail?: string }).detail : undefined;
       if (message === 'NOT_AUTHENTICATED') {
         router.push(`/login?redirect=${encodeURIComponent('/pricing')}`);
         return;
@@ -85,7 +86,7 @@ export default function PricingPage() {
       if (message === 'GATEWAY_NOT_CONFIGURED' || message === 'BACKEND_NOT_CONFIGURED') {
         setError('Online payments are temporarily unavailable. No payment was taken.');
       } else {
-        setError('We could not start checkout. Please try again in a moment.');
+        setError(detail || 'We could not start checkout. Please try again in a moment.');
       }
       setBuying(null);
     }
@@ -108,7 +109,7 @@ export default function PricingPage() {
             </h1>
             <p className="text-sm sm:text-base text-slate-500 max-w-xl mx-auto mt-4 leading-relaxed">
               One-time plans with no auto-renewal. Choose the reach you need — messaging is
-              included with every plan priced ₹149 or more.
+              included only when a plan explicitly includes it.
             </p>
           </div>
 
@@ -135,7 +136,7 @@ export default function PricingPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-5 py-3.5 text-center">
                 <Lock className="w-4 h-4 text-amber-600" />
                 <p className="text-sm font-semibold text-amber-800">
-                  Messaging is not active on your account yet. Plans of ₹149+ include it.
+                  Messaging is not active on your account yet. Choose a plan that includes messaging.
                 </p>
               </div>
             )}

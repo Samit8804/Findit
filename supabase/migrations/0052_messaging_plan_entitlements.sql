@@ -30,7 +30,7 @@ begin
     alter table public.promotions
       add column messaging_access boolean not null default false;
 
-    update public.promotions
+    update public.promotions 
        set messaging_access = true
      where price >= 149;
   end if;

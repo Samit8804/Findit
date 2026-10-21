@@ -68,7 +68,11 @@ export async function createOrderApi(
     body: JSON.stringify({ ad_id: adId, promotion_slug: promotionSlug }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || 'ORDER_CREATE_FAILED');
+  if (!res.ok) {
+    const error = new Error(body.error || 'ORDER_CREATE_FAILED') as Error & { detail?: string };
+    error.detail = body.detail;
+    throw error;
+  }
   return body;
 }
 

@@ -152,7 +152,7 @@ function MessagesContent() {
   const send = async (text: string) => {
     if (!active || blocked) return;
     if (!canSend) {
-      flash('Your messaging plan is not active. Choose a ₹149+ plan to reply.');
+      flash('Your messaging plan is not active. Choose a plan that includes messaging.');
       return;
     }
     const trimmed = text.trim();
@@ -241,7 +241,7 @@ function MessagesContent() {
           <h2 className="text-xl font-black mb-2">Messaging is locked</h2>
           <p className="text-slate-600 mb-2 max-w-md mx-auto leading-relaxed">
             You can still read your existing conversations. To start or reply as a buyer,
-            choose a plan of ₹149 or more.
+            choose a plan that includes messaging.
           </p>
           <p className="text-xs text-slate-400 mb-6">Sellers can reply to buyers who are already in a conversation.</p>
           <Link
@@ -400,7 +400,7 @@ function MessagesContent() {
                       ) : (
                         <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
                           {active.role === 'buyer'
-                            ? 'An active ₹149+ messaging plan is required to reply. You can still read the history.'
+                            ? 'An active messaging plan is required to reply. You can still read the history.'
                             : 'Waiting for the buyer to send a message.'}
                         </p>
                       )}
@@ -432,7 +432,7 @@ function MessagesContent() {
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-center">
                       <Lock className="w-4 h-4 text-amber-600 shrink-0" />
                       <p className="text-xs font-semibold text-amber-800">
-                        Your messaging plan is not active. Renew a ₹149+ plan to reply.
+                        Your messaging plan is not active. Renew a messaging plan to reply.
                       </p>
                       <Link href="/pricing" className="text-xs font-bold text-[#E53935] hover:underline">
                         View plans

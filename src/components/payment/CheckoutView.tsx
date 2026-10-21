@@ -87,8 +87,8 @@ function CheckoutContent({ initialOrderId }: { initialOrderId?: string }) {
             });
             window.location.href = `/payment/success?order=${orderId}`;
           } catch {
-            // Webhook may still land — show processing page
-            window.location.href = `/payment/pending?order=${orderId}`;
+            // Webhook may still land — the success page polls verified status.
+            window.location.href = `/payment/success?order=${orderId}`;
           }
         },
         onDismiss: () => {

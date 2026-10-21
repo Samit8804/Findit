@@ -13,19 +13,6 @@ export interface Promotion {
   messagingAccess: boolean;
 }
 
-const FALLBACK_PROMOTIONS: Promotion[] = [
-  { id: 'boost', name: 'Boost', slug: 'boost', description: 'Small visibility bump at the top of your category.', type: 'boost', price: 49, currency: 'INR', durationDays: 3, planType: 'boost_3d', messagingAccess: false },
-  { id: 'featured-ad', name: 'Featured Ad', slug: 'featured-ad', description: 'Featured badge + priority search placement.', type: 'featured', price: 99, currency: 'INR', durationDays: 7, planType: 'featured_7d', messagingAccess: false },
-  { id: 'top-listing', name: 'Top Listing', slug: 'top-listing', description: 'Homepage spotlight, TOP badge, highest ranking.', type: 'top', price: 199, currency: 'INR', durationDays: 30, planType: 'top_30d', messagingAccess: true },
-  { id: 'business-basic', name: 'Business Basic', slug: 'business-basic', description: 'Directory profile, verified badge, 10 featured ads/mo.', type: 'business_subscription', price: 499, currency: 'INR', durationDays: 30, planType: null, messagingAccess: true },
-  { id: 'business-pro', name: 'Business Pro', slug: 'business-pro', description: 'Unlimited featured ads, banner rotation, analytics.', type: 'business_subscription', price: 999, currency: 'INR', durationDays: 30, planType: null, messagingAccess: true },
-];
-
-function missingMessagingColumn(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  return error.code === '42703' || /messaging_access.*does not exist/i.test(error.message ?? '');
-}
-
 type PromotionType = Promotion['type'];
 
 interface PromotionRow {
@@ -41,7 +28,7 @@ interface PromotionRow {
   messaging_access?: boolean | null;
 }
 
-function mapPromotion(p: PromotionRow, inferFromPrice = false): Promotion {
+function mapPromotion(p: PromotionRow): Promotion {
   return {
     id: p.id,
     name: p.name,
@@ -52,110 +39,49 @@ function mapPromotion(p: PromotionRow, inferFromPrice = false): Promotion {
     currency: p.currency,
     durationDays: p.duration_days,
     planType: p.plan_type ?? undefined,
-    messagingAccess: inferFromPrice ? Number(p.price) >= 149 : p.messaging_access === true,
+    messagingAccess: p.messaging_access === true,
   };
 }
 
-export interface BoostEligibility {
+export interface PlanEligibility {
   eligible: boolean;
   reason: string;
-  remainingDays: number;
-}
-
-export interface ExtensionEligibility {
-  eligible: boolean;
-  reason: string;
-  newExpiry?: string;
+  message: string;
+  benefitKind?: string;
+  planType?: string;
+  durationDays?: number;
+  currentExpiry?: string;
+  targetExpiry?: string;
+  remainingDays?: number;
 }
 
 export async function getActivePromotions(): Promise<Promotion[]> {
   const sb = getSupabaseBrowser();
-  if (!sb) return FALLBACK_PROMOTIONS;
-  try {
-    const base = 'id, name, slug, description, type, price, currency, duration_days, plan_type';
-    const { data, error } = await sb
-      .from('promotions')
-      .select(`${base}, messaging_access`)
-      .eq('is_active', true)
-      .order('price');
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from('promotions')
+    .select('id, name, slug, description, type, price, currency, duration_days, plan_type, messaging_access')
+    .eq('is_active', true)
+    .order('price');
 
-    if (error && missingMessagingColumn(error)) {
-      const legacy = await sb
-        .from('promotions')
-        .select(base)
-        .eq('is_active', true)
-        .order('price');
-      if (legacy.error || !legacy.data || legacy.data.length === 0) return FALLBACK_PROMOTIONS;
-      return legacy.data.map((p) => mapPromotion(p, true));
-    }
-
-    if (error || !data || data.length === 0) return FALLBACK_PROMOTIONS;
-    return data.map((p) => mapPromotion(p));
-  } catch {
-    return FALLBACK_PROMOTIONS;
-  }
+  if (error || !data) return [];
+  return data.map((p) => mapPromotion(p));
 }
 
-/* ---------------- Boost & Extension Eligibility ---------------- */
+/* ---------------- Plan Eligibility ---------------- */
 
-export async function checkBoostEligibility(adId: string): Promise<BoostEligibility> {
+export async function getAdPlanEligibility(
+  adId: string | null,
+  promotionId: string,
+): Promise<PlanEligibility> {
   const sb = getSupabaseBrowser();
   if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
-  const { data, error } = await sb.rpc('check_boost_eligibility', { p_ad_id: adId });
-  if (error) throw new Error(error.message);
-  return data as BoostEligibility;
-}
-
-export async function checkExtensionEligibility(adId: string): Promise<ExtensionEligibility> {
-  const sb = getSupabaseBrowser();
-  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
-  const { data, error } = await sb.rpc('check_extension_eligibility', { p_ad_id: adId });
-  if (error) throw new Error(error.message);
-  return data as ExtensionEligibility;
-}
-
-/* ---------------- Create Orders ---------------- */
-
-export interface CreateOrderResult {
-  orderId: string;
-  amount: number;
-  currency: string;
-  keyId: string;
-  providerOrderId: string;
-}
-
-export async function createBoostOrder(adId: string, promotionSlug: string): Promise<CreateOrderResult> {
-  const sb = getSupabaseBrowser();
-  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
-  const { data, error } = await sb.rpc('create_boost_order', {
-    ad_id: adId,
-    promotion_slug: promotionSlug,
+  const { data, error } = await sb.rpc('get_ad_plan_eligibility', {
+    p_ad_id: adId,
+    p_promotion_id: promotionId,
   });
-  if (error) throw new Error(error.message || error.hint || 'Failed to create boost order');
-  return {
-    orderId: data.order_id,
-    amount: data.amount,
-    currency: data.currency,
-    keyId: data.key_id,
-    providerOrderId: data.provider_order_id,
-  };
-}
-
-export async function createExtensionOrder(adId: string, promotionSlug: string): Promise<CreateOrderResult> {
-  const sb = getSupabaseBrowser();
-  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
-  const { data, error } = await sb.rpc('create_extension_order', {
-    ad_id: adId,
-    promotion_slug: promotionSlug,
-  });
-  if (error) throw new Error(error.message || error.hint || 'Failed to create extension order');
-  return {
-    orderId: data.order_id,
-    amount: data.amount,
-    currency: data.currency,
-    keyId: data.key_id,
-    providerOrderId: data.provider_order_id,
-  };
+  if (error) throw new Error(error.message);
+  return data as PlanEligibility;
 }
 
 /* ---------------- Orders ---------------- */
@@ -172,6 +98,11 @@ export interface OrderStatus {
   promotionDays?: number | null;
   adTitle?: string | null;
   adSlug?: string | null;
+  benefitResult?: {
+    applied?: boolean;
+    skipped?: string[];
+  } | null;
+  benefitFailure?: { reason?: string; message?: string } | null;
 }
 
 export async function getAccessToken(): Promise<string | null> {
@@ -299,7 +230,9 @@ export interface AdminPromotion {
   slug: string;
   description: string | null;
   type: string;
+  plan_type: string | null;
   price: number;
+  currency: string;
   duration_days: number | null;
   is_active: boolean;
   messaging_access: boolean;
@@ -308,21 +241,10 @@ export interface AdminPromotion {
 export async function adminListPromotions(): Promise<AdminPromotion[]> {
   const sb = getSupabaseBrowser();
   if (!sb) return [];
-  const base = 'id, name, slug, description, type, price, duration_days, is_active';
   const { data, error } = await sb
     .from('promotions')
-    .select(`${base}, messaging_access`)
+    .select('id, name, slug, description, type, plan_type, price, currency, duration_days, is_active, messaging_access')
     .order('price');
-
-  if (error && missingMessagingColumn(error)) {
-    const legacy = await sb.from('promotions').select(base).order('price');
-    if (legacy.error) throw new Error(legacy.error.message);
-    return (legacy.data || []).map((p) => ({
-      ...p,
-      price: Number(p.price),
-      messaging_access: Number(p.price) >= 149,
-    })) as AdminPromotion[];
-  }
 
   if (error) throw new Error(error.message);
   return (data || []).map((p) => ({

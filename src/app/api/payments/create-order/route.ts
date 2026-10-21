@@ -29,14 +29,16 @@ export async function POST(req: Request) {
     const user = authData.user;
 
     const body = await req.json().catch(() => null);
-    const adId: string | undefined = body?.ad_id;
-    const promotionSlug: string | undefined = body?.promotion_slug;
+    const adId: string | null =
+      typeof body?.ad_id === 'string' && body.ad_id.trim() ? body.ad_id.trim() : null;
+    const promotionSlug: string =
+      typeof body?.promotion_slug === 'string' ? body.promotion_slug.trim() : '';
 
-    /* 2. Verify promotion exists + active; price comes from DB */
+    /* 2. Price, duration and messaging access always come from the DB. */
     const { data: promo, error: promoErr } = await admin
       .from('promotions')
-      .select('id, name, slug, type, plan_type, price, currency, duration_days, is_active')
-      .eq('slug', promotionSlug ?? '')
+      .select('id, name, slug, type, plan_type, price, currency, duration_days, is_active, messaging_access')
+      .eq('slug', promotionSlug)
       .single();
 
     if (promoErr || !promo) {
@@ -46,74 +48,79 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'PROMOTION_UNAVAILABLE' }, { status: 409 });
     }
 
-    /* 3. Ad-promotions require an owned, approved ad */
-    let ad: any = null;
-    if (promo.type !== 'business_subscription') {
-      if (!adId) return NextResponse.json({ error: 'AD_REQUIRED' }, { status: 400 });
+    /* 3. One shared eligibility check for every configured plan type. */
+    const { data: eligibility, error: eligibilityErr } = await admin.rpc(
+      'evaluate_ad_plan_eligibility',
+      {
+        p_ad_id: adId,
+        p_promotion_id: promo.id,
+        p_user_id: user.id,
+        p_duration_days: null,
+      },
+    );
 
-      const { data: adRow, error: adErr } = await admin
-        .from('ads')
-        .select('id, user_id, title, slug, status, expires_at, created_at')
-        .eq('id', adId)
-        .single();
-      if (adErr || !adRow) return NextResponse.json({ error: 'AD_NOT_FOUND' }, { status: 404 });
-      if (adRow.user_id !== user.id) {
-        return NextResponse.json({ error: 'AD_NOT_OWNED' }, { status: 403 });
-      }
-      if (!['pending','approved'].includes(adRow.status)) {
-        return NextResponse.json(
-          { error: 'AD_NOT_ELIGIBLE', detail: 'Only pending or approved advertisements can be promoted. Draft must be submitted first.' },
-          { status: 409 },
-        );
-      }
-      ad = adRow;
-
-      /* 3a. Server-side eligibility checks for Boost and Extension */
-      if (promo.plan_type === 'boost_3d') {
-        // Check Boost eligibility: at least 3 full days remaining
-        if (!ad.expires_at) {
-          return NextResponse.json({ error: 'BOOST_NOT_ELIGIBLE', detail: 'Advertisement has no expiry date.' }, { status: 409 });
-        }
-        const remainingMs = new Date(ad.expires_at).getTime() - Date.now();
-        const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
-        if (remainingDays < 3) {
-          return NextResponse.json(
-            { error: 'BOOST_NOT_ELIGIBLE', detail: `Boost requires at least 3 full days remaining. This ad has ${remainingDays} day(s) left.` },
-            { status: 409 }
-          );
-        }
-      } else if (promo.plan_type === 'extend_10d') {
-        // Check Extension eligibility: ad not expired, and extension provides additional time
-        if (!ad.expires_at) {
-          return NextResponse.json({ error: 'EXTENSION_NOT_ELIGIBLE', detail: 'Advertisement has no expiry date.' }, { status: 409 });
-        }
-        const now = new Date();
-        const expiresAt = new Date(ad.expires_at);
-        if (expiresAt < now) {
-          return NextResponse.json({ error: 'EXTENSION_NOT_ELIGIBLE', detail: 'Advertisement already expired. Use renewal flow.' }, { status: 409 });
-        }
-        const originalCreated = new Date(ad.created_at);
-        const newExpiry = new Date(originalCreated.getTime() + 10 * 24 * 60 * 60 * 1000);
-        if (newExpiry <= expiresAt) {
-          return NextResponse.json({ error: 'EXTENSION_NOT_ELIGIBLE', detail: 'Extension would not provide additional time.' }, { status: 409 });
-        }
-      }
+    if (eligibilityErr) {
+      console.error('[payments] eligibility check failed:', eligibilityErr.message);
+      return NextResponse.json({ error: 'ELIGIBILITY_CHECK_FAILED' }, { status: 500 });
+    }
+    if (!eligibility?.eligible) {
+      return NextResponse.json(
+        {
+          error: eligibility?.reason ?? 'PLAN_NOT_ELIGIBLE',
+          reason: eligibility?.reason ?? 'PLAN_NOT_ELIGIBLE',
+          detail: eligibility?.message ?? 'This plan is not available for the selected advertisement.',
+        },
+        { status: 409 },
+      );
     }
 
-    /* 4. Create internal order (price/currency from DB only) */
+    let ad: { id: string; title: string; slug: string } | null = null;
+    if (adId) {
+      const { data: adRow, error: adErr } = await admin
+        .from('ads')
+        .select('id, title, slug')
+        .eq('id', adId)
+        .single();
+      if (adErr || !adRow) {
+        return NextResponse.json({ error: 'AD_NOT_FOUND' }, { status: 404 });
+      }
+      ad = adRow;
+    }
+
+    /* 4. Create internal order with immutable purchase terms. */
+    const capturedAt = new Date().toISOString();
+    const amount = Number(promo.price);
+    const benefitSnapshot = {
+      promotion_id: promo.id,
+      slug: promo.slug,
+      name: promo.name,
+      promotion_type: promo.type,
+      plan_type: promo.plan_type,
+      duration_days: promo.duration_days,
+      messaging_access: promo.messaging_access === true,
+      price: amount,
+      currency: promo.currency,
+      captured_at: capturedAt,
+    };
+
     const { data: order, error: orderErr } = await admin
       .from('orders')
       .insert({
         user_id: user.id,
         ad_id: ad?.id ?? null,
         promotion_id: promo.id,
-        amount: promo.price,
+        amount,
         currency: promo.currency,
-        subtotal: promo.price,
-        total_amount: promo.price,
+        subtotal: amount,
+        total_amount: amount,
         provider: 'razorpay',
         status: 'created',
-        metadata: { promotion_name: promo.name, duration_days: promo.duration_days, plan_type: promo.plan_type },
+        metadata: {
+          promotion_name: promo.name,
+          duration_days: promo.duration_days,
+          plan_type: promo.plan_type,
+          benefit_snapshot: benefitSnapshot,
+        },
       })
       .select('id, amount, currency')
       .single();

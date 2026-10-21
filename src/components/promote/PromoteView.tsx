@@ -5,14 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
-import { Rocket, Star, Crown, Clock, Check, ShieldCheck, Loader2, AlertCircle, Info, MessageSquare } from 'lucide-react';
+import { Rocket, Star, Crown, Clock, Check, ShieldCheck, Loader2, AlertCircle, MessageSquare } from 'lucide-react';
 import {
   getActivePromotions,
+  getAdPlanEligibility,
   Promotion,
-  checkBoostEligibility,
-  checkExtensionEligibility,
-  BoostEligibility,
-  ExtensionEligibility,
+  PlanEligibility,
 } from '@/services/payments';
 import { createOrderApi } from '@/lib/payments/checkout';
 import { isEligibleMessagingPlan } from '@/lib/messagingEntitlement';
@@ -41,13 +39,6 @@ const promoColor = (planType?: string | null) => {
   return 'bg-red-50 text-[#E53935]';
 };
 
-interface PlanEligibility {
-  eligible: boolean;
-  reason: string;
-  remainingDays?: number;
-  newExpiry?: string;
-}
-
 export default function PromoteView({ initialId }: { initialId?: string }) {
   const searchParams = useSearchParams();
   const adId = initialId || searchParams.get('id') || '';
@@ -72,46 +63,37 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
     });
   }, []);
 
-  // Check eligibility for boost and extension plans when adId is available
+  // Every plan uses the same server-authoritative eligibility function.
   useEffect(() => {
-    if (!adId || !isSupabaseConfigured) return;
+    if (!promos.length || !isSupabaseConfigured) return;
+    let cancelled = false;
 
-    const checkAll = async () => {
-      try {
-        const results: Record<string, PlanEligibility> = {};
+    (async () => {
+      const entries: Array<[string, PlanEligibility]> = await Promise.all(
+        promos.map(async (promo) => {
+          try {
+            const result = await getAdPlanEligibility(adId || null, promo.id);
+            return [promo.id, result] as [string, PlanEligibility];
+          } catch {
+            return [
+              promo.id,
+              {
+                eligible: false,
+                reason: 'ELIGIBILITY_CHECK_FAILED',
+                message: 'Unable to check eligibility.',
+              },
+            ] as [string, PlanEligibility];
+          }
+        }),
+      );
 
-        // Check boost eligibility
-        try {
-          const boostResult = await checkBoostEligibility(adId);
-          results['boost_3d'] = {
-            eligible: boostResult.eligible,
-            reason: boostResult.reason,
-            remainingDays: boostResult.remainingDays,
-          };
-        } catch {
-          results['boost_3d'] = { eligible: false, reason: 'Unable to check eligibility' };
-        }
+      if (!cancelled) setEligibility(Object.fromEntries(entries));
+    })();
 
-        // Check extension eligibility
-        try {
-          const extResult = await checkExtensionEligibility(adId);
-          results['extend_10d'] = {
-            eligible: extResult.eligible,
-            reason: extResult.reason,
-            newExpiry: extResult.newExpiry,
-          };
-        } catch {
-          results['extend_10d'] = { eligible: false, reason: 'Unable to check eligibility' };
-        }
-
-        setEligibility(results);
-      } catch {
-        // Silently fail - eligibility is checked again server-side
-      }
+    return () => {
+      cancelled = true;
     };
-
-    checkAll();
-  }, [adId]);
+  }, [adId, promos]);
 
   useEffect(() => {
     if (!adId) {
@@ -148,7 +130,7 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
     [promos, selectedSlug]
   );
 
-  const selectedEligibility = eligibility[selected?.planType || ''];
+  const selectedEligibility = eligibility[selected?.id || ''];
 
   const continueToPayment = async () => {
     setError('');
@@ -158,13 +140,9 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
       return;
     }
 
-    // Check eligibility client-side for better UX (server will re-verify)
-    if (selected.planType === 'boost_3d' && selectedEligibility && !selectedEligibility.eligible) {
-      setError(selectedEligibility.reason);
-      return;
-    }
-    if (selected.planType === 'extend_10d' && selectedEligibility && !selectedEligibility.eligible) {
-      setError(selectedEligibility.reason);
+    // Check eligibility client-side for better UX (server will re-verify).
+    if (selectedEligibility && !selectedEligibility.eligible) {
+      setError(selectedEligibility.message || selectedEligibility.reason);
       return;
     }
 
@@ -246,21 +224,23 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
               const active = selectedSlug === p.slug;
               const Icon = promoIcon(p.type, p.planType);
               const colorClass = promoColor(p.planType);
-              const planEligibility = eligibility[p.planType || ''];
-              const isEligible = !planEligibility || planEligibility.eligible;
-              const isBoostOrExtension = p.planType === 'boost_3d' || p.planType === 'extend_10d';
+              const planEligibility = eligibility[p.id];
+              const isBlocked = !!planEligibility
+                && !planEligibility.eligible
+                && planEligibility.reason !== 'NOT_AUTHENTICATED'
+                && planEligibility.reason !== 'ELIGIBILITY_CHECK_FAILED';
 
               return (
                 <button
                   key={p.id}
                   role="radio"
                   aria-checked={active}
-                  onClick={() => isEligible && setSelectedSlug(p.slug)}
-                  disabled={!isEligible && isBoostOrExtension}
+                  onClick={() => !isBlocked && setSelectedSlug(p.slug)}
+                  disabled={isBlocked}
                   className={`relative text-left p-6 rounded-2xl border-2 transition-all ${
                     active
                       ? 'border-[#E53935] bg-red-50/60 shadow-md shadow-red-100'
-                      : !isEligible && isBoostOrExtension
+                      : isBlocked
                       ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
                       : 'border-slate-100 bg-white hover:border-red-200'
                   }`}
@@ -270,7 +250,7 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
                       <Check className="w-4 h-4 text-white" />
                     </span>
                   )}
-                  {!isEligible && isBoostOrExtension && (
+                  {isBlocked && (
                     <span className="absolute top-4 right-4 w-6 h-6 bg-slate-300 rounded-full flex items-center justify-center">
                       <AlertCircle className="w-4 h-4 text-slate-500" />
                     </span>
@@ -290,18 +270,12 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
                     </span>
                   )}
 
-                  {/* Eligibility message for Boost and Extension */}
-                  {isBoostOrExtension && planEligibility && (
+                  {isBlocked && planEligibility && (
                     <div className="mt-3 pt-2 border-t border-slate-100">
-                      {planEligibility.eligible ? (
-                        <p className="text-xs text-emerald-600 flex items-center gap-1">
-                          <Info className="w-3 h-3" /> Available
-                        </p>
-                      ) : (
-                        <p className="text-xs text-[#D32F2F] flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> {planEligibility.reason}
-                        </p>
-                      )}
+                      <p className="text-xs text-[#D32F2F] flex items-start gap-1">
+                        <AlertCircle className="mt-0.5 w-3 h-3 shrink-0" />
+                        {planEligibility.message || planEligibility.reason}
+                      </p>
                     </div>
                   )}
 
@@ -350,7 +324,7 @@ export default function PromoteView({ initialId }: { initialId?: string }) {
 
             <button
               onClick={continueToPayment}
-              disabled={!selected || creating || !!listingError || (selectedEligibility && !selectedEligibility.eligible && (selected?.planType === 'boost_3d' || selected?.planType === 'extend_10d'))}
+              disabled={!selected || creating || !!listingError || (!!selectedEligibility && !selectedEligibility.eligible && selectedEligibility.reason !== 'NOT_AUTHENTICATED' && selectedEligibility.reason !== 'ELIGIBILITY_CHECK_FAILED')}
               className="mt-7 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-[#E53935] hover:bg-[#D32F2F] disabled:opacity-50 text-white text-sm font-bold transition-colors shadow-lg shadow-red-200"
             >
               {creating && <Loader2 className="w-4 h-4 animate-spin" />}

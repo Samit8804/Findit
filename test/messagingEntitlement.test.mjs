@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  MESSAGING_MIN_PRICE,
   canActivatePaidOrder,
   canBuyerSendMessage,
   computeRenewalEnd,
@@ -22,18 +21,15 @@ function sub(overrides = {}) {
     plan: 'business',
     status: 'active',
     endsAt: new Date(NOW.getTime() + 10 * DAY).toISOString(),
-    promotion: { messagingAccess: true, price: 499 },
+    promotion: { messagingAccess: true },
     ...overrides,
   };
 }
 
-test('₹149 is the messaging floor and the flag is required', () => {
-  assert.equal(MESSAGING_MIN_PRICE, 149);
-  assert.equal(isEligibleMessagingPlan({ messagingAccess: true, price: 99 }), false);
-  assert.equal(isEligibleMessagingPlan({ messagingAccess: true, price: 149 }), true);
-  assert.equal(isEligibleMessagingPlan({ messagingAccess: true, price: 199 }), true);
-  assert.equal(isEligibleMessagingPlan({ messagingAccess: false, price: 499 }), false);
-  assert.equal(isEligibleMessagingPlan({ messagingAccess: true, price: '499' }), true);
+test('the explicit messaging flag is the only plan criterion', () => {
+  assert.equal(isEligibleMessagingPlan({ messagingAccess: true }), true);
+  assert.equal(isEligibleMessagingPlan({ messagingAccess: false }), false);
+  assert.equal(isEligibleMessagingPlan({}), false);
   assert.equal(isEligibleMessagingPlan(null), false);
 });
 
@@ -57,12 +53,29 @@ test('inactive and expired subscriptions do not grant access', () => {
   );
 });
 
-test('a ₹99 plan does not grant access even with the flag on', () => {
+test('price does not grant or remove messaging access', () => {
   assert.equal(
     evaluateMessagingEntitlement({
-      subscriptions: [sub({ promotion: { messagingAccess: true, price: 99 } })],
+      subscriptions: [sub({ promotion: { messagingAccess: true } })],
       now: NOW,
     }),
+    true
+  );
+  assert.equal(
+    evaluateMessagingEntitlement({
+      subscriptions: [sub({ promotion: { messagingAccess: false } })],
+      now: NOW,
+    }),
+    false
+  );
+});
+
+test('a future subscription does not grant early access', () => {
+  assert.equal(
+    isSubscriptionActive(
+      sub({ startsAt: new Date(NOW.getTime() + DAY).toISOString() }),
+      NOW
+    ),
     false
   );
 });

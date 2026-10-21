@@ -25,10 +25,11 @@ export async function GET(
     const { data: order } = await admin
       .from('orders')
       .select(`id, amount, currency, status, failure_reason, created_at, paid_at,
-               provider_order_id, provider_payment_id,
+               provider_order_id, provider_payment_id, metadata,
                promotions(name, duration_days),
                ads(title, slug),
-               user_id`)      .eq('id', id)
+               user_id`)
+      .eq('id', id)
       .single();
 
     if (!order) return NextResponse.json({ error: 'ORDER_NOT_FOUND' }, { status: 404 });
@@ -61,6 +62,8 @@ export async function GET(
       // Public gateway values needed to reopen checkout if unpaid
       providerOrderId: order.provider_order_id ?? null,
       keyId: process.env.RAZORPAY_KEY_ID || null,
+      benefitResult: (order.metadata as any)?.benefit_result ?? null,
+      benefitFailure: (order.metadata as any)?.benefit_failure ?? null,
     });
   } catch (e: any) {
     console.error('[payments] get order error:', e.message);

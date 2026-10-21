@@ -57,19 +57,30 @@ export async function POST(req: Request) {
     switch (event.event) {
       case 'payment.captured':
       case 'order.paid': {
-        await admin.rpc('complete_paid_order', {
+        if (!event.providerPaymentId) {
+          return NextResponse.json({ ok: true, ignored: true });
+        }
+        const { error: completeError } = await admin.rpc('complete_paid_order', {
           p_order_id: order.id,
           p_provider_payment_id: event.providerPaymentId,
           p_provider: 'razorpay',
           p_amount: event.amount,
         });
+        if (completeError) {
+          console.error('[payments] webhook completion failed:', completeError.message);
+          return NextResponse.json({ error: 'PAYMENT_COMPLETION_FAILED' }, { status: 500 });
+        }
         break;
       }
       case 'payment.failed': {
-        await admin.rpc('mark_order_failed', {
+        const { error: failError } = await admin.rpc('mark_order_failed', {
           p_order_id: order.id,
           p_reason: event.failureReason ?? 'Payment failed at gateway',
         });
+        if (failError) {
+          console.error('[payments] webhook failure update failed:', failError.message);
+          return NextResponse.json({ error: 'PAYMENT_STATUS_UPDATE_FAILED' }, { status: 500 });
+        }
         break;
       }
       case 'refund.processed':
@@ -90,7 +101,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: 'REFUND_UPDATE_FAILED' }, { status: 500 });
         }
         if (fullRefund) {
-          const { error: revokeError } = await admin.rpc('revoke_subscription_for_order', {
+          const { error: revokeError } = await admin.rpc('revoke_paid_order_benefits', {
             p_order_id: order.id,
           });
           if (revokeError) {
