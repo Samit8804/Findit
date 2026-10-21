@@ -4,7 +4,7 @@ export interface ConnectionRequest {
   id: string;
   senderId: string;
   recipientId: string;
-  listingId: string;
+  listingId: string | null;
   initialMessage: string;
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   createdAt: string;
@@ -16,9 +16,47 @@ export interface ConnectionRequest {
   senderAvatar?: string;
 }
 
+export interface SearchUserResult {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  location: string | null;
+  accountType: string;
+  connectionStatus: 'none' | 'sent' | 'incoming' | 'connected';
+  requestId?: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* CLIENT-SIDE SERVICE (browser Supabase client)                      */
 /* ------------------------------------------------------------------ */
+
+export async function searchUsersByUsername(query: string): Promise<SearchUserResult[]> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+
+  const token = (await sb.auth.getSession()).data.session?.access_token;
+  if (!token) throw new Error('NOT_AUTHENTICATED');
+
+  const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'USER_SEARCH_FAILED');
+  return body.users as SearchUserResult[];
+}
+
+export async function sendDirectConnectionRequest(recipientId: string): Promise<string> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+
+  const { data, error } = await sb.rpc('send_direct_connection_request', {
+    p_recipient_id: recipientId,
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
 
 export async function sendConnectionRequest(
   listingId: string,

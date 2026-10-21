@@ -13,7 +13,7 @@ interface ConnectionRequestRow {
   id: string;
   senderId: string;
   recipientId: string;
-  listingId: string;
+  listingId: string | null;
   initialMessage: string;
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   createdAt: string;
@@ -114,7 +114,7 @@ export default function ConnectionRequestsPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <h1 className="text-2xl font-black tracking-tight">Connection Requests</h1>
-            <p className="text-sm text-slate-500 mt-1">Buyers who want to connect with you about your listings.</p>
+            <p className="text-sm text-slate-500 mt-1">People who want to connect with you directly or about a listing.</p>
           </div>
 
           {/* Pending requests */}
@@ -130,7 +130,11 @@ export default function ConnectionRequestsPage() {
                       </div>
                       <div className="flex-grow min-w-0">
                         <p className="text-sm font-bold truncate">{r.senderName || 'A buyer'}</p>
-                        <p className="text-xs text-slate-500">Interested in: <span className="font-semibold">{r.listingTitle || 'a listing'}</span></p>
+                        <p className="text-xs text-slate-500">
+                          {r.listingId
+                            ? <>Interested in: <span className="font-semibold">{r.listingTitle || 'a listing'}</span></>
+                            : 'Direct connection request'}
+                        </p>
                       </div>
                     </div>
                     <p className="text-sm text-slate-600 mb-4 italic">"{r.initialMessage}"</p>
@@ -169,7 +173,7 @@ export default function ConnectionRequestsPage() {
                       </div>
                       <div className="flex-grow min-w-0">
                         <p className="text-sm font-semibold truncate">{r.senderName || 'A buyer'}</p>
-                        <p className="text-xs text-slate-500">{r.listingTitle || 'a listing'}</p>
+                        <p className="text-xs text-slate-500">{r.listingId ? r.listingTitle || 'a listing' : 'Direct connection'}</p>
                       </div>
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
                         r.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
@@ -179,7 +183,11 @@ export default function ConnectionRequestsPage() {
                     </div>
                     {r.status === 'accepted' && (
                       <div className="mt-3 pt-3 border-t border-slate-100">
-                        <p className="text-xs text-slate-500 mb-2">Request accepted. Buyer can now start messaging if they have an active subscription.</p>
+                        <p className="text-xs text-slate-500 mb-2">
+                          {r.listingId
+                            ? 'Request accepted. Buyer can message if they have an active messaging subscription.'
+                            : 'Request accepted. You can now message each other directly.'}
+                        </p>
                         <Link
                           href={`/dashboard/messages`}
                           className="text-xs text-[#E53935] font-semibold hover:underline flex items-center gap-1"

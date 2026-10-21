@@ -9,7 +9,9 @@ interface AuthorizeResult {
 
 export interface ConversationSummary {
   id: string;
-  adId: string;
+  adId: string | null;
+  otherUserId: string;
+  isDirect: boolean;
   adTitle: string;
   adImage: string;
   adPrice: number | null;
@@ -35,8 +37,8 @@ export interface ChatMessage {
 const SELECT_CONV = `
   id, ad_id, buyer_id, seller_id, updated_at,
   ads(title, price, status, slug, ad_images(image_url, is_primary)),
-  buyer:profiles!conversations_buyer_id_fkey(id, name, avatar_url),
-  seller:profiles!conversations_seller_id_fkey(id, name, avatar_url)`;
+  buyer:profiles!conversations_buyer_id_fkey(id, name, display_name, username, avatar_url),
+  seller:profiles!conversations_seller_id_fkey(id, name, display_name, username, avatar_url)`;
 
 function mapConversation(row: any, myId: string): ConversationSummary {
   const iAmBuyer = row.buyer_id === myId;
@@ -46,6 +48,8 @@ function mapConversation(row: any, myId: string): ConversationSummary {
   return {
     id: row.id,
     adId: row.ad_id,
+    otherUserId: iAmBuyer ? row.seller_id : row.buyer_id,
+    isDirect: row.ad_id === null,
     adTitle: row.ads?.title ?? '',
     adImage:
       (row.ads?.ad_images || []).find((i: any) => i.is_primary)?.image_url || '',
@@ -53,7 +57,7 @@ function mapConversation(row: any, myId: string): ConversationSummary {
     adStatus: row.ads?.status ?? null,
     adSlug: row.ads?.slug ?? null,
     role: iAmBuyer ? 'buyer' : 'seller',
-    otherName: other?.name || 'User',
+    otherName: other?.display_name || other?.name || (other?.username ? `@${other.username}` : 'User'),
     otherAvatar: other?.avatar_url || undefined,
     lastMessage: last?.message ?? '',
     lastTime: last ? timeAgo(last.created_at) : timeAgo(row.updated_at),

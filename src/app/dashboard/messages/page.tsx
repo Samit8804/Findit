@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -12,11 +12,12 @@ import {
   SendHorizonal,
   Search,
   Flag,
-  Ban,
   ChevronRight,
   Check,
   CheckCheck,
   Loader2,
+  UserRound,
+  MapPin,
 } from 'lucide-react';
 import {
   listConversations,
@@ -30,6 +31,11 @@ import {
   ConversationSummary,
   ChatMessage,
 } from '@/services/messaging';
+import {
+  searchUsersByUsername,
+  sendDirectConnectionRequest,
+} from '@/services/connectionRequests';
+import type { SearchUserResult } from '@/services/connectionRequests';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
 import { useMessagingAccess } from '@/lib/useMessagingAccess';
 import { canBuyerSendMessage, formatMessagingExpiry } from '@/lib/messagingEntitlement';
@@ -45,7 +51,6 @@ const QUICK_REPLIES = [
 const REPORT_REASONS = ['Spam', 'Scam', 'Harassment', 'Inappropriate behavior', 'Other'];
 
 function MessagesContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const unread = useUnread();
   const refreshUnread = unread.refresh;
@@ -61,14 +66,17 @@ function MessagesContent() {
   const [sending, setSending] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchUserResult[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchError, setUserSearchError] = useState('');
+  const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
   const [toast, setToast] = useState('');
 
-  const myIdRef = useRef<string | null>(null);
-  const activeIdRef = useRef('');
-  activeIdRef.current = activeId;
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const flash = useCallback((msg: string) => {
@@ -99,25 +107,52 @@ function MessagesContent() {
     const sb = getSupabaseBrowser();
     let unsub: (() => void) | undefined;
     sb?.auth.getUser().then(({ data }) => {
-      myIdRef.current = data.user?.id ?? null;
       if (data.user) unsub = subscribeToMyConversations(data.user.id, () => void loadConversations());
     });
     return () => unsub?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const query = userSearch.trim().replace(/^@/, '');
+    if (query.length < 2) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setUserSearchLoading(true);
+      setUserSearchError('');
+      try {
+        const results = await searchUsersByUsername(query);
+        if (!cancelled) setSearchResults(results);
+      } catch (error) {
+        if (!cancelled) {
+          setSearchResults([]);
+          setUserSearchError(error instanceof Error ? error.message : 'USER_SEARCH_FAILED');
+        }
+      } finally {
+        if (!cancelled) setUserSearchLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [userSearch]);
+
   const active = useMemo(
     () => convs.find((c) => c.id === activeId) || convs[0],
     [convs, activeId]
   );
 
-  const canSend = active ? canBuyerSendMessage(access, active.role) : false;
+  const canSend = active ? active.isDirect || canBuyerSendMessage(access, active.role) : false;
   const expiry = formatMessagingExpiry(access?.expiresAt);
 
   const filtered = convs.filter(
     (c) =>
       c.otherName.toLowerCase().includes(search.toLowerCase()) ||
-      c.adTitle.toLowerCase().includes(search.toLowerCase())
+    c.adTitle.toLowerCase().includes(search.toLowerCase()) ||
+    (c.isDirect && 'direct connection'.includes(search.toLowerCase()))
   );
 
   /* ---------------- load messages + realtime + read ---------------- */
@@ -175,17 +210,103 @@ function MessagesContent() {
     }
   };
 
+  const requestConnection = async (userId: string) => {
+    setSendingRequestTo(userId);
+    try {
+      const requestId = await sendDirectConnectionRequest(userId);
+      setSearchResults((results) =>
+        results.map((user) =>
+          user.id === userId
+            ? { ...user, connectionStatus: 'sent', requestId }
+            : user
+        )
+      );
+      flash('Connection request sent.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'REQUEST_FAILED';
+      if (message.includes('ALREADY_CONNECTED')) {
+        setSearchResults((results) =>
+          results.map((user) => user.id === userId ? { ...user, connectionStatus: 'connected' } : user)
+        );
+      } else if (message.includes('REQUEST_ALREADY_SENT')) {
+        setSearchResults((results) =>
+          results.map((user) => user.id === userId ? { ...user, connectionStatus: 'sent' } : user)
+        );
+      } else if (message.includes('INCOMING_REQUEST_EXISTS')) {
+        try {
+          setSearchResults(await searchUsersByUsername(userSearch.trim().replace(/^@/, '')));
+        } catch {
+          flash('A request is already waiting. Refresh the search to respond.');
+        }
+      }
+      flash(message.toLowerCase().includes('blocked')
+        ? 'You cannot connect with this user.'
+        : message.replaceAll('_', ' '));
+    } finally {
+      setSendingRequestTo(null);
+    }
+  };
+
+  const respondToSearchRequest = async (user: SearchUserResult, action: 'accept' | 'decline') => {
+    if (!user.requestId) return;
+    setRespondingTo(user.id);
+    try {
+      const sb = getSupabaseBrowser();
+      const token = (await sb?.auth.getSession())?.data.session?.access_token;
+      if (!token) throw new Error('NOT_AUTHENTICATED');
+
+      const response = await fetch('/api/connection-requests/respond', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ request_id: user.requestId, action }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Failed to respond');
+
+      setSearchResults((results) =>
+        results.map((entry) =>
+          entry.id === user.id
+            ? {
+                ...entry,
+                connectionStatus: action === 'accept' ? 'connected' : 'none',
+                requestId: undefined,
+              }
+            : entry
+        )
+      );
+      if (action === 'accept') void loadConversations();
+      flash(action === 'accept' ? 'Request accepted. You can now message each other.' : 'Request declined.');
+    } catch (error) {
+      flash(error instanceof Error ? error.message : 'Failed to respond to request.');
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
+  const openDirectChat = async (userId: string) => {
+    try {
+      const conversations = await listConversations();
+      setConvs(conversations);
+      const conversation = conversations.find((item) => item.isDirect && item.otherUserId === userId);
+      if (!conversation) {
+        flash('Your connection is active, but the chat is not ready yet. Please try again.');
+        return;
+      }
+      setActiveId(conversation.id);
+      setMobileChatOpen(true);
+    } catch {
+      flash('Unable to open this conversation.');
+    }
+  };
+
   const handleBlock = async () => {
     if (!active) return;
     if (!window.confirm(`Block ${active.otherName}? They will not be able to message you.`)) return;
     try {
-      const { getSupabaseBrowser } = await import('@/lib/supabase/client');
-      const sb = getSupabaseBrowser()!;
-      // find other participant's user id from messages
-      const other = messages.find((m) => !m.mine)?.senderId;
-      if (!other) return;
-      const { blockUser } = await import('@/services/messaging');
-      await blockUser(other);
+      await blockUser(active.otherUserId);
       setBlocked(true);
       flash('User blocked.');
     } catch {
@@ -230,6 +351,117 @@ function MessagesContent() {
         </div>
       )}
 
+      <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-3">
+          <h2 className="text-base font-black">Find people</h2>
+          <p className="mt-1 text-xs text-slate-500">Search by username to connect and message directly.</p>
+        </div>
+        <label htmlFor="user-search" className="sr-only">Search users by username</label>
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            id="user-search"
+            value={userSearch}
+            onChange={(event) => {
+              const value = event.target.value;
+              setUserSearch(value);
+              setSearchResults([]);
+              setUserSearchError('');
+              setUserSearchLoading(value.trim().replace(/^@/, '').length >= 2);
+            }}
+            placeholder="Enter a username..."
+            autoComplete="off"
+            className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm focus:border-transparent focus:ring-2 focus:ring-[#E53935]"
+          />
+        </div>
+        {userSearch.length > 0 && userSearch.trim().replace(/^@/, '').length < 2 && (
+          <p className="mt-2 text-xs text-slate-400">Enter at least 2 characters.</p>
+        )}
+        {userSearchLoading && (
+          <div className="flex items-center gap-2 py-4 text-sm text-slate-500" role="status">
+            <Loader2 className="h-4 w-4 animate-spin" /> Searching usernames…
+          </div>
+        )}
+        {userSearchError && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700" role="alert">
+            {userSearchError.replaceAll('_', ' ')}
+          </p>
+        )}
+        {!userSearchLoading && userSearch.trim().replace(/^@/, '').length >= 2 && !userSearchError && (
+          searchResults.length > 0 ? (
+            <ul className="mt-3 divide-y divide-slate-100">
+              {searchResults.map((user) => (
+                <li key={user.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-red-50 text-sm font-black text-[#E53935]">
+                      {user.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <UserRound className="h-5 w-5" />
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold">{user.displayName || user.username}</span>
+                      <span className="block truncate text-xs text-slate-500">
+                        @{user.username}{user.accountType === 'business' ? ' · Business' : ''}
+                      </span>
+                      {user.location && (
+                        <span className="mt-1 flex items-center gap-1 truncate text-[11px] text-slate-400">
+                          <MapPin className="h-3 w-3 shrink-0" /> {user.location}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {user.connectionStatus === 'none' && (
+                      <button
+                        onClick={() => void requestConnection(user.id)}
+                        disabled={sendingRequestTo === user.id}
+                        className="w-full rounded-xl bg-[#E53935] px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#D32F2F] disabled:opacity-60 sm:w-auto"
+                      >
+                        {sendingRequestTo === user.id ? <Loader2 className="inline h-4 w-4 animate-spin" /> : 'Request to Connect'}
+                      </button>
+                    )}
+                    {user.connectionStatus === 'sent' && (
+                      <span className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-500">Request Sent</span>
+                    )}
+                    {user.connectionStatus === 'incoming' && (
+                      <>
+                        <button
+                          onClick={() => void respondToSearchRequest(user, 'accept')}
+                          disabled={respondingTo === user.id}
+                          className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60 sm:flex-none"
+                        >
+                          {respondingTo === user.id ? <Loader2 className="inline h-4 w-4 animate-spin" /> : 'Accept'}
+                        </button>
+                        <button
+                          onClick={() => void respondToSearchRequest(user, 'decline')}
+                          disabled={respondingTo === user.id}
+                          className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:border-red-300 hover:text-red-600 disabled:opacity-60 sm:flex-none"
+                        >
+                          Decline
+                        </button>
+                      </>
+                    )}
+                    {user.connectionStatus === 'connected' && (
+                      <button
+                        onClick={() => void openDirectChat(user.id)}
+                        className="w-full rounded-xl bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 sm:w-auto"
+                      >
+                        Connected · Message
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-4 text-center text-sm text-slate-500">No users found for that username.</p>
+          )
+        )}
+      </section>
+
       {accessLoading ? (
         <div className="mb-6 p-8 text-center bg-white rounded-2xl border border-slate-100">
           <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto mb-3" />
@@ -240,7 +472,7 @@ function MessagesContent() {
           <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-black mb-2">Messaging is locked</h2>
           <p className="text-slate-600 mb-2 max-w-md mx-auto leading-relaxed">
-            You can still read your existing conversations. To start or reply as a buyer,
+            You can still message accepted direct connections. To message buyers or sellers about a listing,
             choose a plan that includes messaging.
           </p>
           <p className="text-xs text-slate-400 mb-6">Sellers can reply to buyers who are already in a conversation.</p>
@@ -281,13 +513,13 @@ function MessagesContent() {
               ) : filtered.length === 0 ? (
                 <li className="p-8 text-center">
                   <p className="text-sm font-semibold text-slate-600">No conversations yet.</p>
-                  <p className="text-xs text-slate-400 mt-1">Contact a seller to start a conversation.</p>
+                  <p className="text-xs text-slate-400 mt-1">Search for a username or contact a seller to start a conversation.</p>
                 </li>
               ) : (
                 filtered.map((c) => (
                   <li key={c.id}>
                     <button
-                      onClick={() => { setActiveId(c.id); setMobileChatOpen(true); }}
+                      onClick={() => { setBlocked(false); setActiveId(c.id); setMobileChatOpen(true); }}
                       className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors ${c.id === active?.id ? 'bg-red-50/60' : 'hover:bg-slate-50'}`}
                     >
                       <span className="relative shrink-0">
@@ -305,8 +537,8 @@ function MessagesContent() {
                           <span className="text-sm font-bold truncate">{c.otherName}</span>
                           <span className="text-[10px] text-slate-400 shrink-0">{c.lastTime}</span>
                         </span>
-                        <span className="block text-[11px] text-slate-400 truncate mt-0.5">{c.lastMessage || `Re: ${c.adTitle}`}</span>
-                        <span className="block text-[10px] font-semibold text-[#E53935]/80 truncate mt-0.5">Re: {c.adTitle}</span>
+                        <span className="block text-[11px] text-slate-400 truncate mt-0.5">{c.lastMessage || (c.isDirect ? 'Direct connection' : `Re: ${c.adTitle}`)}</span>
+                        <span className="block text-[10px] font-semibold text-[#E53935]/80 truncate mt-0.5">{c.isDirect ? 'Direct connection' : `Re: ${c.adTitle}`}</span>
                       </span>
                       {c.unread > 0 && (
                         <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-[#E53935] text-white text-[10px] font-bold flex items-center justify-center">{c.unread}</span>
@@ -341,7 +573,7 @@ function MessagesContent() {
                   </span>
                   <div className="min-w-0 flex-grow">
                     <p className="text-sm font-bold truncate">{active.otherName}</p>
-                    <p className="text-[11px] text-slate-400 truncate">Re: {active.adTitle}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{active.isDirect ? 'Direct connection' : `Re: ${active.adTitle}`}</p>
                   </div>
                   <button
                     onClick={() => setReportOpen(true)}
@@ -353,22 +585,29 @@ function MessagesContent() {
                 </header>
 
                 {/* Ad reference */}
-                <Link href={`/ad/${active.adSlug}`} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50/60 hover:bg-slate-100/60 transition-colors">
-                  {active.adImage && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={active.adImage} alt="" className="w-9 h-9 rounded-lg object-cover" />
-                  )}
-                  <span className="min-w-0 flex-grow">
-                    <span className="block text-xs font-bold truncate">{active.adTitle}</span>
-                    <span className="block text-[10px] text-slate-400">
-                      {active.adPrice != null ? `₹${active.adPrice.toLocaleString('en-IN')}` : ''}
-                      {(active.adStatus === 'sold') && <span className="ml-2 font-black text-sky-600">SOLD</span>}
-                      {(active.adStatus === 'expired') && <span className="ml-2 font-black text-slate-400">EXPIRED</span>}
-                      {(active.adStatus === 'deleted') && <span className="ml-2 font-black text-slate-400">This advertisement is no longer available.</span>}
+                {active.isDirect ? (
+                  <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+                    <UserRound className="h-5 w-5 text-slate-400" />
+                    <span className="text-xs font-semibold text-slate-600">Direct connection</span>
+                  </div>
+                ) : (
+                  <Link href={`/ad/${active.adSlug}`} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50/60 hover:bg-slate-100/60 transition-colors">
+                    {active.adImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={active.adImage} alt="" className="w-9 h-9 rounded-lg object-cover" />
+                    )}
+                    <span className="min-w-0 flex-grow">
+                      <span className="block text-xs font-bold truncate">{active.adTitle}</span>
+                      <span className="block text-[10px] text-slate-400">
+                        {active.adPrice != null ? `₹${active.adPrice.toLocaleString('en-IN')}` : ''}
+                        {(active.adStatus === 'sold') && <span className="ml-2 font-black text-sky-600">SOLD</span>}
+                        {(active.adStatus === 'expired') && <span className="ml-2 font-black text-slate-400">EXPIRED</span>}
+                        {(active.adStatus === 'deleted') && <span className="ml-2 font-black text-slate-400">This advertisement is no longer available.</span>}
+                      </span>
                     </span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-                </Link>
+                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                  </Link>
+                )}
 
                 {/* Messages */}
                 <div className="flex-grow overflow-y-auto p-5 space-y-4 bg-slate-50/50">
@@ -424,7 +663,7 @@ function MessagesContent() {
                 <footer className="p-4 border-t border-slate-100">
                   {blocked ? (
                     <p className="text-center text-xs font-semibold text-slate-400 py-3 bg-slate-50 rounded-xl">User blocked</p>
-                  ) : active.role === 'buyer' && accessLoading ? (
+                  ) : !active.isDirect && active.role === 'buyer' && accessLoading ? (
                     <div className="flex items-center justify-center gap-2 py-3 text-xs font-semibold text-slate-400">
                       <Loader2 className="w-4 h-4 animate-spin" /> Checking your messaging plan…
                     </div>
