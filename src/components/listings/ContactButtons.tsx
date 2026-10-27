@@ -146,6 +146,9 @@ export const ContactButtons: React.FC<ContactButtonsProps> = ({
       setRequest(updated);
       setReqStatus(updated.status as RequestStatus);
       window.dispatchEvent(new CustomEvent('findit-toast', { detail: `Request ${action}ed.` }));
+      if (action === 'accept' && updated.conversationId) {
+        router.push(`/dashboard/messages?c=${updated.conversationId}`);
+      }
     } catch (err: any) {
       window.dispatchEvent(new CustomEvent('findit-toast', { detail: err.message || 'Failed to respond.' }));
     } finally {

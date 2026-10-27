@@ -99,6 +99,30 @@ export async function listConversations(): Promise<ConversationSummary[]> {
   return (data || []).map((r: any) => mapConversation(r, auth.user!.id));
 }
 
+/**
+ * Create-or-get the single direct conversation (ad_id = NULL) for two
+ * users who have an accepted connection request.
+ *
+ * The database RPC is the authorization boundary: it derives the caller
+ * from auth.uid(), requires an accepted connection between the exact pair,
+ * rejects self/blocked users, and returns the existing row if one exists.
+ * Both participants therefore see the same conversation.
+ */
+export async function getOrCreateDirectConversation(userId: string): Promise<string> {
+  const sb = getSupabaseBrowser();
+  if (!sb) throw new Error('BACKEND_NOT_CONFIGURED');
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) throw new Error('NOT_AUTHENTICATED');
+  if (auth.user.id === userId) throw new Error('SELF_CONNECTION');
+
+  const { data, error } = await sb.rpc('get_or_create_direct_conversation', {
+    p_other_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('CONVERSATION_NOT_CREATED');
+  return data as string;
+}
+
 /** Create-or-get a conversation for this buyer/seller/ad pair. Returns id.
  *
  * Requires:
@@ -107,6 +131,8 @@ export async function listConversations(): Promise<ConversationSummary[]> {
  *
  * Server-side authorization is enforced via /api/conversations/authorize
  * and database triggers (guard_conversation, guard_message_entitlement).
+ * Direct connections use getOrCreateDirectConversation() above instead,
+ * so they do not require a listing id or a listing messaging subscription.
  */
 export async function openOrCreateConversation(
   adId: string,

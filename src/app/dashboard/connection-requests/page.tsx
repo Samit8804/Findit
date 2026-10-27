@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { getSupabaseBrowser, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -25,6 +26,7 @@ interface ConnectionRequestRow {
 }
 
 export default function ConnectionRequestsPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<ConnectionRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState<string | null>(null);
@@ -83,11 +85,16 @@ export default function ConnectionRequestsPage() {
         },
         body: JSON.stringify({ request_id: requestId, action }),
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Failed to respond');
-      }
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Failed to respond');
       setRequests((rs) => rs.map((r) => r.id === requestId ? { ...r, status: action === 'accept' ? 'accepted' : 'declined', respondedAt: new Date().toISOString() } : r));
+
+      if (action === 'accept' && result.conversationId) {
+        toast('Request accepted. Opening chat…');
+        router.push(`/dashboard/messages?c=${result.conversationId}`);
+        return;
+      }
+
       toast(`Request ${action}ed.`);
     } catch (e: any) {
       toast(e.message || 'Failed to respond to request.');

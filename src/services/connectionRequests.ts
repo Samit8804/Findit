@@ -14,6 +14,8 @@ export interface ConnectionRequest {
   listingTitle?: string;
   senderName?: string;
   senderAvatar?: string;
+  /** Returned by respond_to_connection_request when a request is accepted. */
+  conversationId?: string | null;
 }
 
 export interface SearchUserResult {
@@ -146,19 +148,40 @@ export async function respondToConnectionRequest(
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) throw new Error('NOT_AUTHENTICATED');
 
-  const newStatus = response === 'accept' ? 'accepted' : 'declined';
-
-  const { data, error } = await sb
-    .from('connection_requests')
-    .update({ status: newStatus })
-    .eq('id', requestId)
-    .eq('recipient_id', auth.user.id)
-    .eq('status', 'pending')
-    .select('*')
-    .single();
-
+  // The RPC is atomic: it locks the request, checks that the caller is the
+  // recipient, accepts/declines it, and (on accept) creates/returns the
+  // pair's direct conversation.
+  const { data, error } = await sb.rpc('respond_to_connection_request', {
+    p_request_id: requestId,
+    p_action: response,
+  });
   if (error) throw new Error(error.message);
-  return mapConnectionRequest(data);
+
+  const row = data as {
+    id: string;
+    senderId: string;
+    recipientId: string;
+    listingId: string | null;
+    initialMessage: string;
+    status: ConnectionRequest['status'];
+    createdAt: string;
+    updatedAt: string;
+    respondedAt: string | null;
+    conversationId?: string | null;
+  };
+
+  return {
+    id: row.id,
+    senderId: row.senderId,
+    recipientId: row.recipientId,
+    listingId: row.listingId ?? null,
+    initialMessage: row.initialMessage ?? '',
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    respondedAt: row.respondedAt ?? null,
+    conversationId: row.conversationId ?? null,
+  };
 }
 
 export async function cancelConnectionRequest(requestId: string): Promise<void> {

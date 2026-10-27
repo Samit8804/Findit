@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -28,12 +28,14 @@ import {
   subscribeToMyConversations,
   blockUser,
   reportMessage,
+  getOrCreateDirectConversation,
   ConversationSummary,
   ChatMessage,
 } from '@/services/messaging';
 import {
   searchUsersByUsername,
   sendDirectConnectionRequest,
+  respondToConnectionRequest,
 } from '@/services/connectionRequests';
 import type { SearchUserResult } from '@/services/connectionRequests';
 import { isSupabaseConfigured, getSupabaseBrowser } from '@/lib/supabase/client';
@@ -50,8 +52,20 @@ const QUICK_REPLIES = [
 
 const REPORT_REASONS = ['Spam', 'Scam', 'Harassment', 'Inappropriate behavior', 'Other'];
 
+function directChatErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('USER_BLOCKED')) return 'You cannot message this user.';
+  if (message.includes('NO_ACCEPTED_CONNECTION')) return 'Accept the connection request before messaging.';
+  if (message.includes('USER_NOT_FOUND')) return 'User not found.';
+  if (message.includes('SELF_CONNECTION')) return 'You cannot message yourself.';
+  if (message.includes('NOT_AUTHENTICATED')) return 'Sign in to open this chat.';
+  if (message.includes('BACKEND_NOT_CONFIGURED')) return 'Messaging is not configured.';
+  return message ? message.replaceAll('_', ' ') : 'Unable to open this conversation.';
+}
+
 function MessagesContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const unread = useUnread();
   const refreshUnread = unread.refresh;
   const { access, loading: accessLoading, refresh: refreshAccess } = useMessagingAccess();
@@ -85,25 +99,40 @@ function MessagesContent() {
   }, []);
 
   /* ---------------- load conversations ---------------- */
-  const loadConversations = useCallback(async () => {
-    if (!isSupabaseConfigured) { setListLoading(false); return; }
+  const loadConversations = useCallback(async (
+    options?: { preferredId?: string }
+  ): Promise<ConversationSummary[]> => {
+    if (!isSupabaseConfigured) { setListLoading(false); return []; }
     try {
       const list = await listConversations();
       setConvs(list);
       setLoadError('');
-      // restore deep-link conversation
-      const want = searchParams.get('c');
-      setActiveId((cur) => cur || want || list[0]?.id || '');
-    } catch (e: any) {
+      setActiveId((cur) => {
+        if (options?.preferredId) return options.preferredId;
+        if (cur && list.some((c) => c.id === cur)) return cur;
+        return list[0]?.id || '';
+      });
+      return list;
+    } catch {
       setLoadError('Failed to load messages.');
+      return [];
     } finally {
       setListLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const openConversation = useCallback((conversationId: string) => {
+    setBlocked(false);
+    setActiveId(conversationId);
+    setMobileChatOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('c', conversationId);
+    router.replace(`/dashboard/messages?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
   useEffect(() => {
-    void loadConversations();
+    const deepLink = searchParams.get('c') || undefined;
+    void loadConversations({ preferredId: deepLink });
     const sb = getSupabaseBrowser();
     let unsub: (() => void) | undefined;
     sb?.auth.getUser().then(({ data }) => {
@@ -141,7 +170,7 @@ function MessagesContent() {
   }, [userSearch]);
 
   const active = useMemo(
-    () => convs.find((c) => c.id === activeId) || convs[0],
+    () => convs.find((c) => c.id === activeId) || (activeId ? undefined : convs[0]),
     [convs, activeId]
   );
 
@@ -251,20 +280,7 @@ function MessagesContent() {
     if (!user.requestId) return;
     setRespondingTo(user.id);
     try {
-      const sb = getSupabaseBrowser();
-      const token = (await sb?.auth.getSession())?.data.session?.access_token;
-      if (!token) throw new Error('NOT_AUTHENTICATED');
-
-      const response = await fetch('/api/connection-requests/respond', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ request_id: user.requestId, action }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Failed to respond');
+      const updated = await respondToConnectionRequest(user.requestId, action);
 
       setSearchResults((results) =>
         results.map((entry) =>
@@ -277,10 +293,22 @@ function MessagesContent() {
             : entry
         )
       );
-      if (action === 'accept') void loadConversations();
-      flash(action === 'accept' ? 'Request accepted. You can now message each other.' : 'Request declined.');
+
+      if (action === 'accept') {
+        const conversationId = updated.conversationId;
+        if (conversationId) {
+          await loadConversations({ preferredId: conversationId });
+          openConversation(conversationId);
+          flash('Request accepted. Chat opened.');
+        } else {
+          await loadConversations();
+          flash('Request accepted. You can now message each other.');
+        }
+      } else {
+        flash('Request declined.');
+      }
     } catch (error) {
-      flash(error instanceof Error ? error.message : 'Failed to respond to request.');
+      flash(directChatErrorMessage(error));
     } finally {
       setRespondingTo(null);
     }
@@ -288,17 +316,13 @@ function MessagesContent() {
 
   const openDirectChat = async (userId: string) => {
     try {
-      const conversations = await listConversations();
-      setConvs(conversations);
-      const conversation = conversations.find((item) => item.isDirect && item.otherUserId === userId);
-      if (!conversation) {
-        flash('Your connection is active, but the chat is not ready yet. Please try again.');
-        return;
-      }
-      setActiveId(conversation.id);
-      setMobileChatOpen(true);
-    } catch {
-      flash('Unable to open this conversation.');
+      // Idempotent database operation: creates the pair's direct
+      // conversation (ad_id = NULL) if it does not exist yet.
+      const conversationId = await getOrCreateDirectConversation(userId);
+      await loadConversations({ preferredId: conversationId });
+      openConversation(conversationId);
+    } catch (error) {
+      flash(directChatErrorMessage(error));
     }
   };
 
